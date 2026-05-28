@@ -1,0 +1,14 @@
+{
+  "pwa": {
+    "ent_path": "base\\characters\\entities\\main_npc\\judy.ent",
+    "app_path": "base\\characters\\appearances\\main_npc\\judy.app",
+    "source_archive": "basegame_4_appearance.archive",
+    "uncook_regex": "main_npc[/\\\\]judy\\.(app|ent)$"
+  },
+  "pma": {
+    "ent_path": "base\\characters\\entities\\main_npc\\thompson.ent",
+    "app_path": "base\\characters\\appearances\\main_npc\\thompson.app",
+    "source_archive": "basegame_4_appearance.archive",
+    "uncook_regex": "main_npc[/\\\\]thompson\\.(app|ent)$"
+  }
+}

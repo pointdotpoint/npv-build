@@ -1,0 +1,20 @@
+{
+  "patch": "2.13",
+  "body_rig": "pwa",
+  "head": {
+    "preset_id": 6,
+    "eyes": {
+      "shape_id": "02",
+      "morph_weights": {
+        "eyes_02": 1.0
+      }
+    }
+  },
+  "hair": {
+    "style_id": "07",
+    "colour_id": "red"
+  },
+  "skin": {
+    "tone_id": "light"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "patch": "2.13",
+  "body_rig": "pwa",
+  "head_mesh": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead.mesh",
+  "head_morphtargets": [
+    "base\\characters\\head\\player_base_heads\\player_female_average\\morphtargets\\eyes_02.morphtarget",
+    "base\\characters\\head\\player_base_heads\\player_female_average\\morphtargets\\nose_05.morphtarget",
+    "base\\characters\\head\\player_base_heads\\player_female_average\\morphtargets\\mouth_03.morphtarget",
+    "base\\characters\\head\\player_base_heads\\player_female_average\\morphtargets\\jaw_01.morphtarget",
+    "base\\characters\\head\\player_base_heads\\player_female_average\\morphtargets\\ears_04.morphtarget"
+  ],
+  "morph_weights": {
+    "eyes_02": 1.0,
+    "nose_05": 1.0,
+    "mouth_03": 1.0,
+    "jaw_01": 1.0,
+    "ears_04": 1.0
+  },
+  "hair_mesh": "base\\characters\\hair\\hair_07.mesh",
+  "skin_material_instance": "base\\characters\\skin\\skin_light_01.mi"
+}

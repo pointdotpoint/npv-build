@@ -1,0 +1,29 @@
+{
+  "_comment": "NPV part-entity mapping. CP2077 appearances compose from part .ent files via partsValues. We author an uncooked NPV .app referencing these. Face shape = the head preset's part .ents; only preset 00 (basehead) part-ents are mapped for now (other presets need enumeration). Body is the base body part .ent.",
+  "pwa": {
+    "head_preset_parts": {
+      "00": [
+        "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent",
+        "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\he_000_pwa__basehead.ent",
+        "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\ht_000_pwa__basehead.ent",
+        "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\heb_000_pwa__basehead.ent"
+      ]
+    },
+    "body_part": "base\\characters\\common\\player_base_bodies\\appearances\\entity\\t0_000_pwa_base__full.ent",
+    "arms_part": "base\\characters\\common\\player_base_bodies\\appearances\\entity\\a0_000_pwa_base__full.ent",
+    "hair_part": {}
+  },
+  "pma": {
+    "head_preset_parts": {
+      "00": [
+        "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pma__basehead.ent",
+        "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\he_000_pma__basehead.ent",
+        "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\ht_000_pma__basehead.ent",
+        "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\heb_000_pma__basehead.ent"
+      ]
+    },
+    "body_part": "base\\characters\\common\\player_base_bodies\\appearances\\entity\\t0_000_pma_base__full.ent",
+    "arms_part": "base\\characters\\common\\player_base_bodies\\appearances\\entity\\a0_000_pma_base__full.ent",
+    "hair_part": {}
+  }
+}

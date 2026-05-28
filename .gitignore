@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C# / .NET build directories
+bin/
+obj/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Python virtual environment
+venv/
+.venv/
+env/
+lib/
+lib64/
+
+# Testing cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local build artifacts & temporary files
+trial_out/
+npv_build.egg-info/
+test.sav.dat
+*.log
+*.tmp

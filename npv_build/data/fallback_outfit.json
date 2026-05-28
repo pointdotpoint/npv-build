@@ -1,0 +1,36 @@
+{
+  "pwa": {
+    "inner_torso": {
+      "name": "t1_024_pwa_tshirt__sweater",
+      "mesh": "base\\characters\\garment\\player_equipment\\torso\\t1_024_tshirt__sweater\\t1_024_pwa_tshirt__sweater.mesh",
+      "appearance": "default"
+    },
+    "legs": {
+      "name": "l1_012_pwa_pants__jeans_tight",
+      "mesh": "base\\characters\\garment\\player_equipment\\legs\\l1_012_pants__jeans_tight\\l1_012_pwa_pants__jeans_tight.mesh",
+      "appearance": "default"
+    },
+    "feet": {
+      "name": "s1_066_pwa_boot__bovver",
+      "mesh": "base\\characters\\garment\\player_equipment\\feet\\s1_066_boot__bovver\\s1_066_pwa_boot__bovver.mesh",
+      "appearance": "default"
+    }
+  },
+  "pma": {
+    "inner_torso": {
+      "name": "t1_024_pma_tshirt__sweater",
+      "mesh": "base\\characters\\garment\\player_equipment\\torso\\t1_024_tshirt__sweater\\t1_024_pma_tshirt__sweater.mesh",
+      "appearance": "default"
+    },
+    "legs": {
+      "name": "l1_012_pma_pants__jeans_tight",
+      "mesh": "base\\characters\\garment\\player_equipment\\legs\\l1_012_pants__jeans_tight\\l1_012_pma_pants__jeans_tight.mesh",
+      "appearance": "default"
+    },
+    "feet": {
+      "name": "s1_066_pma_boot__bovver",
+      "mesh": "base\\characters\\garment\\player_equipment\\feet\\s1_066_boot__bovver\\s1_066_pma_boot__bovver.mesh",
+      "appearance": "default"
+    }
+  }
+}

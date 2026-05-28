@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "npv-build"
+version = "1.0.0"
+description = "Cyberpunk 2077 NPV Automation"
+authors = [
+    {name = "Maintainer"}
+]
+requires-python = ">=3.9"
+dependencies = [
+    "tomli; python_version < '3.11'",
+    "tomli-w"
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+npv-build = "npv_build.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["npv_build*"]
+
+[tool.setuptools.package-data]
+"npv_build" = ["data/**/*"]
