@@ -24,6 +24,7 @@ htmlcov/
 
 # Local build artifacts & temporary files
 trial_out/
+latest_v_mod/
 npv_build.egg-info/
 test.sav.dat
 *.log
