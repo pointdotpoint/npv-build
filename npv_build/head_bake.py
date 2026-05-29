@@ -67,10 +67,58 @@ def _restore_head_materials(
     """
     basename = STOCK_HEAD_MESH.get(body_rig, STOCK_HEAD_MESH["pwa"])
 
+    # 1. Scan for custom skin/complexion mod archives that override the head mesh in the pc/mod folder
+    game_dir = wk.config.game_dir
+    mod_archive_path = None
+    if game_dir:
+        mod_dir = game_dir / "archive" / "pc" / "mod"
+        if mod_dir.exists():
+            mod_archives = sorted(mod_dir.glob("*.archive"))
+            # Pre-filter mod archives by keyword to avoid sequentially scanning hundreds of unrelated mods
+            candidates = []
+            for arch in mod_archives:
+                if arch.name.startswith("my_v_"):
+                    continue
+                low = arch.name.lower()
+                # Exclude accessories and unrelated cosmetic categories
+                if any(x in low for x in ("holo", "plugin", "mask", "horn", "ear", "wing", "acc_", "hair", "tattoo", "jacket", "outfit", "boots", "frame", "dealer", "pose", "props", "cyberarm", "armleft", "flat_feet")):
+                    continue
+                if any(k in low for k in ("head", "face", "skin", "complexion", "vtk", "body", "basehead", "h0_000")):
+                    candidates.append(arch)
+
+            # Prioritize high-probability matches (VTK head overrides) to check them first
+            high_priority = []
+            low_priority = []
+            for arch in candidates:
+                low = arch.name.lower()
+                if ("vtk" in low and "head" in low) or "basehead" in low or "h0_000" in low:
+                    high_priority.append(arch)
+                else:
+                    low_priority.append(arch)
+            
+            ordered_candidates = high_priority + low_priority
+
+            for arch in ordered_candidates:
+                try:
+                    matches = wk.list_archive(basename, archive=arch)
+                    if matches:
+                        mod_archive_path = arch
+                        if verbosity > 0:
+                            print(f"[Head] Found custom head mesh override in mod archive: {arch.name}")
+                        break
+                except Exception:
+                    pass
+
+
+    # Use the custom skin mod archive if found, otherwise fall back to base-game
+    source_archive = mod_archive_path or wk.config.appearance_archive
+    if verbosity > 0:
+        print(f"[Head] Restoring head materials from archive: {source_archive.name}")
+
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
 
-        wk.unbundle(_re.escape(basename) + r"$", dest=td_path)
+        wk.unbundle(_re.escape(basename) + r"$", archive=source_archive, dest=td_path)
         stock_files = list(td_path.rglob(basename))
         if not stock_files:
             return
@@ -116,6 +164,7 @@ def _restore_head_materials(
         mat_count = len(stock_rc.get("materialEntries", []))
         if verbosity > 0:
             print(f"[Head] restored {mat_count} materials from stock head")
+
 
 
 def bake_head(

@@ -420,6 +420,39 @@ def build_project(
         })
         if verbosity > 0:
             print(f"[Head] baked head component: h0_000_{body_rig}_c__basehead")
+
+        # Auto-inject VTK seamfix and headpatch if VTK is installed in the game mods directory
+        has_vtk = False
+        if game_dir:
+            mod_dir = game_dir / "archive" / "pc" / "mod"
+            if mod_dir.exists():
+                for arch in mod_dir.glob("*.archive"):
+                    if "vtk" in arch.name.lower():
+                        has_vtk = True
+                        break
+        
+        if has_vtk:
+            seamfix_mesh = "base\\vtk\\femv_seamfix.mesh" if body_rig == "pwa" else "base\\vtk\\mase_seamfix.mesh"
+            headpatch_mesh = "base\\vtk\\femv_vtk_headpatch.mesh" if body_rig == "pwa" else "base\\vtk\\mase_vtk_headpatch.mesh"
+            
+            component_specs.append({
+                "comp_type": "entSkinnedMeshComponent",
+                "name": "femv_vtk_headpatch",
+                "mesh": headpatch_mesh,
+                "appearance": skin_tone,
+                "bind_to": "root",
+                "source": "VTK headpatch (auto-injected)",
+            })
+            component_specs.append({
+                "comp_type": "entSkinnedMeshComponent",
+                "name": "femv_seamfix",
+                "mesh": seamfix_mesh,
+                "appearance": skin_tone,
+                "bind_to": "root",
+                "source": "VTK seamfix (auto-injected)",
+            })
+            if verbosity > 0:
+                print(f"[Head] Auto-injected VTK headpatch and seamfix for rig {body_rig}")
     elif stock_head_depot:
         use_morph_fallback = bool(face_morphs)
         comps = _extract_part_components(wk, stock_head_depot, verbosity)
