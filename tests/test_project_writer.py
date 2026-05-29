@@ -27,7 +27,7 @@ def test_components_json_structure(tmp_path):
     assert c0["name"] == "MorphTargetSkinnedMesh7243"
     assert c0["meshAppearance"] == "01_ca_pale"
     assert c0["morphResource"] == "base\\characters\\head\\my_morphs.morphtarget"
-    assert c0["bindTo"] == "root"
+    assert c0["bindTo"] == "face_rig"
     assert c0["source"] == "baked head"
     c1 = data["components"][1]
     assert "morphResource" not in c1

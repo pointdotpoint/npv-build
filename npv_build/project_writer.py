@@ -16,20 +16,52 @@ def write_components_json(component_specs, appearance_name, out_path: Path):
             "type": spec["comp_type"],
             "name": spec["name"],
         }
+        # Determine binding target: head-related components bind to "face_rig", others to "root"
+        bind_to = spec.get("bind_to")
+        if not bind_to:
+            name_lower = (spec.get("name") or "").lower()
+            mesh_lower = (spec.get("mesh") or "").lower()
+            source_lower = (spec.get("source") or "").lower()
+            is_head = (
+                any(p in name_lower for p in ["h0_", "he_", "ht_", "hb_", "hx_", "heb_"]) or
+                "player_base_heads" in mesh_lower or
+                "characters\\head" in mesh_lower or
+                "characters/head" in mesh_lower or
+                "basehead" in name_lower or
+                "basehead" in source_lower or
+                "_head.mesh" in mesh_lower or
+                "eyes" in name_lower or
+                "eyes" in source_lower or
+                "eyes" in mesh_lower or
+                "teeth" in name_lower or
+                "teeth" in source_lower or
+                "cyberware" in name_lower or
+                "cyberware" in source_lower or
+                "makeup" in name_lower or
+                "makeup" in source_lower or
+                "freckles" in name_lower or
+                "freckles" in source_lower or
+                "pimples" in name_lower or
+                "pimples" in source_lower or
+                ("tattoo" in name_lower and "tattoo_08" in mesh_lower) or
+                ("tattoo" in source_lower and "tattoo_08" in mesh_lower)
+            )
+            bind_to = "face_rig" if is_head else "root"
+
         if spec["comp_type"] == "entAnimatedComponent":
             entry["graph"] = spec.get("graph", "")
             entry["rig"] = spec.get("rig", "")
-            entry["bindTo"] = spec.get("bind_to", "root")
+            entry["bindTo"] = bind_to
         elif spec["comp_type"] == "entMorphTargetSkinnedMeshComponent":
             entry["mesh"] = spec.get("mesh", "")
             entry["meshAppearance"] = spec.get("appearance", "default")
-            entry["bindTo"] = spec.get("bind_to", "root")
+            entry["bindTo"] = bind_to
             entry["graph"] = spec.get("graph", "") or spec.get("morph_resource", "")
             entry["morphResource"] = spec.get("morph_resource", "") or spec.get("graph", "")
         else:
             entry["mesh"] = spec.get("mesh", "")
             entry["meshAppearance"] = spec.get("appearance", "default")
-            entry["bindTo"] = spec.get("bind_to", "root")
+            entry["bindTo"] = bind_to
         if spec.get("source"):
             entry["source"] = spec["source"]
         components.append(entry)
