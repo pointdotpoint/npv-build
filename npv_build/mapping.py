@@ -67,19 +67,25 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
     if head_raw:
         head_key = f"h0_{str(head_index).zfill(3)}_{body_rig}__basehead"
         if head_key in index.get("part_ents", {}):
-            part_entities.append(index["part_ents"][head_key])
             app_key = f"h0_{str(head_index).zfill(3)}__basehead"
             if app_key in index.get("head_apps", {}):
                 asset_paths["head_app"] = index["head_apps"][app_key]
                 asset_paths["head_appearance_name"] = head_raw
         else:
-            fallback_head = rig_map.get("head_preset_parts", {}).get("00", [])
-            for p in fallback_head:
-                if "h0_000" in p:
-                    part_entities.append(p)
-                    asset_paths["head_app"] = "base\\characters\\head\\player_base_heads\\appearances\\head\\h0_000__basehead.app"
-                    asset_paths["head_appearance_name"] = head_raw or f"h0_000_{body_rig}__basehead__01_ca_pale"
+            asset_paths["head_app"] = "base\\characters\\head\\player_base_heads\\appearances\\head\\h0_000__basehead.app"
+            asset_paths["head_appearance_name"] = head_raw or f"h0_000_{body_rig}__basehead__01_ca_pale"
             asset_paths["unresolved"].append(head_raw)
+
+        # Always add the full set of head preset parts (head, eyes, teeth, eyebrows)
+        preset_key = str(head_index).zfill(2)
+        preset_parts = rig_map.get("head_preset_parts", {}).get(preset_key, rig_map.get("head_preset_parts", {}).get("00", []))
+        for p in preset_parts:
+            # If the index has a customized head part entity for this preset, use it
+            p_basename = p.replace("\\", "/").rsplit("/", 1)[-1].rsplit(".", 1)[0]
+            if p_basename in index.get("part_ents", {}):
+                part_entities.append(index["part_ents"][p_basename])
+            else:
+                part_entities.append(p)
 
     # 1b. Modded hair from the parser roll-up -> external dependency.
     hair_info = cc_settings.get("hair", {})

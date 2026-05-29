@@ -279,11 +279,13 @@ def _extract_ccxl_eye_components(
 
 
 def _apply_recipe_overrides(components: list[dict], recipe_overrides: list[dict]) -> list[dict]:
-    """Apply recipe material overrides to components. Returns partsOverrides
-    entries for overrides that must be applied at runtime (e.g. eyelash color
-    on the same mesh as eye color)."""
+    """Process recipe material overrides. Modifies head component overrides
+    to also target our baked head component name. Returns the fully prepared
+    partsOverrides list to be written to the .app file."""
+    import copy
+
+    # 1. First, build the direct override_map for components where we can set appearance directly
     override_map = {}
-    parts_overrides = []
     for ov in recipe_overrides:
         pr = ov.get("partResource", {}).get("DepotPath", {}).get("$value", "").lower()
         is_head_part = "appearances\\entity\\head\\h0_" in pr or "appearances/entity/head/h0_" in pr.replace("\\", "/")
@@ -292,11 +294,11 @@ def _apply_recipe_overrides(components: list[dict], recipe_overrides: list[dict]
             cn = co.get("componentName", {}).get("$value", "")
             ma = co.get("meshAppearance", {}).get("$value", "")
             if cn and ma:
+                # Eyelashes shouldn't be set directly on the eyes component since eye color is also set there
                 if ma.startswith("eyelashes__"):
-                    parts_overrides.append({"componentName": cn, "meshAppearance": ma})
                     continue
-                
-                # Alias stock MorphTargetSkinnedMesh head component overrides to the NPV's baked basehead component name
+
+                # Alias stock head component overrides to our baked basehead component name
                 if is_head_part and cn.startswith("MorphTargetSkinnedMesh"):
                     head_comp_names = [comp["name"] for comp in components if comp["name"].endswith("_basehead")]
                     for hname in head_comp_names:
@@ -304,12 +306,45 @@ def _apply_recipe_overrides(components: list[dict], recipe_overrides: list[dict]
 
                 override_map[cn] = ma
 
+    # Apply direct appearances to inlined components
     for comp in components:
         name = comp.get("name", "")
         if name in override_map:
             comp["appearance"] = override_map[name]
 
-    return parts_overrides
+    # 2. Prepare the partsOverrides list for the .app file.
+    # We must preserve the original partResource paths and component overrides structure,
+    # but we will inject the baked head component aliases for any head MorphTargetSkinnedMesh overrides.
+    app_parts_overrides = []
+
+    for ov in recipe_overrides:
+        # Clone the override block to avoid modifying the original parsed asset_paths in-place
+        ov_clone = copy.deepcopy(ov)
+        pr = ov_clone.get("partResource", {}).get("DepotPath", {}).get("$value", "").lower()
+        is_head_part = "appearances\\entity\\head\\h0_" in pr or "appearances/entity/head/h0_" in pr.replace("\\", "/")
+
+        new_cos = []
+        for co in ov_clone.get("componentsOverrides", []):
+            new_cos.append(co)
+            cn = co.get("componentName", {}).get("$value", "")
+
+            # If it's a head part override targeting the stock MorphTargetSkinnedMesh,
+            # duplicate it targeting our morph-baked custom head component name(s)
+            if is_head_part and cn and cn.startswith("MorphTargetSkinnedMesh"):
+                head_comp_names = [comp["name"] for comp in components if comp["name"].endswith("_basehead")]
+                for hname in head_comp_names:
+                    co_dup = copy.deepcopy(co)
+                    if isinstance(co_dup.get("componentName"), dict):
+                        co_dup["componentName"]["$value"] = hname
+                    else:
+                        co_dup["componentName"] = hname
+                    new_cos.append(co_dup)
+
+        ov_clone["componentsOverrides"] = new_cos
+        app_parts_overrides.append(ov_clone)
+
+    return app_parts_overrides
+
 
 
 def build_project(
@@ -554,7 +589,12 @@ def build_project(
     # --- Author .app template ---
     if runtime_overrides and verbosity > 0:
         for ro in runtime_overrides:
-            print(f"[Project] Runtime override: {ro['componentName']} -> {ro['meshAppearance']}")
+            part_name = ro.get("partResource", {}).get("DepotPath", {}).get("$value", "").replace("\\", "/").rsplit("/", 1)[-1]
+            for co in ro.get("componentsOverrides", []):
+                cname = co.get("componentName", {}).get("$value", "") if isinstance(co.get("componentName"), dict) else str(co.get("componentName", ""))
+                mapp = co.get("meshAppearance", {}).get("$value", "") if isinstance(co.get("meshAppearance"), dict) else str(co.get("meshAppearance", ""))
+                print(f"[Project] Runtime override ({part_name}): {cname} -> {mapp}")
+
     app_json = build_app_template(mod_id, parts_overrides=runtime_overrides)
     app_out = source_dir / "base" / "npv-build" / mod_id / f"{mod_id}.app.json"
     app_out.parent.mkdir(parents=True, exist_ok=True)

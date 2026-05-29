@@ -60,13 +60,9 @@ def build_app_template(mod_id: str, parts_overrides: list[dict] | None = None):
     Produces a skeleton appearanceAppearanceResource that the user can open in
     WolvenKit GUI to manually add mesh components. No partsValues, no
     AppearanceParts visualTag. partsOverrides are populated when runtime
-    material overrides are needed (e.g. eyelash color on the eyes mesh).
+    material overrides are needed (e.g. eyelash/makeup color overrides).
     """
     appearance_name = f"{mod_id}_appearance"
-    overrides = [
-        _parts_override_entry(po["componentName"], po["meshAppearance"])
-        for po in (parts_overrides or [])
-    ]
     return {
         "Header": {
             "WolvenKitVersion": "8.18.0",
@@ -84,7 +80,7 @@ def build_app_template(mod_id: str, parts_overrides: list[dict] | None = None):
                             "$type": "appearanceAppearanceDefinition",
                             "name": _cname(appearance_name),
                             "partsValues": [],
-                            "partsOverrides": overrides,
+                            "partsOverrides": parts_overrides or [],
                             "components": [],
                             "visualTags": {"$type": "redTagList", "tags": []},
                             "resolvedDependencies": [],
@@ -98,6 +94,7 @@ def build_app_template(mod_id: str, parts_overrides: list[dict] | None = None):
             }
         },
     }
+
 
 
 NPC_BASE_ENT = {

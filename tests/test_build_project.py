@@ -59,7 +59,11 @@ def test_apply_recipe_overrides():
 
     parts_overrides = _apply_recipe_overrides(components, recipe_overrides)
     assert components[0]["appearance"] == "01_ca_pale_d04"
-    assert not parts_overrides
+    assert len(parts_overrides) == 1
+    assert parts_overrides[0]["partResource"]["DepotPath"]["$value"] == "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"
+    assert len(parts_overrides[0]["componentsOverrides"]) == 1
+    assert parts_overrides[0]["componentsOverrides"][0]["componentName"]["$value"] == "h0_000_pwa_c__basehead"
+    assert parts_overrides[0]["componentsOverrides"][0]["meshAppearance"]["$value"] == "01_ca_pale_d04"
 
     # 2. Test alias remapping from stock MorphTargetSkinnedMesh7243
     components[0]["appearance"] = "default"
@@ -77,5 +81,13 @@ def test_apply_recipe_overrides():
 
     parts_overrides_alias = _apply_recipe_overrides(components, recipe_overrides_alias)
     assert components[0]["appearance"] == "01_ca_pale_d04"
-    assert not parts_overrides_alias
+    assert len(parts_overrides_alias) == 1
+    assert parts_overrides_alias[0]["partResource"]["DepotPath"]["$value"] == "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"
+    # Both stock MorphTargetSkinnedMesh7243 AND duplicated h0_000_pwa_c__basehead should be present!
+    assert len(parts_overrides_alias[0]["componentsOverrides"]) == 2
+    assert parts_overrides_alias[0]["componentsOverrides"][0]["componentName"]["$value"] == "MorphTargetSkinnedMesh7243"
+    assert parts_overrides_alias[0]["componentsOverrides"][0]["meshAppearance"]["$value"] == "01_ca_pale_d04"
+    assert parts_overrides_alias[0]["componentsOverrides"][1]["componentName"]["$value"] == "h0_000_pwa_c__basehead"
+    assert parts_overrides_alias[0]["componentsOverrides"][1]["meshAppearance"]["$value"] == "01_ca_pale_d04"
+
 

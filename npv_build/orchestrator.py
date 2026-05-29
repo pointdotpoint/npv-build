@@ -154,7 +154,10 @@ def run_orchestrator(save_path: Path, npv_name: str, output_dir: Path, game_dir:
     except WolvenKitError as e:
         raise OrchestratorError(e.module_name, str(e))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise OrchestratorError("WolvenKit Automation", f"Unexpected error: {e}")
+
 
     # AMM Lua
     lua_dir = output_dir / "bin" / "x64" / "plugins" / "cyber_engine_tweaks" / "mods" / "AppearanceMenuMod" / "Collabs" / "Custom Entities"
