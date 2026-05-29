@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--template-cache", metavar="<dir>", help="Override the template cache location.")
     parser.add_argument("--clear-cache", action="store_true", help="Wipe the Template cache before running.")
     parser.add_argument("--hair", metavar="<id|none>", help="Override hair: a vanilla hair number (e.g. 1 -> hh_001), a modded hair name (e.g. 'zara'), or 'none'.")
-    parser.add_argument("--skin", metavar="<tone>", default="01_ca_pale", help="Skin tone meshAppearance for head and body (default: 01_ca_pale for Ava Skin pale). Examples: 01_ca_pale, 02_ca_limestone, 03_ca_senna, 04_ca_almond, 05_ca_coffee.")
+    parser.add_argument("--skin", metavar="<tone>", default=None, help="Skin tone meshAppearance override for head and body (e.g. 01_ca_pale, 02_ca_limestone). If not specified, falls back to the character's skin tone in the save file.")
     parser.add_argument("--garment", metavar="<depot_path>", action="append", default=[], help="Add a garment part .ent depot path to the NPV (repeatable). E.g. base\\\\characters\\\\garment\\\\...\\\\t1_097_pwa_tank__corset_doll_prostitute.ent")
 
     verbosity_group = parser.add_mutually_exclusive_group()

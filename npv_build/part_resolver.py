@@ -372,10 +372,16 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
             except Exception:
                 continue
             names = []
-            for c in d.get("Data", {}).get("RootChunk", {}).get("components", []):
+            chunks = (d.get("Data", {}).get("RootChunk", {})
+                      .get("compiledData", {}).get("Data", {}).get("Chunks", []))
+            if not chunks:
+                chunks = d.get("Data", {}).get("RootChunk", {}).get("components", [])
+            for c in chunks:
                 t = c.get("$type", "")
                 if "Mesh" in t:
-                    nm = c.get("name", {}).get("$value")
+                    nm = c.get("name", {}).get("$value") if isinstance(c.get("name"), dict) else ""
+                    if not nm:
+                        nm = c.get("name", "")
                     if nm:
                         names.append(nm)
             if names:

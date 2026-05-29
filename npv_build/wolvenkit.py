@@ -285,15 +285,23 @@ def _apply_recipe_overrides(components: list[dict], recipe_overrides: list[dict]
     override_map = {}
     parts_overrides = []
     for ov in recipe_overrides:
+        pr = ov.get("partResource", {}).get("DepotPath", {}).get("$value", "").lower()
+        is_head_part = "appearances\\entity\\head\\h0_" in pr or "appearances/entity/head/h0_" in pr.replace("\\", "/")
+
         for co in ov.get("componentsOverrides", []):
             cn = co.get("componentName", {}).get("$value", "")
             ma = co.get("meshAppearance", {}).get("$value", "")
             if cn and ma:
-                if re.search(r'_d\d{2}$', ma):
-                    continue
                 if ma.startswith("eyelashes__"):
                     parts_overrides.append({"componentName": cn, "meshAppearance": ma})
                     continue
+                
+                # Alias stock MorphTargetSkinnedMesh head component overrides to the NPV's baked basehead component name
+                if is_head_part and cn.startswith("MorphTargetSkinnedMesh"):
+                    head_comp_names = [comp["name"] for comp in components if comp["name"].endswith("_basehead")]
+                    for hname in head_comp_names:
+                        override_map[hname] = ma
+
                 override_map[cn] = ma
 
     for comp in components:
@@ -343,6 +351,17 @@ def build_project(
 
     stock_head_depot = find_stock_head_part(asset_paths)
 
+    # 0. Resolve skin tone early — prefer explicit --skin override, fall back to save's tone
+    if skin_override:
+        skin_tone = skin_override
+    else:
+        head_app_name = asset_paths.get("head_appearance_name", "")
+        skin_tone = ""
+        if "__" in head_app_name:
+            skin_tone = head_app_name.rsplit("__", 1)[-1]
+    if not skin_tone:
+        skin_tone = "01_ca_pale"
+
     # 1. HEAD — baked or stock
     face_morphs = asset_paths.get("face_morphs", {})
     body_rig = asset_paths.get("body_rig", "pwa")
@@ -357,12 +376,11 @@ def build_project(
             print(f"[Head] face bake failed ({e}); using stock head.")
 
     if baked_mesh_depot:
-        head_appearance = skin_override or "01_ca_pale"
         component_specs.append({
             "comp_type": "entSkinnedMeshComponent",
             "name": f"h0_000_{body_rig}_c__basehead",
             "mesh": baked_mesh_depot,
-            "appearance": head_appearance,
+            "appearance": skin_tone,
             "source": "baked head (face morphs applied)",
         })
         if verbosity > 0:
@@ -494,22 +512,14 @@ def build_project(
     # 4. Recipe material overrides
     runtime_overrides = _apply_recipe_overrides(component_specs, asset_paths.get("recipe_overrides", []))
 
-    # 5. Skin tone — prefer explicit --skin override, fall back to save's tone
-    if skin_override:
-        skin_tone = skin_override
-    else:
-        head_app_name = asset_paths.get("head_appearance_name", "")
-        skin_tone = ""
-        if "__" in head_app_name:
-            skin_tone = head_app_name.rsplit("__", 1)[-1]
-    if skin_tone:
-        for comp in component_specs:
-            if comp.get("appearance") == "default":
-                name = comp.get("name", "")
-                if name.startswith(("t0_", "a0_", "i0_", "l0_")):
-                    comp["appearance"] = skin_tone
-                    if verbosity > 0:
-                        print(f"[Project] Skin tone override: {name} -> {skin_tone}")
+    # 5. Skin tone — apply the early-resolved skin tone to default-appearance body parts
+    for comp in component_specs:
+        if comp.get("appearance") == "default":
+            name = comp.get("name", "")
+            if name.startswith(("t0_", "a0_", "i0_", "l0_")):
+                comp["appearance"] = skin_tone
+                if verbosity > 0:
+                    print(f"[Project] Skin tone override: {name} -> {skin_tone}")
 
     # 6. Clothing
     component_specs.extend(resolve_clothing(body_rig, garment_overrides, verbosity))

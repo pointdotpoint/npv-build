@@ -34,3 +34,48 @@ def test_build_project_produces_expected_files(tmp_path):
     for spec in component_specs:
         assert "comp_type" in spec
         assert "name" in spec
+
+
+def test_apply_recipe_overrides():
+    from npv_build.wolvenkit import _apply_recipe_overrides
+
+    components = [
+        {"name": "h0_000_pwa_c__basehead", "appearance": "default"},
+        {"name": "a0_000_pwa_base_hq__full", "appearance": "default"},
+    ]
+    
+    # 1. Test direct component override
+    recipe_overrides = [
+        {
+            "partResource": {"DepotPath": {"$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"}},
+            "componentsOverrides": [
+                {
+                    "componentName": {"$value": "h0_000_pwa_c__basehead"},
+                    "meshAppearance": {"$value": "01_ca_pale_d04"},
+                }
+            ]
+        }
+    ]
+
+    parts_overrides = _apply_recipe_overrides(components, recipe_overrides)
+    assert components[0]["appearance"] == "01_ca_pale_d04"
+    assert not parts_overrides
+
+    # 2. Test alias remapping from stock MorphTargetSkinnedMesh7243
+    components[0]["appearance"] = "default"
+    recipe_overrides_alias = [
+        {
+            "partResource": {"DepotPath": {"$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"}},
+            "componentsOverrides": [
+                {
+                    "componentName": {"$value": "MorphTargetSkinnedMesh7243"},
+                    "meshAppearance": {"$value": "01_ca_pale_d04"},
+                }
+            ]
+        }
+    ]
+
+    parts_overrides_alias = _apply_recipe_overrides(components, recipe_overrides_alias)
+    assert components[0]["appearance"] == "01_ca_pale_d04"
+    assert not parts_overrides_alias
+
