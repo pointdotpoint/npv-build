@@ -62,9 +62,10 @@ class TestSwapHeadPart:
         swap_head_part(asset_paths, "old_head.ent", "new_head.ent")
         ov = asset_paths["recipe_overrides"][0]
         assert ov["partResource"]["DepotPath"]["$value"] == "new_head.ent"
-        # Detail layer override (_d04) should be stripped
-        assert len(ov["componentsOverrides"]) == 1
+        # Detail layer override (_d04) should be preserved
+        assert len(ov["componentsOverrides"]) == 2
         assert ov["componentsOverrides"][0]["meshAppearance"]["$value"] == "01_ca_pale"
+        assert ov["componentsOverrides"][1]["meshAppearance"]["$value"] == "01_ca_pale_d04"
 
     def test_noop_when_no_stock_head(self):
         asset_paths = {"recipe_parts": [], "recipe_overrides": []}

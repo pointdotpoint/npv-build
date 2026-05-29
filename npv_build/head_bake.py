@@ -47,10 +47,6 @@ def swap_head_part(asset_paths: dict, stock_head: str, new_head: str) -> None:
         pr = ov.get("partResource", {}).get("DepotPath", {})
         if pr.get("$value") == stock_head:
             pr["$value"] = new_head
-            ov["componentsOverrides"] = [
-                co for co in ov.get("componentsOverrides", [])
-                if not _is_detail_layer_override(co)
-            ]
 
 
 def _is_detail_layer_override(component_override: dict) -> bool:
