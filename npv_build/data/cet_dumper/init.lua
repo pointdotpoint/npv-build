@@ -69,6 +69,7 @@ local function gather()
     head = {},
     hair = {},
     skin = {},
+    clothing = {},
     diagnostics = {}
   }
 
@@ -300,6 +301,48 @@ local function gather()
     end
   end)
 
+  -- Equipped clothing: the player's live garment mesh components ARE the worn
+  -- outfit. Capture name/mesh/appearance/slot so npv-build can dress the NPV in
+  -- V's actual clothes (consumed by resolve_clothing via --cc-json).
+  pcall(function()
+    local comps = player:GetComponents()
+    if not comps then return end
+    local prefixSlots = {
+      { "t2_", "outer_torso" }, { "t1_", "inner_torso" },
+      { "l1_", "legs" }, { "s1_", "feet" }, { "h1_", "head" },
+    }
+    for _, comp in ipairs(comps) do
+      local cn = nil
+      pcall(function() cn = safeCNameStr(comp:GetName()) end)
+      if cn then
+        local slot = nil
+        for _, ps in ipairs(prefixSlots) do
+          if cn:sub(1, #ps[1]) == ps[1] then slot = ps[2] break end
+        end
+        if slot then
+          local mesh = nil
+          pcall(function()
+            local m = comp.mesh
+            if m and m.value then mesh = safeCNameStr(m.value) end
+          end)
+          local appearance = nil
+          pcall(function()
+            local a = comp.meshAppearance
+            if a ~= nil then appearance = safeCNameStr(a) end
+          end)
+          if mesh then
+            table.insert(out.clothing, {
+              name = cn,
+              mesh = mesh,
+              appearance = appearance or "default",
+              slot = slot,
+            })
+          end
+        end
+      end
+    end
+  end)
+
   return out
 end
 
@@ -314,6 +357,7 @@ function NPVDumper.Dump()
   file:write(jsonEncode(data))
   file:close()
   print("[npv_dumper] Wrote " .. path .. " (preset_id=" .. tostring(data.head.preset_id) .. ", body_rig=" .. tostring(data.body_rig) .. ", tone=" .. tostring(data.skin.tone_id) .. ")")
+  print("[npv_dumper] clothing items captured: " .. tostring(#data.clothing))
   print("[npv_dumper] Full path: <CP2077>/bin/x64/plugins/cyber_engine_tweaks/mods/npv_dumper/" .. path)
   return path
 end
