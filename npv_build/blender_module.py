@@ -36,9 +36,28 @@ HEAD_MORPHTARGET = {
     "pwa": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa__morphs.morphtarget",
     "pma": "base\\characters\\head\\player_base_heads\\player_man_average\\h0_000_pma__morphs.morphtarget",
 }
+# Use the canonical player_base_heads mesh — the SAME mesh the morphtarget's
+# baseMesh points at (the glb is exported from that morphtarget). The legacy
+# base\characters\head\{pwa,pma}\ variant shares the basename but is a stale
+# revision with only 7 materials, h0_001 texture refs, and no _dXX detail
+# entries, and skin mods don't override its texture tree. Using the canonical
+# mesh as the import --keep CR2W skeleton makes the baked head inherit the full
+# 60+ material set with player_*_average texture paths that skin mods override.
 HEAD_FACE_MESH = {
-    "pwa": "base\\characters\\head\\pwa\\h0_000_pwa_c__basehead\\h0_000_pwa_c__basehead.mesh",
-    "pma": "base\\characters\\head\\pma\\h0_000_pma_c__basehead\\h0_000_pma_c__basehead.mesh",
+    "pwa": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\h0_000_pwa_c__basehead.mesh",
+    "pma": "base\\characters\\head\\player_base_heads\\player_man_average\\h0_000_pma_c__basehead\\h0_000_pma_c__basehead.mesh",
+}
+
+# heb_ is a SECOND full-face skin-detail layer sharing the exact same 105 face
+# morphs as h0_. It must be baked with V's morphs too, or it renders at the
+# neutral shape and overlaps the morphed h0_ head -> doubled jaw/mouth.
+HEB_MORPHTARGET = {
+    "pwa": "base\\characters\\head\\player_base_heads\\player_female_average\\heb_000_pwa__morphs.morphtarget",
+    "pma": "base\\characters\\head\\player_base_heads\\player_man_average\\heb_000_pma__morphs.morphtarget",
+}
+HEB_FACE_MESH = {
+    "pwa": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\heb_000_pwa_c__basehead.mesh",
+    "pma": "base\\characters\\head\\player_base_heads\\player_man_average\\h0_000_pma_c__basehead\\heb_000_pma_c__basehead.mesh",
 }
 
 APPEARANCE_ARCHIVE = "basegame_4_appearance.archive"
@@ -76,10 +95,18 @@ def _run(cmd, verbosity, error_prefix):
     return res
 
 
-def bake_face_mesh(game_dir: Path, body_rig: str, face_morphs: dict, out_mesh_path: Path, verbosity: int = 0, wk=None):
+def bake_face_mesh(game_dir: Path, body_rig: str, face_morphs: dict, out_mesh_path: Path,
+                   verbosity: int = 0, wk=None, mt_depot: str = None, mesh_depot: str = None,
+                   stage_name: str = "bake"):
     """Run the full bake chain. Returns the path to the baked .mesh (out_mesh_path)
     on success, or None if morphs/assets are unavailable (caller falls back to
-    the stock head mesh)."""
+    the stock head mesh).
+
+    mt_depot / mesh_depot default to the main head (h0_) morphtarget+mesh, but can
+    be overridden to bake any other part that shares V's 105 face morphs (e.g. the
+    heb_ skin-detail layer). stage_name isolates the staging dir per part so
+    concurrent/sequential bakes don't clobber each other.
+    """
     if not game_dir or not face_morphs:
         return None
     if body_rig not in HEAD_MORPHTARGET:
@@ -93,13 +120,13 @@ def bake_face_mesh(game_dir: Path, body_rig: str, face_morphs: dict, out_mesh_pa
         return None
 
     # Stage under $HOME so flatpak Blender can read it.
-    stage = Path(os.path.expanduser("~")) / ".cache" / "npv" / "bake"
+    stage = Path(os.path.expanduser("~")) / ".cache" / "npv" / stage_name
     if stage.exists():
         shutil.rmtree(stage)
     stage.mkdir(parents=True, exist_ok=True)
 
-    mt_depot = HEAD_MORPHTARGET[body_rig]
-    mesh_depot = HEAD_FACE_MESH[body_rig]
+    mt_depot = mt_depot or HEAD_MORPHTARGET[body_rig]
+    mesh_depot = mesh_depot or HEAD_FACE_MESH[body_rig]
     mt_basename = mt_depot.replace("\\", "/").rsplit("/", 1)[-1]   # h0_000_pwa__morphs.morphtarget
     mesh_basename = mesh_depot.replace("\\", "/").rsplit("/", 1)[-1]
 

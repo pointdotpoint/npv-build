@@ -145,6 +145,22 @@ def _extract_part_components(
     return result
 
 
+def _has_modded_ccxl_eyes(cc_selections: list[dict]) -> bool:
+    """True if CC selections request modded CCXL eyes (e.g. Sedth 3D Eyes).
+
+    When modded eyes are injected they REPLACE the stock he_ eye part; the stock
+    eye must be suppressed or both irises render overlapping (doubled eyes).
+    """
+    for s in cc_selections or []:
+        if s.get("slot") != "character_customization":
+            continue
+        lbl = s.get("label", "")
+        raw = s.get("raw", "")
+        if "_eyes_" in lbl and lbl not in ("eyes_color",) and raw and raw != "default":
+            return True
+    return False
+
+
 def _extract_ccxl_eye_components(
     game_dir: Path,
     cc_selections: list[dict],
@@ -278,24 +294,44 @@ def _extract_ccxl_eye_components(
     return components
 
 
-def _apply_recipe_overrides(components: list[dict], recipe_overrides: list[dict]) -> list[dict]:
+def _apply_recipe_overrides(components: list[dict], recipe_overrides: list[dict],
+                            modded_eyes: bool = False) -> list[dict]:
     """Process recipe material overrides. Modifies head component overrides
     to also target our baked head component name. Returns the fully prepared
-    partsOverrides list to be written to the .app file."""
+    partsOverrides list to be written to the .app file.
+
+    modded_eyes: when True, the stock eye component renders ONLY eyelashes (the
+    modded eyes supply the iris). The eyelash override is then KEPT (and the iris
+    override on that same component dropped); otherwise the eyelash override is
+    skipped so it doesn't clobber the iris color on the stock eye.
+    """
     import copy
+
+    # he_ eye part is the stock eye; its overrides land on a MorphTargetSkinnedMesh
+    # component from a face_decals/he_ partResource.
+    def _is_stock_eye(pr_lower: str) -> bool:
+        return "\\he_000_" in pr_lower or "/he_000_" in pr_lower
 
     # 1. First, build the direct override_map for components where we can set appearance directly
     override_map = {}
     for ov in recipe_overrides:
         pr = ov.get("partResource", {}).get("DepotPath", {}).get("$value", "").lower()
         is_head_part = "appearances\\entity\\head\\h0_" in pr or "appearances/entity/head/h0_" in pr.replace("\\", "/")
+        is_stock_eye = _is_stock_eye(pr)
 
         for co in ov.get("componentsOverrides", []):
             cn = co.get("componentName", {}).get("$value", "")
             ma = co.get("meshAppearance", {}).get("$value", "")
             if cn and ma:
-                # Eyelashes shouldn't be set directly on the eyes component since eye color is also set there
                 if ma.startswith("eyelashes__"):
+                    # With modded eyes the stock eye renders lashes only -> keep
+                    # the eyelash override. Without modded eyes it would clobber
+                    # the iris color on the shared eye component -> skip it.
+                    if not modded_eyes:
+                        continue
+                elif modded_eyes and is_stock_eye:
+                    # Drop the iris/eye-color override on the stock eye when modded
+                    # eyes supply the iris; the stock eye is eyelashes-only.
                     continue
 
                 # Alias stock head component overrides to our baked basehead component name
@@ -322,9 +358,29 @@ def _apply_recipe_overrides(components: list[dict], recipe_overrides: list[dict]
         ov_clone = copy.deepcopy(ov)
         pr = ov_clone.get("partResource", {}).get("DepotPath", {}).get("$value", "").lower()
         is_head_part = "appearances\\entity\\head\\h0_" in pr or "appearances/entity/head/h0_" in pr.replace("\\", "/")
+        is_stock_eye = _is_stock_eye(pr)
+
+        # Collapse duplicate overrides targeting the SAME component to the LAST
+        # one. The CC recipe often lists a base makeup layer (e.g. yellow_01,
+        # black_01) followed by V's chosen color (burgundy_19, black_31); emitting
+        # both as partsOverrides stacks two decals on one mesh -> doubled lips /
+        # doubled eye makeup in-game. Last wins, matching override_map above.
+        # The stock eye carries BOTH an iris (double_eye_*) and an eyelashes__*
+        # override on one component; keep the right one (lashes if modded eyes
+        # supply the iris, else iris) so we don't stack iris+lashes or lose either.
+        deduped_cos = {}
+        for co in ov_clone.get("componentsOverrides", []):
+            cn = co.get("componentName", {}).get("$value", "")
+            ma = co.get("meshAppearance", {}).get("$value", "")
+            if ma.startswith("eyelashes__"):
+                if not modded_eyes:
+                    continue
+            elif modded_eyes and is_stock_eye:
+                continue
+            deduped_cos[cn] = co  # later entries overwrite earlier ones
 
         new_cos = []
-        for co in ov_clone.get("componentsOverrides", []):
+        for co in deduped_cos.values():
             new_cos.append(co)
             cn = co.get("componentName", {}).get("$value", "")
 
@@ -478,17 +534,69 @@ def build_project(
         if verbosity > 0:
             print(f"[Head] stock head: {len(comps)} component(s) (morph_fallback={use_morph_fallback})")
 
+    # Load CC selections once — used to suppress the stock eye when modded eyes
+    # are present (below) and to inject the modded eyes themselves (section 2d).
+    cc_settings_data = {}
+    cc_file = out_dir / "cc_settings.json"
+    if cc_file.exists():
+        cc_settings_data = json.loads(cc_file.read_text())
+    cc_selections = cc_settings_data.get("selections", [])
+    modded_eyes = _has_modded_ccxl_eyes(cc_selections)
+
+    # The eyelashes ride on the stock he_ eye mesh as an `eyelashes__*` appearance
+    # (CC's separate `eyelash_color` selection). Find that appearance so that when
+    # modded eyes replace the iris, we keep he_ rendering ONLY the lashes.
+    eyelash_appearance = ""
+    for ov in asset_paths.get("recipe_overrides", []):
+        for co in ov.get("componentsOverrides", []):
+            ma = co.get("meshAppearance", {}).get("$value", "")
+            if ma.startswith("eyelashes__"):
+                eyelash_appearance = ma
+                break
+        if eyelash_appearance:
+            break
+
     # 2. Other part-ents (eyes, teeth, body, etc.)
     for dp in sorted(all_part_depots):
         if dp == stock_head_depot:
             continue
         comps = _extract_part_components(wk, dp, verbosity)
+        # Modded CCXL eyes (Sedth) replace the stock he_ IRIS, but the stock eye
+        # part also carries the eyelashes. Keep he_ rendering only the lashes
+        # (eyelash appearance) instead of dropping it — else lashes disappear and
+        # the iris would otherwise double up with the modded eyes.
+        if modded_eyes and "\\he_000_" in dp:
+            if eyelash_appearance:
+                for c in comps:
+                    c["appearance"] = eyelash_appearance
+                    c["source"] = dp.replace("\\", "/").rsplit("/", 1)[-1] + " (eyelashes only)"
+                if verbosity > 0:
+                    print(f"[Eyes] stock eye -> eyelashes only ({eyelash_appearance}); iris from modded eyes")
+                component_specs.extend(comps)
+            elif verbosity > 0:
+                print(f"[Eyes] skipping stock eye part {dp.rsplit(chr(92), 1)[-1]} (modded eyes, no eyelash appearance found)")
+            continue
         for c in comps:
             c["source"] = dp.replace("\\", "/").rsplit("/", 1)[-1]
         if verbosity > 0 and comps:
             short = dp.rsplit("\\", 1)[-1]
             print(f"[Project]   {short}: {len(comps)} component(s)")
         component_specs.extend(comps)
+
+    # 2a. Repoint the heb_ skin-detail layer to the morph-baked heb mesh.
+    # _extract_part_components demotes heb_ (a morphtarget component) to its
+    # NEUTRAL base mesh, which then overlaps the morphed h0_ head -> doubled
+    # jaw/mouth. bake_head() also baked heb_ with V's morphs; point at it.
+    if baked_mesh_depot:
+        heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
+        heb_baked_fs = source_dir / heb_baked_depot.replace("\\", "/")
+        if heb_baked_fs.exists():
+            for c in component_specs:
+                if c.get("name", "").startswith("heb_000_") and c["name"].endswith("__basehead"):
+                    c["mesh"] = heb_baked_depot
+                    c["source"] = "baked heb_ layer (face morphs applied)"
+                    if verbosity > 0:
+                        print(f"[Head] repointed {c['name']} -> baked heb mesh")
 
     # 2b. Arms
     arms_mesh = {
@@ -520,14 +628,10 @@ def build_project(
             "source": "seamfix",
         })
 
-    # 2d. Modded CCXL eyes (e.g. Sedth 3D Eyes)
-    cc_settings_data = {}
-    cc_file = out_dir / "cc_settings.json"
-    if cc_file.exists():
-        cc_settings_data = json.loads(cc_file.read_text())
-    if game_dir and cc_settings_data.get("selections"):
+    # 2d. Modded CCXL eyes (e.g. Sedth 3D Eyes) — replace the stock eye skipped above
+    if game_dir and cc_selections:
         eye_comps = _extract_ccxl_eye_components(
-            game_dir, cc_settings_data["selections"], body_rig, verbosity)
+            game_dir, cc_selections, body_rig, verbosity)
         component_specs.extend(eye_comps)
 
     # 3. Hair components
@@ -578,7 +682,8 @@ def build_project(
             print(f"[Project]   hair: {mesh_count} mesh + {'dangle' if hair_has_dangle else 'no dangle'}")
 
     # 4. Recipe material overrides
-    runtime_overrides = _apply_recipe_overrides(component_specs, asset_paths.get("recipe_overrides", []))
+    runtime_overrides = _apply_recipe_overrides(
+        component_specs, asset_paths.get("recipe_overrides", []), modded_eyes=modded_eyes)
 
     # 5. Skin tone — apply the early-resolved skin tone to default-appearance body parts
     for comp in component_specs:
@@ -721,7 +826,12 @@ def build_project(
     archive_path = wk.pack(source_dir, dest=archive_dir)
 
     target = archive_dir / f"{mod_id}.archive"
-    if not target.exists() and archive_path.name != f"{mod_id}.archive":
+    if archive_path.name != f"{mod_id}.archive":
+        # Always overwrite — a stale {mod_id}.archive from a prior build (the
+        # mod_id is deterministic, so reinstalls reuse the name) must not shadow
+        # the freshly packed archive, which wk.pack names after the source dir.
+        if target.exists():
+            target.unlink()
         archive_path.rename(target)
 
     return component_specs

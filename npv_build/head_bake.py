@@ -19,6 +19,16 @@ STOCK_HEAD_MESH = {
     "pma": "h0_000_pma_c__basehead.mesh",
 }
 
+# Full canonical depot paths. The basename above is AMBIGUOUS in
+# basegame_4_appearance.archive — it also matches a stale base\characters\head\{rig}\
+# revision (7 materials, h0_001 textures, no _dXX). We must restore materials from
+# the canonical player_base_heads mesh, otherwise the baked head gets the wrong
+# (skin-mod-incompatible) material set. Keep STOCK_HEAD_MESH for file discovery.
+STOCK_HEAD_MESH_DEPOT = {
+    "pwa": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\h0_000_pwa_c__basehead.mesh",
+    "pma": "base\\characters\\head\\player_base_heads\\player_man_average\\h0_000_pma_c__basehead\\h0_000_pma_c__basehead.mesh",
+}
+
 
 def find_stock_head_part(asset_paths: dict) -> str | None:
     """Find the head part .ent depot path in the recipe or part_entities."""
@@ -60,12 +70,27 @@ def _restore_head_materials(
     body_rig: str,
     verbosity: int,
 ) -> None:
-    """Copy material data from the stock head mesh into the baked mesh.
+    """Restore stock head-mesh materials into the baked head mesh."""
+    canonical_depot = STOCK_HEAD_MESH_DEPOT.get(body_rig, STOCK_HEAD_MESH_DEPOT["pwa"])
+    _restore_part_materials(wk, baked_mesh_fs, canonical_depot, verbosity)
+
+
+def _restore_part_materials(
+    wk: WolvenKit,
+    baked_mesh_fs: Path,
+    canonical_depot: str,
+    verbosity: int,
+) -> None:
+    """Copy material data from the canonical stock part mesh into the baked mesh.
 
     The Blender import --keep step strips localMaterialBuffer, appearances,
-    and materialEntries. We serialize both, patch, and deserialize.
+    and materialEntries. We serialize both, patch, and deserialize. Works for any
+    morph-baked part (head h0_, skin-detail heb_) given its full canonical depot.
     """
-    basename = STOCK_HEAD_MESH.get(body_rig, STOCK_HEAD_MESH["pwa"])
+    canonical_rel = canonical_depot.replace("\\", "/")
+    # Anchored regex on the FULL canonical depot path so we never pick up the
+    # stale base\characters\head\{rig}\ revision that shares the basename.
+    canonical_regex = _re.escape(canonical_depot) + r"$"
 
     # 1. Scan for custom skin/complexion mod archives that override the head mesh in the pc/mod folder
     game_dir = wk.config.game_dir
@@ -100,7 +125,7 @@ def _restore_head_materials(
 
             for arch in ordered_candidates:
                 try:
-                    matches = wk.list_archive(basename, archive=arch)
+                    matches = wk.list_archive(canonical_regex, archive=arch)
                     if matches:
                         mod_archive_path = arch
                         if verbosity > 0:
@@ -118,10 +143,20 @@ def _restore_head_materials(
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
 
-        wk.unbundle(_re.escape(basename) + r"$", archive=source_archive, dest=td_path)
-        stock_files = list(td_path.rglob(basename))
-        if not stock_files:
-            return
+        wk.unbundle(canonical_regex, archive=source_archive, dest=td_path)
+        # Select the canonical file by its full relative depot path, not by
+        # basename — the stale revision shares the basename and must not win.
+        canonical_fs = td_path / canonical_rel
+        if canonical_fs.exists():
+            stock_files = [canonical_fs]
+        else:
+            # Hard-fail policy: restoring from the wrong/absent stock head would
+            # silently produce a head with mismatched skin materials.
+            raise WolvenKitError(
+                f"Canonical stock head mesh not found after unbundle: "
+                f"{canonical_depot} (from {source_archive.name})",
+                operation="restore head materials",
+            )
 
         stock_json_dir = td_path / "stock_json"
         stock_json_dir.mkdir()
@@ -180,7 +215,9 @@ def bake_head(
     Returns True on success, None on failure. Writes the baked mesh and
     morphtarget into build_dir at their depot paths.
     """
-    from .blender_module import bake_face_mesh, HEAD_MORPHTARGET
+    from .blender_module import (
+        bake_face_mesh, HEAD_MORPHTARGET, HEB_MORPHTARGET, HEB_FACE_MESH,
+    )
 
     if not face_morphs:
         return None
@@ -194,6 +231,25 @@ def bake_head(
         return None
 
     _restore_head_materials(wk, baked_mesh_fs, body_rig, verbosity)
+
+    # Also bake the heb_ skin-detail layer with the SAME face morphs. It shares
+    # h0_'s 105 morphs; baked separately so it deforms identically and stops
+    # overlapping the morphed head (doubled jaw/mouth). Non-fatal if unavailable.
+    heb_mt = HEB_MORPHTARGET.get(body_rig, "")
+    heb_mesh = HEB_FACE_MESH.get(body_rig, "")
+    if heb_mt and heb_mesh:
+        heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
+        heb_baked_fs = build_dir / heb_baked_depot.replace("\\", "/")
+        heb_result = bake_face_mesh(
+            wk.config.game_dir, body_rig, face_morphs, heb_baked_fs, verbosity, wk=wk,
+            mt_depot=heb_mt, mesh_depot=heb_mesh, stage_name="bake_heb",
+        )
+        if heb_result:
+            _restore_part_materials(wk, heb_baked_fs, heb_mesh, verbosity)
+            if verbosity > 0:
+                print(f"[Head] baked heb_ layer: {heb_baked_depot}")
+        elif verbosity > 0:
+            print("[Head] heb_ bake skipped/failed; head may show overlap")
 
     stock_mt_depot = HEAD_MORPHTARGET.get(body_rig, "")
     mt_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_morphs.morphtarget"
