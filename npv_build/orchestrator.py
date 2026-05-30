@@ -47,16 +47,24 @@ def run_orchestrator(save_path: Path, npv_name: str, output_dir: Path, game_dir:
     if verbosity > 0:
         print("[Orchestrator] Starting build process...")
 
-    # Load CC settings: either from a CET-dumped JSON or from the save parser
+    # Load CC settings. Three modes:
+    #   save only            -> full CC from the save parser (fallback outfit)
+    #   --cc-json only       -> full CC from the CET dump
+    #   save AND --cc-json   -> CC from the save (head/face/hair are reliable only
+    #                           there), with the dump's `clothing` overlaid so the
+    #                           NPV wears V's equipped outfit. The CET dump cannot
+    #                           reconstruct head CC, so we never let it replace it.
+    dump_data = None
     if cc_json_path is not None:
         if verbosity > 0:
-            print(f"[CC Loader] Loading CC from {cc_json_path}...")
+            print(f"[CC Loader] Loading CC dump from {cc_json_path}...")
         try:
             with open(cc_json_path, "r") as f:
-                cc_settings = json.load(f)
+                dump_data = json.load(f)
         except Exception as e:
             raise OrchestratorError("CC Loader", f"Failed to load --cc-json: {e}")
-    else:
+
+    if save_path is not None:
         if verbosity > 0:
             print("[Save Parser] Parsing save file...")
         try:
@@ -65,6 +73,16 @@ def run_orchestrator(save_path: Path, npv_name: str, output_dir: Path, game_dir:
             raise OrchestratorError(e.module_name, str(e))
         except Exception as e:
             raise OrchestratorError("Save Parser", f"Unexpected error: {e}")
+        # Overlay ONLY the equipped clothing from the dump onto the save CC.
+        if dump_data is not None:
+            clothing = dump_data.get("clothing", [])
+            cc_settings["clothing"] = clothing
+            if verbosity > 0:
+                print(f"[CC Loader] Overlaid {len(clothing)} equipped garment(s) "
+                      "from the CET dump onto the save CC.")
+    else:
+        # --cc-json only: the dump is the sole CC source.
+        cc_settings = dump_data
 
     # Write cc_settings.json for diagnostics
     output_dir.mkdir(parents=True, exist_ok=True)

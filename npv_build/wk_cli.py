@@ -10,6 +10,7 @@ import json
 import re as _re
 import subprocess
 import sys
+import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -240,19 +241,30 @@ class WolvenKit:
     # -- pack --------------------------------------------------------------
 
     def pack(self, source_dir: Path, *, dest: Path) -> Path:
-        """Pack directory into .archive. Returns path to the .archive."""
+        """Pack directory into .archive. Returns path to the freshly-packed .archive.
+
+        Packs into an isolated temp dir first so the result is unambiguous — `dest`
+        often holds stale .archive files from prior builds, and globbing it would
+        pick an arbitrary one. The single produced archive is then moved into dest.
+        """
         dest.mkdir(parents=True, exist_ok=True)
-        self._run(
-            ["pack", str(source_dir), "-o", str(dest)],
-            operation="pack",
-        )
-        archives = list(dest.glob("*.archive"))
-        if not archives:
-            raise WolvenKitError(
-                f"Pack produced no .archive in {dest}",
+        with tempfile.TemporaryDirectory(prefix="wk_pack_") as td:
+            td_path = Path(td)
+            self._run(
+                ["pack", str(source_dir), "-o", str(td_path)],
                 operation="pack",
             )
-        return archives[0]
+            archives = list(td_path.glob("*.archive"))
+            if not archives:
+                raise WolvenKitError(
+                    f"Pack produced no .archive in {td_path}",
+                    operation="pack",
+                )
+            final = dest / archives[0].name
+            if final.exists():
+                final.unlink()
+            shutil.move(str(archives[0]), str(final))
+            return final
 
     # -- version check -----------------------------------------------------
 

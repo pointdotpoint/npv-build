@@ -145,6 +145,79 @@ def _extract_part_components(
     return result
 
 
+def _resolve_garment_mesh(wk: WolvenKit, game_dir, name: str, verbosity: int) -> str:
+    """Resolve an equipped garment component name to its .mesh depot path.
+
+    The CET dump gives the garment component NAME (which equals the mesh basename,
+    e.g. "t1_1g1_bswghfem_bodysuitsweater_01") but not a usable depot path — CET
+    exposes the mesh only as a hash. We locate the real path by exact-basename
+    search across the user's pc/mod archives first (modded garments), then the
+    base-game appearance archive (vanilla garments). Component names include the
+    rig token (pwa/pma) so the basename match is unambiguous across rig variants.
+
+    Returns the depot path, or "" if not found.
+    """
+    import re as _re
+    regex = r"\\" + _re.escape(name) + r"\.mesh$"
+
+    # 1. pc/mod archives (modded garments). Match base game's mod scan style.
+    if game_dir:
+        mod_dir = game_dir / "archive" / "pc" / "mod"
+        if mod_dir.exists():
+            for arch in sorted(mod_dir.glob("*.archive")):
+                if arch.name.startswith("my_v_") or arch.name == "archive.archive":
+                    continue
+                try:
+                    matches = wk.list_archive(regex, archive=arch)
+                except Exception:
+                    matches = []
+                if matches:
+                    if len(matches) > 1 and verbosity > 0:
+                        print(f"[Clothing] '{name}': {len(matches)} matches in "
+                              f"{arch.name}, using first: {matches[0]}")
+                    return matches[0]
+
+    # 2. base-game appearance archive (vanilla garments).
+    try:
+        matches = wk.list_archive(regex)  # defaults to appearance_archive
+    except Exception:
+        matches = []
+    if matches:
+        return matches[0]
+
+    if verbosity > 0:
+        print(f"[Clothing] WARNING: no mesh found for equipped garment '{name}'")
+    return ""
+
+
+def _resolve_equipped_clothing_meshes(wk: WolvenKit, game_dir, equipped: list, verbosity: int) -> list:
+    """Return a copy of the equipped-clothing list with each item's `mesh` set to a
+    resolved depot path (by component name). Items whose mesh can't be resolved are
+    dropped (they would otherwise inject an invalid/hashed mesh). The CET-supplied
+    `mesh` (a hash like "hash:123ULL") is never trusted — always re-resolve by name.
+    """
+    if not equipped:
+        return equipped or []
+    resolved = []
+    for item in equipped:
+        name = item.get("name", "")
+        if not name:
+            continue
+        mesh = item.get("mesh", "") or ""
+        # Trust only a real depot path (contains a backslash and ends in .mesh).
+        if not (mesh.lower().endswith(".mesh") and "\\" in mesh):
+            mesh = _resolve_garment_mesh(wk, game_dir, name, verbosity)
+        if not mesh:
+            continue
+        new_item = dict(item)
+        new_item["mesh"] = mesh
+        resolved.append(new_item)
+        if verbosity > 0:
+            print(f"[Clothing] resolved {item.get('slot') or '?'}: {name} -> "
+                  f"{mesh.rsplit(chr(92), 1)[-1]}")
+    return resolved
+
+
 def _has_modded_ccxl_eyes(cc_selections: list[dict]) -> bool:
     """True if CC selections request modded CCXL eyes (e.g. Sedth 3D Eyes).
 
@@ -694,10 +767,12 @@ def build_project(
                 if verbosity > 0:
                     print(f"[Project] Skin tone override: {name} -> {skin_tone}")
 
-    # 6. Clothing
+    # 6. Clothing — resolve equipped garment meshes by name (CET gives only hashes)
+    equipped_clothing = _resolve_equipped_clothing_meshes(
+        wk, game_dir, asset_paths.get("equipped_clothing"), verbosity)
     component_specs.extend(resolve_clothing(
         body_rig, garment_overrides,
-        equipped=asset_paths.get("equipped_clothing"), verbosity=verbosity))
+        equipped=equipped_clothing, verbosity=verbosity))
 
     # 7. Genital filtering
     cc_settings = {}
