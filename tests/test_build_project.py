@@ -162,3 +162,19 @@ def test_stock_eye_iris_when_no_modded_eyes():
     assert eye_cos[0]["meshAppearance"]["$value"] == "double_eye_black"
 
 
+def test_asset_paths_carries_equipped_clothing():
+    """resolve_assets surfaces cc_settings['clothing'] as asset_paths['equipped_clothing']
+    so build_project can pass it to resolve_clothing."""
+    from npv_build.mapping import resolve_assets
+    cc = {
+        "patch": "2.13",
+        "body_rig": "pwa",
+        "selections": [],
+        "clothing": [
+            {"name": "t1_x", "mesh": "base\\g\\t1_x.mesh",
+             "appearance": "default", "slot": "inner_torso"},
+        ],
+    }
+    ap = resolve_assets(cc, game_dir=None)
+    assert ap["equipped_clothing"] == cc["clothing"]
+

@@ -695,7 +695,9 @@ def build_project(
                     print(f"[Project] Skin tone override: {name} -> {skin_tone}")
 
     # 6. Clothing
-    component_specs.extend(resolve_clothing(body_rig, garment_overrides, verbosity))
+    component_specs.extend(resolve_clothing(
+        body_rig, garment_overrides,
+        equipped=asset_paths.get("equipped_clothing"), verbosity=verbosity))
 
     # 7. Genital filtering
     cc_settings = {}

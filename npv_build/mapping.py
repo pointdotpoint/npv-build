@@ -47,6 +47,7 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
         "part_entities": [],
         "external_dependencies": [],
         "unresolved": [],
+        "equipped_clothing": cc_settings.get("clothing", []),
     }
 
     part_entities = []
