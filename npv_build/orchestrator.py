@@ -25,7 +25,24 @@ def compute_mod_id(npv_name: str, cc_settings: dict) -> str:
     hash_digest = hashlib.sha256(canonical_json.encode('utf-8')).hexdigest()[:8]
     return f"{slug}_{hash_digest}"
 
-def run_orchestrator(save_path: Path, npv_name: str, output_dir: Path, game_dir: Path, template_cache: Path, clear_cache: bool, verbosity: int, cc_json_path: Path = None, hair_override: str = None, skin_override: str = None, garments: list = None):
+def run_orchestrator(
+    save_path: Path,
+    npv_name: str,
+    output_dir: Path,
+    game_dir: Path,
+    template_cache: Path,
+    clear_cache: bool,
+    verbosity: int,
+    cc_json_path: Path = None,
+    hair_override: str = None,
+    skin_override: str = None,
+    garments: list = None,
+    user_head_glb: Path = None,
+    user_head_mesh: Path = None,
+    user_heb_mesh: Path = None,
+    restore_head_materials: bool = True,
+    dump_head_glb: Path = None,
+):
     # Construct WolvenKit CLI adapter
     wk_config = WolvenKitConfig(
         game_dir=game_dir,
@@ -37,6 +54,27 @@ def run_orchestrator(save_path: Path, npv_name: str, output_dir: Path, game_dir:
         wk.check_version()
     except WolvenKitError as e:
         raise OrchestratorError(e.module_name, str(e))
+
+    if dump_head_glb:
+        from .head_bake import dump_head_glb as _dump_head_glb
+        body_rig = "pwa"
+        if cc_json_path:
+            try:
+                with open(cc_json_path, "r") as f:
+                    dump_data_for_rig = json.load(f)
+                body_rig = dump_data_for_rig.get("body_rig", "pwa")
+            except Exception:
+                pass
+        elif save_path:
+            try:
+                cc_tmp = parse_save(save_path)
+                body_rig = cc_tmp.get("body_rig", "pwa")
+            except Exception:
+                pass
+        if verbosity > 0 and body_rig == "pwa" and not (cc_json_path or save_path):
+            print("[Head] using default body rig 'pwa' for head dump")
+        _dump_head_glb(wk, body_rig, dump_head_glb, verbosity)
+        return str(dump_head_glb)
 
     if clear_cache and template_cache.exists():
         shutil.rmtree(template_cache)
@@ -166,9 +204,19 @@ def run_orchestrator(save_path: Path, npv_name: str, output_dir: Path, game_dir:
         print("[Project] Building WolvenKit project...")
 
     try:
-        component_specs = build_project(wk, mod_id, output_dir, asset_paths, verbosity,
-                                        garment_overrides=garments or [],
-                                        skin_override=skin_override)
+        component_specs = build_project(
+            wk,
+            mod_id,
+            output_dir,
+            asset_paths,
+            verbosity,
+            garment_overrides=garments or [],
+            skin_override=skin_override,
+            user_head_glb=user_head_glb,
+            user_head_mesh=user_head_mesh,
+            user_heb_mesh=user_heb_mesh,
+            restore_head_materials=restore_head_materials,
+        )
     except WolvenKitError as e:
         raise OrchestratorError(e.module_name, str(e))
     except Exception as e:

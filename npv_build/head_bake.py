@@ -202,55 +202,32 @@ def _restore_part_materials(
 
 
 
-def bake_head(
+def _finalize_head(
     wk: WolvenKit,
     mod_id: str,
     build_dir: Path,
     body_rig: str,
-    face_morphs: dict,
+    baked_mesh_fs: Path,
+    baked_mesh_depot: str,
     verbosity: int = 0,
+    *,
+    restore_materials: bool = True,
+    heb_baked_fs: Path | None = None,
+    heb_baked_depot: str | None = None,
 ) -> bool | None:
-    """Bake face morphs into head mesh and create mod-scoped morphtarget.
+    """Restore materials (if enabled) and author mod-scoped morphtarget."""
+    if restore_materials:
+        _restore_head_materials(wk, baked_mesh_fs, body_rig, verbosity)
+        if heb_baked_fs:
+            from .blender_module import HEB_FACE_MESH
+            heb_mesh = HEB_FACE_MESH.get(body_rig, "")
+            if heb_mesh:
+                _restore_part_materials(wk, heb_baked_fs, heb_mesh, verbosity)
+    else:
+        if verbosity > 0:
+            print("[Head] material restore skipped; using mesh's own materials")
 
-    Returns True on success, None on failure. Writes the baked mesh and
-    morphtarget into build_dir at their depot paths.
-    """
-    from .blender_module import (
-        bake_face_mesh, HEAD_MORPHTARGET, HEB_MORPHTARGET, HEB_FACE_MESH,
-    )
-
-    if not face_morphs:
-        return None
-
-    baked_mesh_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_head.mesh"
-    baked_mesh_fs = build_dir / baked_mesh_depot.replace("\\", "/")
-    result = bake_face_mesh(
-        wk.config.game_dir, body_rig, face_morphs, baked_mesh_fs, verbosity, wk=wk,
-    )
-    if not result:
-        return None
-
-    _restore_head_materials(wk, baked_mesh_fs, body_rig, verbosity)
-
-    # Also bake the heb_ skin-detail layer with the SAME face morphs. It shares
-    # h0_'s 105 morphs; baked separately so it deforms identically and stops
-    # overlapping the morphed head (doubled jaw/mouth). Non-fatal if unavailable.
-    heb_mt = HEB_MORPHTARGET.get(body_rig, "")
-    heb_mesh = HEB_FACE_MESH.get(body_rig, "")
-    if heb_mt and heb_mesh:
-        heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
-        heb_baked_fs = build_dir / heb_baked_depot.replace("\\", "/")
-        heb_result = bake_face_mesh(
-            wk.config.game_dir, body_rig, face_morphs, heb_baked_fs, verbosity, wk=wk,
-            mt_depot=heb_mt, mesh_depot=heb_mesh, stage_name="bake_heb",
-        )
-        if heb_result:
-            _restore_part_materials(wk, heb_baked_fs, heb_mesh, verbosity)
-            if verbosity > 0:
-                print(f"[Head] baked heb_ layer: {heb_baked_depot}")
-        elif verbosity > 0:
-            print("[Head] heb_ bake skipped/failed; head may show overlap")
-
+    from .blender_module import HEAD_MORPHTARGET
     stock_mt_depot = HEAD_MORPHTARGET.get(body_rig, "")
     mt_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_morphs.morphtarget"
     if not stock_mt_depot:
@@ -279,3 +256,321 @@ def bake_head(
         print(f"[Head] baked mesh: {baked_mesh_depot}")
         print(f"[Head] morphtarget: {mt_depot}")
     return True
+
+
+def bake_head(
+    wk: WolvenKit,
+    mod_id: str,
+    build_dir: Path,
+    body_rig: str,
+    face_morphs: dict,
+    verbosity: int = 0,
+) -> bool | None:
+    """Bake face morphs into head mesh and create mod-scoped morphtarget.
+
+    Returns True on success, None on failure. Writes the baked mesh and
+    morphtarget into build_dir at their depot paths.
+    """
+    from .blender_module import (
+        bake_face_mesh, HEB_MORPHTARGET, HEB_FACE_MESH,
+    )
+
+    if not face_morphs:
+        return None
+
+    baked_mesh_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_head.mesh"
+    baked_mesh_fs = build_dir / baked_mesh_depot.replace("\\", "/")
+    result = bake_face_mesh(
+        wk.config.game_dir, body_rig, face_morphs, baked_mesh_fs, verbosity, wk=wk,
+    )
+    if not result:
+        return None
+
+    # Also bake the heb_ skin-detail layer with the SAME face morphs. It shares
+    # h0_'s 105 morphs; baked separately so it deforms identically and stops
+    # overlapping the morphed head (doubled jaw/mouth). Non-fatal if unavailable.
+    heb_baked_fs = None
+    heb_baked_depot = None
+    heb_mt = HEB_MORPHTARGET.get(body_rig, "")
+    heb_mesh = HEB_FACE_MESH.get(body_rig, "")
+    if heb_mt and heb_mesh:
+        heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
+        heb_baked_fs = build_dir / heb_baked_depot.replace("\\", "/")
+        heb_result = bake_face_mesh(
+            wk.config.game_dir, body_rig, face_morphs, heb_baked_fs, verbosity, wk=wk,
+            mt_depot=heb_mt, mesh_depot=heb_mesh, stage_name="bake_heb",
+        )
+        if heb_result:
+            if verbosity > 0:
+                print(f"[Head] baked heb_ layer: {heb_baked_depot}")
+        else:
+            heb_baked_fs = None
+            heb_baked_depot = None
+            if verbosity > 0:
+                print("[Head] heb_ bake skipped/failed; head may show overlap")
+
+    return _finalize_head(
+        wk,
+        mod_id,
+        build_dir,
+        body_rig,
+        baked_mesh_fs,
+        baked_mesh_depot,
+        verbosity,
+        restore_materials=True,
+        heb_baked_fs=heb_baked_fs,
+        heb_baked_depot=heb_baked_depot,
+    )
+
+
+def _read_glb_json(glb_path: Path) -> dict | None:
+    try:
+        with open(glb_path, "rb") as f:
+            magic = f.read(4)
+            if magic != b"glTF":
+                return None
+            version = int.from_bytes(f.read(4), "little")
+            length = int.from_bytes(f.read(4), "little")
+            
+            chunk_length = int.from_bytes(f.read(4), "little")
+            chunk_type = f.read(4)
+            if chunk_type != b"JSON":
+                return None
+            chunk_data = f.read(chunk_length)
+            return json.loads(chunk_data.decode("utf-8"))
+    except Exception:
+        return None
+
+
+def _get_glb_vertex_count(glb_path: Path) -> int | None:
+    glb_json = _read_glb_json(glb_path)
+    if not glb_json:
+        return None
+    
+    counts = []
+    accessors = glb_json.get("accessors", [])
+    for mesh in glb_json.get("meshes", []):
+        for prim in mesh.get("primitives", []):
+            pos_accessor_idx = prim.get("attributes", {}).get("POSITION")
+            if pos_accessor_idx is not None and pos_accessor_idx < len(accessors):
+                counts.append(accessors[pos_accessor_idx].get("count", 0))
+    return sum(counts) if counts else None
+
+
+def prepare_head(
+    wk: WolvenKit,
+    mod_id: str,
+    build_dir: Path,
+    body_rig: str,
+    face_morphs: dict,
+    verbosity: int,
+    *,
+    user_glb: Path | None = None,
+    user_mesh: Path | None = None,
+    user_heb_mesh: Path | None = None,
+    restore_materials: bool = True,
+) -> bool | None:
+    """Dispatch head preparation: user override or standard bake."""
+    if user_mesh:
+        return _import_user_mesh(
+            wk,
+            mod_id,
+            build_dir,
+            body_rig,
+            user_mesh,
+            user_heb_mesh,
+            verbosity,
+            restore_materials=restore_materials,
+        )
+    if user_glb:
+        return _import_user_glb(
+            wk,
+            mod_id,
+            build_dir,
+            body_rig,
+            user_glb,
+            user_heb_mesh,
+            verbosity,
+        )
+    return bake_head(wk, mod_id, build_dir, body_rig, face_morphs, verbosity)
+
+
+def _import_user_glb(
+    wk: WolvenKit,
+    mod_id: str,
+    build_dir: Path,
+    body_rig: str,
+    user_glb: Path,
+    user_heb_mesh: Path | None,
+    verbosity: int,
+) -> bool | None:
+    """Import user-supplied head GLB, restore materials, rebuild skinning."""
+    from .blender_module import HEAD_FACE_MESH
+    stock_head_depot = HEAD_FACE_MESH.get(body_rig, "")
+    if not stock_head_depot:
+        raise WolvenKitError(
+            f"No stock head mesh mapped for body rig {body_rig}",
+            operation="import head GLB",
+        )
+
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        stock_head_regex = _re.escape(stock_head_depot) + r"$"
+        wk.unbundle(stock_head_regex, archive=wk.config.appearance_archive, dest=td_path)
+        stock_head_fs = td_path / stock_head_depot.replace("\\", "/")
+        if not stock_head_fs.exists():
+            raise WolvenKitError(
+                f"Stock head mesh not found after unbundle: {stock_head_depot}",
+                operation="import head GLB",
+            )
+
+        # Copy user GLB next to the stock mesh with matching stem
+        glb_for_import = stock_head_fs.parent / (stock_head_fs.stem + ".glb")
+        shutil.copy2(user_glb, glb_for_import)
+
+        # Compare vertex counts
+        try:
+            stock_glb_dir = td_path / "stock_glb_temp"
+            stock_glb_dir.mkdir()
+            stock_glb_fs = wk.export(stock_head_fs, dest=stock_glb_dir)
+            stock_v_count = _get_glb_vertex_count(stock_glb_fs)
+            user_v_count = _get_glb_vertex_count(user_glb)
+            if stock_v_count is not None and user_v_count is not None and stock_v_count != user_v_count:
+                print(f"[Head] warning: head GLB vertex count ({user_v_count}) differs from stock head ({stock_v_count}); skinning may be imperfect")
+        except Exception as e:
+            if verbosity > 0:
+                print(f"[Head] warning: could not compare vertex counts ({e})")
+
+        # Import
+        mesh_mtime_before = stock_head_fs.stat().st_mtime if stock_head_fs.exists() else 0
+        try:
+            wk.import_mesh(stock_head_fs.parent, dest=stock_head_fs.parent, allow_exit_codes=(3,))
+        except WolvenKitError:
+            if not stock_head_fs.exists() or stock_head_fs.stat().st_mtime <= mesh_mtime_before:
+                raise
+
+        # Copy rebuilt mesh to destination
+        baked_mesh_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_head.mesh"
+        baked_mesh_fs = build_dir / baked_mesh_depot.replace("\\", "/")
+        baked_mesh_fs.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(stock_head_fs, baked_mesh_fs)
+
+        # Import user heb_mesh if provided
+        heb_baked_fs = None
+        heb_baked_depot = None
+        if user_heb_mesh:
+            from .blender_module import HEB_FACE_MESH
+            stock_heb_depot = HEB_FACE_MESH.get(body_rig, "")
+            if stock_heb_depot:
+                stock_heb_regex = _re.escape(stock_heb_depot) + r"$"
+                wk.unbundle(stock_heb_regex, archive=wk.config.appearance_archive, dest=td_path)
+                stock_heb_fs = td_path / stock_heb_depot.replace("\\", "/")
+                if stock_heb_fs.exists():
+                    heb_glb_for_import = stock_heb_fs.parent / (stock_heb_fs.stem + ".glb")
+                    shutil.copy2(user_heb_mesh, heb_glb_for_import)
+                    heb_mtime_before = stock_heb_fs.stat().st_mtime
+                    try:
+                        wk.import_mesh(stock_heb_fs.parent, dest=stock_heb_fs.parent, allow_exit_codes=(3,))
+                    except WolvenKitError:
+                        if not stock_heb_fs.exists() or stock_heb_fs.stat().st_mtime <= heb_mtime_before:
+                            raise
+
+                    heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
+                    heb_baked_fs = build_dir / heb_baked_depot.replace("\\", "/")
+                    heb_baked_fs.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(stock_heb_fs, heb_baked_fs)
+                    if verbosity > 0:
+                        print(f"[Head] imported user heb_ layer: {heb_baked_depot}")
+
+        return _finalize_head(
+            wk,
+            mod_id,
+            build_dir,
+            body_rig,
+            baked_mesh_fs,
+            baked_mesh_depot,
+            verbosity,
+            restore_materials=True,
+            heb_baked_fs=heb_baked_fs,
+            heb_baked_depot=heb_baked_depot,
+        )
+
+
+def _import_user_mesh(
+    wk: WolvenKit,
+    mod_id: str,
+    build_dir: Path,
+    body_rig: str,
+    user_mesh: Path,
+    user_heb_mesh: Path | None,
+    verbosity: int,
+    *,
+    restore_materials: bool = True,
+) -> bool | None:
+    """Import user-supplied finished cooked .mesh verbatim, optionally restoring materials."""
+    baked_mesh_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_head.mesh"
+    baked_mesh_fs = build_dir / baked_mesh_depot.replace("\\", "/")
+    baked_mesh_fs.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(user_mesh, baked_mesh_fs)
+    if verbosity > 0:
+        print(f"[Head] warning: user mesh — skinning not verified")
+
+    heb_baked_fs = None
+    heb_baked_depot = None
+    if user_heb_mesh:
+        heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
+        heb_baked_fs = build_dir / heb_baked_depot.replace("\\", "/")
+        heb_baked_fs.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(user_heb_mesh, heb_baked_fs)
+        if verbosity > 0:
+            print(f"[Head] copied user heb_ mesh verbatim: {heb_baked_depot}")
+
+    return _finalize_head(
+        wk,
+        mod_id,
+        build_dir,
+        body_rig,
+        baked_mesh_fs,
+        baked_mesh_depot,
+        verbosity,
+        restore_materials=restore_materials,
+        heb_baked_fs=heb_baked_fs,
+        heb_baked_depot=heb_baked_depot,
+    )
+
+
+def dump_head_glb(
+    wk: WolvenKit,
+    body_rig: str,
+    dest_path: Path,
+    verbosity: int,
+) -> None:
+    """Export stock head mesh to an editable GLB file."""
+    from .blender_module import HEAD_FACE_MESH
+    stock_head_depot = HEAD_FACE_MESH.get(body_rig, "")
+    if not stock_head_depot:
+        raise WolvenKitError(
+            f"No stock head mesh mapped for body rig {body_rig}",
+            operation="dump head GLB",
+        )
+
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        stock_head_regex = _re.escape(stock_head_depot) + r"$"
+        wk.unbundle(stock_head_regex, archive=wk.config.appearance_archive, dest=td_path)
+        stock_head_fs = td_path / stock_head_depot.replace("\\", "/")
+        if not stock_head_fs.exists():
+            raise WolvenKitError(
+                f"Stock head mesh not found after unbundle: {stock_head_depot}",
+                operation="dump head GLB",
+            )
+
+        # Export to GLB directory
+        glb_dir = td_path / "glb_out"
+        glb_dir.mkdir()
+        produced_glb = wk.export(stock_head_fs, dest=glb_dir)
+
+        # Copy to final destination
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(produced_glb, dest_path)
+        print(f"[Head] stock head GLB written: {dest_path} — edit and pass via --head-glb")

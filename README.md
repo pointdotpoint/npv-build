@@ -185,17 +185,49 @@ npv-build [<sav.dat>] <NPV name> --output <dir> [options]
 
 | Argument / Flag | Required | Description |
 |-----------------|----------|-------------|
-| `<sav.dat>` | conditional | Path to your save file. Optional if `--cc-json` is given. |
-| `<NPV name>` | yes | Display name for the NPC in AMM. |
-| `--output <dir>` | yes | Where to write the mod project. |
+| `<sav.dat>` | conditional | Path to your save file. Optional if `--cc-json` or `--dump-head-glb` is given. |
+| `<NPV name>` | yes | Display name for the NPC in AMM. Optional if `--dump-head-glb` is given. |
+| `--output <dir>` | yes | Where to write the mod project. Optional if `--dump-head-glb` is given. |
 | `--game-dir <path>` | first run | Cyberpunk 2077 install directory. **Saved after first use**; required again only if it changes. |
 | `--cc-json <path>` | — | Use a CET CC dump (face and/or equipped clothing) instead of, or alongside, the save. |
 | `--hair <id\|none>` | — | Hair override: vanilla number (`1` → `hh_001`), modded name (`zara`), or `none`. |
 | `--skin <tone>` | — | Skin-tone `meshAppearance` override (e.g. `01_ca_pale`). |
 | `--garment <depot_path>` | — | Add a garment `.ent` depot path. **Repeatable** — pass once per item. |
+| `--head-glb <path>` | — | Option A: Use your own Blender-edited head GLB instead of baking face morphs. We import it to `.mesh` and restore materials/skinning. |
+| `--head-mesh <path>` | — | Option B: Use your own finished cooked `.mesh` as V's head. Skips Blender and WolvenKit import. |
+| `--heb-mesh <path>` | — | Optional skin-detail (`heb_`) layer to accompany `--head-glb` / `--head-mesh`. Dropped if omitted. |
+| `--no-restore-head-materials` | — | Option B only: keep the materials baked into your `.mesh` instead of restoring stock head materials. |
+| `--dump-head-glb <path>` | — | Export stock head GLB for editing (then feed back via `--head-glb`) and exit. Requires `--game-dir`. |
 | `--template-cache <dir>` | — | Override the template cache location (default: `~/.cache/npv/templates`). |
 | `--clear-cache` | — | Wipe the template cache before running. |
 | `-v` / `-vv` | — | Verbose / very-verbose output. |
+
+### Custom Head Mesh ("Bring Your Own") Workflow
+
+If you want to edit V's head geometry in Blender yourself or use a custom-sculpted head, `npv-build` supports bypass options:
+
+#### Option A: Blender GLB Workflow (Recommended)
+1. Export the base head:
+   ```bash
+   npv-build --dump-head-glb ./my_base_head.glb
+   ```
+2. Edit `./my_base_head.glb` in Blender (sculpt, modify, etc.). Do not change vertex count / topology if you want perfect skinning, though warnings about count mismatches will only warn rather than fail.
+3. Build your NPV using the edited GLB:
+   ```bash
+   npv-build /path/to/sav.dat "My V" --output ./my_v_mod --head-glb ./my_base_head.glb
+   ```
+This automatically restores game materials/skinning onto your model using WolvenKit's `import --keep`.
+
+#### Option B: Verbatim Mesh Workflow (Power Users)
+If you already have a finished `.mesh` file (with custom skinning, materials, etc.):
+```bash
+npv-build /path/to/sav.dat "My V" --output ./my_v_mod --head-mesh ./custom_head.mesh
+```
+- By default, materials are restored from the stock head. Pass `--no-restore-head-materials` to keep the custom materials already baked into your `.mesh`.
+- **Note:** Skips WolvenKit import entirely. The rig and skinning must already be fully intact and compatible.
+
+#### Skin-Detail (`heb_`) Layer
+By default, custom head overrides drop the `heb_` skin-detail component to prevent overlap/glitches. If you have a custom detail layer mesh, pass it with `--heb-mesh <path.mesh>`.
 
 ### Config & cache
 

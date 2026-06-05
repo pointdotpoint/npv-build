@@ -17,7 +17,7 @@ import tempfile
 from pathlib import Path
 
 from .wk_cli import WolvenKit, WolvenKitError
-from .head_bake import bake_head, find_stock_head_part
+from .head_bake import prepare_head, find_stock_head_part
 from .clothing import resolve_clothing
 from .config_editor import _MESH_COMPONENT_TYPES
 
@@ -484,6 +484,10 @@ def build_project(
     verbosity: int,
     garment_overrides: list[str] | None = None,
     skin_override: str | None = None,
+    user_head_glb: Path | None = None,
+    user_head_mesh: Path | None = None,
+    user_heb_mesh: Path | None = None,
+    restore_head_materials: bool = True,
 ) -> list[dict]:
     """Build the full mod: assemble components, inject into .app, pack .archive.
 
@@ -530,22 +534,41 @@ def build_project(
     face_morphs = asset_paths.get("face_morphs", {})
     body_rig = asset_paths.get("body_rig", "pwa")
     baked_mesh_depot = None
+    override = user_head_glb or user_head_mesh
 
-    if face_morphs and game_dir:
+    if (face_morphs or override) and game_dir:
         try:
-            result = bake_head(wk, mod_id, source_dir, body_rig, face_morphs, verbosity)
+            result = prepare_head(
+                wk,
+                mod_id,
+                source_dir,
+                body_rig,
+                face_morphs,
+                verbosity,
+                user_glb=user_head_glb,
+                user_mesh=user_head_mesh,
+                user_heb_mesh=user_heb_mesh,
+                restore_materials=restore_head_materials,
+            )
             if result:
                 baked_mesh_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_head.mesh"
         except Exception as e:
-            print(f"[Head] face bake failed ({e}); using stock head.")
+            print(f"[Head] head preparation failed ({e}); using stock head.")
 
     if baked_mesh_depot:
+        if user_head_glb:
+            source_label = "user head GLB (imported)"
+        elif user_head_mesh:
+            source_label = "user head mesh (verbatim)"
+        else:
+            source_label = "baked head (face morphs applied)"
+
         component_specs.append({
             "comp_type": "entSkinnedMeshComponent",
             "name": f"h0_000_{body_rig}_c__basehead",
             "mesh": baked_mesh_depot,
             "appearance": skin_tone,
-            "source": "baked head (face morphs applied)",
+            "source": source_label,
         })
         if verbosity > 0:
             print(f"[Head] baked head component: h0_000_{body_rig}_c__basehead")
@@ -660,7 +683,24 @@ def build_project(
     # _extract_part_components demotes heb_ (a morphtarget component) to its
     # NEUTRAL base mesh, which then overlaps the morphed h0_ head -> doubled
     # jaw/mouth. bake_head() also baked heb_ with V's morphs; point at it.
-    if baked_mesh_depot:
+    if baked_mesh_depot and override:
+        heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
+        heb_baked_fs = source_dir / heb_baked_depot.replace("\\", "/")
+        if heb_baked_fs.exists():
+            for c in component_specs:
+                if c.get("name", "").startswith("heb_000_") and c["name"].endswith("__basehead"):
+                    c["mesh"] = heb_baked_depot
+                    c["source"] = "user heb_ layer"
+                    if verbosity > 0:
+                        print(f"[Head] repointed {c['name']} -> user heb mesh")
+        else:
+            component_specs[:] = [
+                c for c in component_specs
+                if not (c.get("name", "").startswith("heb_000_") and c["name"].endswith("__basehead"))
+            ]
+            if verbosity > 0:
+                print("[Head] no --heb-mesh with custom head; skin-detail layer omitted")
+    elif baked_mesh_depot:
         heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
         heb_baked_fs = source_dir / heb_baked_depot.replace("\\", "/")
         if heb_baked_fs.exists():
