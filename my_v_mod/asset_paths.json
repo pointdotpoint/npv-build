@@ -7,61 +7,58 @@
     "base\\characters\\common\\player_base_bodies\\appearances\\entity\\a0_000_pwa_base__full.ent",
     "base\\characters\\common\\player_base_bodies\\appearances\\entity\\t0_000_pwa_base__full.ent",
     "base\\characters\\head\\player_base_heads\\appearances\\entity\\cyberware\\hx_000_pwa__cyberware_07.ent",
+    "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\heb_000_pwa__basehead.ent",
     "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\hx_000_pwa__basehead_pimples_01.ent",
     "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\hx_000_pwa__morphs_makeup_freckles_01.ent",
     "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent",
     "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\he_000_pwa__basehead.ent",
-    "base\\characters\\garment\\player_equipment\\torso\\t1_097_pwa_tank__corset_doll_prostitute.ent",
-    "ep1\\characters\\garment\\player_equipment\\legs\\l1_103_pwa_pants__military.ent",
-    "base\\1geralt1\\player\\body_suit_with_gun_harness\\garment\\feet\\s1_1g1_bswghfem_042_wa_boot__high.ent",
-    "veegee_casual_pt32\\root_stuff\\casual_pt32_belt.ent",
-    "veegee_casual_pt37\\root_stuff\\casual_pt37_leg_belt.ent"
+    "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\ht_000_pwa__basehead.ent"
   ],
   "external_dependencies": [
     {
-      "selection": "zara",
-      "reason": "modded hair from MELUMINARY - CCXL - ZARA PONYTAIL.archive (must stay installed)"
+      "selection": "edie_hair",
+      "reason": "modded hair from MELUMINARY - CCXL - EVA WAVY WOLFCUT.archive (must stay installed)"
     }
   ],
   "unresolved": [
-    "female__03_ginger_copper",
+    "36_aqua_blonde",
     "female__25_black_salt_n_pepper",
     "w__01_ca_pale",
     "female_ht_000__basehead",
-    "w_cyber_134",
-    "w_cyber_00",
-    "w_cyber_134",
-    "w_cyber_00",
+    "w_cyber_63",
+    "w_cyber_01",
+    "w_cyber_63",
+    "w_cyber_01",
     "n0_000_pwa_fpp__neck__01_ca_pale",
-    "62_molten_marmalade",
-    "female__03_ginger_copper",
+    "04_teal_ombre",
+    "36_aqua_blonde",
     "female__25_black_salt_n_pepper",
     "w__01_ca_pale",
     "female_ht_000__basehead",
     "hx_000_pwa__basehead_makeup_eyes__01_black",
-    "hx_000_pwa__basehead__makeup_lips_01__01_black",
-    "w_cyber_134",
-    "w_cyber_00",
-    "w_cyber_134",
-    "w_cyber_00",
-    "62_molten_marmalade",
+    "hx_000_pwa__basehead__makeup_lips_01__11_burgundy",
+    "w_cyber_63",
+    "w_cyber_01",
+    "w_cyber_63",
+    "w_cyber_01",
+    "04_teal_ombre",
     "default",
     "n0_000_pwa_fpp__neck__01_ca_pale",
     "default",
-    "female__03_ginger_copper",
+    "36_aqua_blonde",
     "female__25_black_salt_n_pepper",
     "w__01_ca_pale",
     "female_ht_000__basehead",
-    "w_cyber_134",
-    "w_cyber_00",
-    "w_cyber_134",
-    "w_cyber_00",
+    "w_cyber_63",
+    "w_cyber_01",
+    "w_cyber_63",
+    "w_cyber_01",
     "hx_000_pwa__basehead_makeup_eyes__01_black",
-    "hx_000_pwa__basehead__makeup_lips_01__01_black",
-    "w_cyber_134",
-    "w_cyber_00",
-    "w_cyber_134",
-    "w_cyber_00",
+    "hx_000_pwa__basehead__makeup_lips_01__11_burgundy",
+    "w_cyber_63",
+    "w_cyber_01",
+    "w_cyber_63",
+    "w_cyber_01",
     "holstered_arms_data_female",
     "a0_000_pwa_base__nails_01_all_gradient_gold__multilayer",
     "a0_000_pwa_base__01_ca_pale",
@@ -115,9 +112,6 @@
     "female_a0_000_mantisblade__01_ca_pale",
     "female_a0_000_mantisblade__01_ca_pale",
     "a0_000_pwa_base__nails_01_all_gradient_gold__multilayer",
-    "t0_000_pwa_base__01_ca_pale",
-    "t0_000_pwa_base__01_ca_pale",
-    "female_i0_002_base__nipple__01_ca_pale",
     "female_001",
     "t0_000_pwa_base__01_ca_pale",
     "t0_000_pwa_base__01_ca_pale",
@@ -132,6 +126,32 @@
     "i0_000_pwa_base__vagina__01_ca_pale",
     "l0_000_pwa_base__01_ca_pale",
     "l0_000_pwa_base__01_ca_pale"
+  ],
+  "equipped_clothing": [
+    {
+      "appearance": "silver_black_02",
+      "mesh": "hash:17698076678924766248ULL",
+      "name": "t2_1g1_bswghfem_full_gun_harness_01_s",
+      "slot": "outer_torso"
+    },
+    {
+      "appearance": "default",
+      "mesh": "hash:7373441955471467811ULL",
+      "name": "t2_1g1_bswghfem_full_gun_harness_01_shadow",
+      "slot": "outer_torso"
+    },
+    {
+      "appearance": "yellow",
+      "mesh": "hash:2200231809071344630ULL",
+      "name": "t1_1g1_bswghfem_bodysuitsweater_01",
+      "slot": "inner_torso"
+    },
+    {
+      "appearance": "default",
+      "mesh": "hash:11890251205863766028ULL",
+      "name": "t1_1g1_bswghfem_bodysuitsweater_00_cuff",
+      "slot": "inner_torso"
+    }
   ],
   "recipe_parts": [
     {
@@ -152,17 +172,6 @@
           "$type": "ResourcePath",
           "$storage": "string",
           "$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\he_000_pwa__basehead.ent"
-        },
-        "Flags": "Soft"
-      }
-    },
-    {
-      "$type": "appearanceAppearancePart",
-      "resource": {
-        "DepotPath": {
-          "$type": "ResourcePath",
-          "$storage": "string",
-          "$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\heb_000_pwa__basehead.ent"
         },
         "Flags": "Soft"
       }
@@ -369,7 +378,7 @@
           "meshAppearance": {
             "$type": "CName",
             "$storage": "string",
-            "$value": "gradient_grey"
+            "$value": "double_eye_black"
           },
           "useCustomTransform": 0,
           "visualScale": {
@@ -385,58 +394,6 @@
           "$type": "ResourcePath",
           "$storage": "string",
           "$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\he_000_pwa__basehead.ent"
-        },
-        "Flags": "Soft"
-      }
-    },
-    {
-      "$type": "appearanceAppearancePartOverrides",
-      "componentsOverrides": [
-        {
-          "$type": "appearancePartComponentOverrides",
-          "acceptDismemberment": 1,
-          "chunkMask": "9223372036854775807",
-          "componentName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "heb_000_pwa__basehead"
-          },
-          "initialTransform": {
-            "$type": "Transform",
-            "orientation": {
-              "$type": "Quaternion",
-              "i": 0,
-              "j": 0,
-              "k": 0,
-              "r": 1
-            },
-            "position": {
-              "$type": "Vector4",
-              "W": 0,
-              "X": 0,
-              "Y": 0,
-              "Z": 0
-            }
-          },
-          "meshAppearance": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "ginger_copper__05"
-          },
-          "useCustomTransform": 0,
-          "visualScale": {
-            "$type": "Vector3",
-            "X": 0,
-            "Y": 0,
-            "Z": 0
-          }
-        }
-      ],
-      "partResource": {
-        "DepotPath": {
-          "$type": "ResourcePath",
-          "$storage": "string",
-          "$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\heb_000_pwa__basehead.ent"
         },
         "Flags": "Soft"
       }
@@ -772,7 +729,7 @@
           "meshAppearance": {
             "$type": "CName",
             "$storage": "string",
-            "$value": "black_01"
+            "$value": "yellow_01"
           },
           "useCustomTransform": 0,
           "visualScale": {
@@ -811,7 +768,7 @@
           "meshAppearance": {
             "$type": "CName",
             "$storage": "string",
-            "$value": "black_08"
+            "$value": "burgundy_19"
           },
           "useCustomTransform": 0,
           "visualScale": {
@@ -983,7 +940,7 @@
     "ear": "h035"
   },
   "_game_dir": "/home/pdp/.local/share/Steam/steamapps/common/Cyberpunk 2077",
-  "hair_color": "molten_marmalade",
+  "hair_color": "teal_ombre",
   "hair_components": [
     {
       "$type": "entAnimatedComponent",
@@ -1051,7 +1008,7 @@
         "DepotPath": {
           "$type": "ResourcePath",
           "$storage": "string",
-          "$value": "base\\mel_ccxl_hair\\meshes\\zara_hair_pt1.animgraph"
+          "$value": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt1.animgraph"
         },
         "Flags": "Obligatory"
       },
@@ -1129,7 +1086,7 @@
         "DepotPath": {
           "$type": "ResourcePath",
           "$storage": "string",
-          "$value": "base\\mel_ccxl_hair\\meshes\\zara_hair_pt1.rig"
+          "$value": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt1.rig"
         },
         "Flags": "Obligatory"
       },
@@ -1203,11 +1160,11 @@
         "DepotPath": {
           "$type": "ResourcePath",
           "$storage": "string",
-          "$value": "base\\mel_ccxl_hair\\meshes\\zara_hair_pt3.animgraph"
+          "$value": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt2.animgraph"
         },
         "Flags": "Obligatory"
       },
-      "id": "6055275496806614392",
+      "id": "15533612247027081448",
       "isReplicable": 0,
       "localTransform": {
         "$type": "WorldTransform",
@@ -1281,159 +1238,7 @@
         "DepotPath": {
           "$type": "ResourcePath",
           "$storage": "string",
-          "$value": "base\\mel_ccxl_hair\\meshes\\zara_hair_pt3.rig"
-        },
-        "Flags": "Obligatory"
-      },
-      "serverForcedLod": -1,
-      "serverForcedVisibility": 0,
-      "useLongRangeVisibility": 0
-    },
-    {
-      "$type": "entAnimatedComponent",
-      "animations": {
-        "$type": "animAnimSetup",
-        "cinematics": [],
-        "gameplay": [],
-        "hash": "1099511628211"
-      },
-      "animParameters": [],
-      "animTags": {
-        "$type": "redTagList",
-        "tags": []
-      },
-      "audioAltName": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "None"
-      },
-      "calculateAccelerationWs": 0,
-      "clientForcedLod": -1,
-      "clientForcedVisibility": 0,
-      "controlBinding": {
-        "HandleId": "5",
-        "Data": {
-          "$type": "entAnimationControlBinding",
-          "bindName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "root"
-          },
-          "enabled": 1,
-          "enableMask": {
-            "$type": "entTagMask",
-            "excludedTags": {
-              "$type": "redTagList",
-              "tags": [
-                {
-                  "$type": "CName",
-                  "$storage": "string",
-                  "$value": "NoBinding"
-                }
-              ]
-            },
-            "hardTags": {
-              "$type": "redTagList",
-              "tags": []
-            },
-            "softTags": {
-              "$type": "redTagList",
-              "tags": []
-            }
-          }
-        }
-      },
-      "facialSetup": {
-        "DepotPath": {
-          "$type": "ResourcePath",
-          "$storage": "uint64",
-          "$value": "0"
-        },
-        "Flags": "Soft"
-      },
-      "graph": {
-        "DepotPath": {
-          "$type": "ResourcePath",
-          "$storage": "string",
-          "$value": "base\\mel_ccxl_hair\\meshes\\zara_hair_pt4.animgraph"
-        },
-        "Flags": "Obligatory"
-      },
-      "id": "1425872384129659104",
-      "isReplicable": 0,
-      "localTransform": {
-        "$type": "WorldTransform",
-        "Orientation": {
-          "$type": "Quaternion",
-          "i": 0,
-          "j": 0,
-          "k": 0,
-          "r": 1
-        },
-        "Position": {
-          "$type": "WorldPosition",
-          "x": {
-            "$type": "FixedPoint",
-            "Bits": 0
-          },
-          "y": {
-            "$type": "FixedPoint",
-            "Bits": 0
-          },
-          "z": {
-            "$type": "FixedPoint",
-            "Bits": 0
-          }
-        }
-      },
-      "name": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "hair_dangle"
-      },
-      "parentTransform": {
-        "HandleId": "6",
-        "Data": {
-          "$type": "entHardTransformBinding",
-          "bindName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "root"
-          },
-          "enabled": 1,
-          "enableMask": {
-            "$type": "entTagMask",
-            "excludedTags": {
-              "$type": "redTagList",
-              "tags": [
-                {
-                  "$type": "CName",
-                  "$storage": "string",
-                  "$value": "NoBinding"
-                }
-              ]
-            },
-            "hardTags": {
-              "$type": "redTagList",
-              "tags": []
-            },
-            "softTags": {
-              "$type": "redTagList",
-              "tags": []
-            }
-          },
-          "slotName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "None"
-          }
-        }
-      },
-      "rig": {
-        "DepotPath": {
-          "$type": "ResourcePath",
-          "$storage": "string",
-          "$value": "base\\mel_ccxl_hair\\meshes\\zara_hair_pt4.rig"
+          "$value": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt2.rig"
         },
         "Flags": "Obligatory"
       },
@@ -1483,7 +1288,7 @@
         "DepotPath": {
           "$type": "ResourcePath",
           "$storage": "string",
-          "$value": "base\\mel_ccxl_hair\\meshes\\zara_hair_pt1.mesh"
+          "$value": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt1.mesh"
         },
         "Flags": "Default"
       },
@@ -1496,6 +1301,154 @@
         "$type": "CName",
         "$storage": "string",
         "$value": "hair_1"
+      },
+      "navigationImpact": {
+        "$type": "NavGenNavigationSetting",
+        "navmeshImpact": "Ignored"
+      },
+      "order": 0,
+      "overrideMeshNavigationImpact": 1,
+      "parentTransform": {
+        "HandleId": "5",
+        "Data": {
+          "$type": "entHardTransformBinding",
+          "bindName": {
+            "$type": "CName",
+            "$storage": "string",
+            "$value": "hair_dangle"
+          },
+          "enabled": 1,
+          "enableMask": {
+            "$type": "entTagMask",
+            "excludedTags": {
+              "$type": "redTagList",
+              "tags": [
+                {
+                  "$type": "CName",
+                  "$storage": "string",
+                  "$value": "NoBinding"
+                }
+              ]
+            },
+            "hardTags": {
+              "$type": "redTagList",
+              "tags": []
+            },
+            "softTags": {
+              "$type": "redTagList",
+              "tags": []
+            }
+          },
+          "slotName": {
+            "$type": "CName",
+            "$storage": "string",
+            "$value": "None"
+          }
+        }
+      },
+      "renderingPlaneAnimationParam": {
+        "$type": "CName",
+        "$storage": "string",
+        "$value": "None"
+      },
+      "renderSceneLayerMask": "Default",
+      "skinning": {
+        "HandleId": "6",
+        "Data": {
+          "$type": "entSkinningBinding",
+          "bindName": {
+            "$type": "CName",
+            "$storage": "string",
+            "$value": "hair_dangle"
+          },
+          "enabled": 1,
+          "enableMask": {
+            "$type": "entTagMask",
+            "excludedTags": {
+              "$type": "redTagList",
+              "tags": [
+                {
+                  "$type": "CName",
+                  "$storage": "string",
+                  "$value": "NoBinding"
+                }
+              ]
+            },
+            "hardTags": {
+              "$type": "redTagList",
+              "tags": []
+            },
+            "softTags": {
+              "$type": "redTagList",
+              "tags": []
+            }
+          }
+        }
+      },
+      "useProxyMeshAsShadowMesh": 0,
+      "useSkinningLOD": 0,
+      "version": 1,
+      "visibilityAnimationParam": {
+        "$type": "CName",
+        "$storage": "string",
+        "$value": "None"
+      }
+    },
+    {
+      "$type": "entSkinnedMeshComponent",
+      "acceptDismemberment": 1,
+      "autoHideDistance": 50,
+      "castLocalShadows": "Never",
+      "castShadows": "Never",
+      "chunkMask": "9223372036854775807",
+      "forcedLodDistance": "Default",
+      "forceLODLevel": 0,
+      "id": "14784833703710586836",
+      "isEnabled": 1,
+      "isReplicable": 0,
+      "localTransform": {
+        "$type": "WorldTransform",
+        "Orientation": {
+          "$type": "Quaternion",
+          "i": 0,
+          "j": 0,
+          "k": 0,
+          "r": 1
+        },
+        "Position": {
+          "$type": "WorldPosition",
+          "x": {
+            "$type": "FixedPoint",
+            "Bits": 0
+          },
+          "y": {
+            "$type": "FixedPoint",
+            "Bits": 0
+          },
+          "z": {
+            "$type": "FixedPoint",
+            "Bits": 0
+          }
+        }
+      },
+      "LODMode": "AlwaysVisible",
+      "mesh": {
+        "DepotPath": {
+          "$type": "ResourcePath",
+          "$storage": "string",
+          "$value": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt2.mesh"
+        },
+        "Flags": "Default"
+      },
+      "meshAppearance": {
+        "$type": "CName",
+        "$storage": "string",
+        "$value": "blonde_platinum"
+      },
+      "name": {
+        "$type": "CName",
+        "$storage": "string",
+        "$value": "hair_2"
       },
       "navigationImpact": {
         "$type": "NavGenNavigationSetting",
@@ -1549,302 +1502,6 @@
       "renderSceneLayerMask": "Default",
       "skinning": {
         "HandleId": "8",
-        "Data": {
-          "$type": "entSkinningBinding",
-          "bindName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "hair_dangle"
-          },
-          "enabled": 1,
-          "enableMask": {
-            "$type": "entTagMask",
-            "excludedTags": {
-              "$type": "redTagList",
-              "tags": [
-                {
-                  "$type": "CName",
-                  "$storage": "string",
-                  "$value": "NoBinding"
-                }
-              ]
-            },
-            "hardTags": {
-              "$type": "redTagList",
-              "tags": []
-            },
-            "softTags": {
-              "$type": "redTagList",
-              "tags": []
-            }
-          }
-        }
-      },
-      "useProxyMeshAsShadowMesh": 0,
-      "useSkinningLOD": 0,
-      "version": 1,
-      "visibilityAnimationParam": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "None"
-      }
-    },
-    {
-      "$type": "entSkinnedMeshComponent",
-      "acceptDismemberment": 1,
-      "autoHideDistance": 50,
-      "castLocalShadows": "Never",
-      "castShadows": "Never",
-      "chunkMask": "9223372036854775807",
-      "forcedLodDistance": "Default",
-      "forceLODLevel": 0,
-      "id": "9078543697963736516",
-      "isEnabled": 1,
-      "isReplicable": 0,
-      "localTransform": {
-        "$type": "WorldTransform",
-        "Orientation": {
-          "$type": "Quaternion",
-          "i": 0,
-          "j": 0,
-          "k": 0,
-          "r": 1
-        },
-        "Position": {
-          "$type": "WorldPosition",
-          "x": {
-            "$type": "FixedPoint",
-            "Bits": 0
-          },
-          "y": {
-            "$type": "FixedPoint",
-            "Bits": 0
-          },
-          "z": {
-            "$type": "FixedPoint",
-            "Bits": 0
-          }
-        }
-      },
-      "LODMode": "AlwaysVisible",
-      "mesh": {
-        "DepotPath": {
-          "$type": "ResourcePath",
-          "$storage": "string",
-          "$value": "base\\mel_ccxl_hair\\meshes\\zara_hair_pt3.mesh"
-        },
-        "Flags": "Default"
-      },
-      "meshAppearance": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "blonde_platinum"
-      },
-      "name": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "hair_2"
-      },
-      "navigationImpact": {
-        "$type": "NavGenNavigationSetting",
-        "navmeshImpact": "Ignored"
-      },
-      "order": 0,
-      "overrideMeshNavigationImpact": 1,
-      "parentTransform": {
-        "HandleId": "9",
-        "Data": {
-          "$type": "entHardTransformBinding",
-          "bindName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "hair_dangle"
-          },
-          "enabled": 1,
-          "enableMask": {
-            "$type": "entTagMask",
-            "excludedTags": {
-              "$type": "redTagList",
-              "tags": [
-                {
-                  "$type": "CName",
-                  "$storage": "string",
-                  "$value": "NoBinding"
-                }
-              ]
-            },
-            "hardTags": {
-              "$type": "redTagList",
-              "tags": []
-            },
-            "softTags": {
-              "$type": "redTagList",
-              "tags": []
-            }
-          },
-          "slotName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "None"
-          }
-        }
-      },
-      "renderingPlaneAnimationParam": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "None"
-      },
-      "renderSceneLayerMask": "Default",
-      "skinning": {
-        "HandleId": "10",
-        "Data": {
-          "$type": "entSkinningBinding",
-          "bindName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "hair_dangle"
-          },
-          "enabled": 1,
-          "enableMask": {
-            "$type": "entTagMask",
-            "excludedTags": {
-              "$type": "redTagList",
-              "tags": [
-                {
-                  "$type": "CName",
-                  "$storage": "string",
-                  "$value": "NoBinding"
-                }
-              ]
-            },
-            "hardTags": {
-              "$type": "redTagList",
-              "tags": []
-            },
-            "softTags": {
-              "$type": "redTagList",
-              "tags": []
-            }
-          }
-        }
-      },
-      "useProxyMeshAsShadowMesh": 0,
-      "useSkinningLOD": 0,
-      "version": 1,
-      "visibilityAnimationParam": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "None"
-      }
-    },
-    {
-      "$type": "entSkinnedMeshComponent",
-      "acceptDismemberment": 1,
-      "autoHideDistance": 50,
-      "castLocalShadows": "Never",
-      "castShadows": "Never",
-      "chunkMask": "9223372036854775807",
-      "forcedLodDistance": "Default",
-      "forceLODLevel": 0,
-      "id": "15245790234545608500",
-      "isEnabled": 1,
-      "isReplicable": 0,
-      "localTransform": {
-        "$type": "WorldTransform",
-        "Orientation": {
-          "$type": "Quaternion",
-          "i": 0,
-          "j": 0,
-          "k": 0,
-          "r": 1
-        },
-        "Position": {
-          "$type": "WorldPosition",
-          "x": {
-            "$type": "FixedPoint",
-            "Bits": 0
-          },
-          "y": {
-            "$type": "FixedPoint",
-            "Bits": 0
-          },
-          "z": {
-            "$type": "FixedPoint",
-            "Bits": 0
-          }
-        }
-      },
-      "LODMode": "AlwaysVisible",
-      "mesh": {
-        "DepotPath": {
-          "$type": "ResourcePath",
-          "$storage": "string",
-          "$value": "base\\mel_ccxl_hair\\meshes\\zara_hair_pt4.mesh"
-        },
-        "Flags": "Default"
-      },
-      "meshAppearance": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "blonde_platinum"
-      },
-      "name": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "hair_3"
-      },
-      "navigationImpact": {
-        "$type": "NavGenNavigationSetting",
-        "navmeshImpact": "Ignored"
-      },
-      "order": 0,
-      "overrideMeshNavigationImpact": 1,
-      "parentTransform": {
-        "HandleId": "11",
-        "Data": {
-          "$type": "entHardTransformBinding",
-          "bindName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "hair_dangle"
-          },
-          "enabled": 1,
-          "enableMask": {
-            "$type": "entTagMask",
-            "excludedTags": {
-              "$type": "redTagList",
-              "tags": [
-                {
-                  "$type": "CName",
-                  "$storage": "string",
-                  "$value": "NoBinding"
-                }
-              ]
-            },
-            "hardTags": {
-              "$type": "redTagList",
-              "tags": []
-            },
-            "softTags": {
-              "$type": "redTagList",
-              "tags": []
-            }
-          },
-          "slotName": {
-            "$type": "CName",
-            "$storage": "string",
-            "$value": "None"
-          }
-        }
-      },
-      "renderingPlaneAnimationParam": {
-        "$type": "CName",
-        "$storage": "string",
-        "$value": "None"
-      },
-      "renderSceneLayerMask": "Default",
-      "skinning": {
-        "HandleId": "12",
         "Data": {
           "$type": "entSkinningBinding",
           "bindName": {
@@ -1948,7 +1605,7 @@
       "order": 0,
       "overrideMeshNavigationImpact": 1,
       "parentTransform": {
-        "HandleId": "13",
+        "HandleId": "9",
         "Data": {
           "$type": "entHardTransformBinding",
           "bindName": {
@@ -1992,7 +1649,7 @@
       },
       "renderSceneLayerMask": "Default",
       "skinning": {
-        "HandleId": "14",
+        "HandleId": "10",
         "Data": {
           "$type": "entSkinningBinding",
           "bindName": {
@@ -2034,6 +1691,6 @@
       }
     }
   ],
-  "hair_app": "base\\mel_ccxl_hair\\appearances\\zara_hair.app",
+  "hair_app": "base\\mel_ccxl_hair\\appearances\\edie_hair.app",
   "hair_appearance_name": "01_blonde_platinum"
 }

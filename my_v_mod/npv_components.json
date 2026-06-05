@@ -1,0 +1,245 @@
+{
+  "appearance_name": "myv03_8edc798d_appearance",
+  "components": [
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "h0_000_pwa_c__basehead",
+      "mesh": "base\\npv-build\\myv03_8edc798d\\myv03_8edc798d_head.mesh",
+      "meshAppearance": "01_ca_pale_d04",
+      "bindTo": "face_rig",
+      "source": "baked head (face morphs applied)"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "femv_vtk_headpatch",
+      "mesh": "base\\vtk\\femv_vtk_headpatch.mesh",
+      "meshAppearance": "01_ca_pale",
+      "bindTo": "root",
+      "source": "VTK headpatch (auto-injected)"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "femv_seamfix",
+      "mesh": "base\\vtk\\femv_seamfix.mesh",
+      "meshAppearance": "01_ca_pale",
+      "bindTo": "root",
+      "source": "VTK seamfix (auto-injected)"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "a0_000_pwa_base__nails_l",
+      "mesh": "base\\characters\\common\\player_base_bodies\\player_female_average\\arms_hq\\nails\\a0_000_pwa_base__nails_l.mesh",
+      "meshAppearance": "01_ca_pale",
+      "bindTo": "root",
+      "source": "a0_000_pwa_base__full.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "a0_000_pwa_base__nails_r",
+      "mesh": "base\\characters\\common\\player_base_bodies\\player_female_average\\arms_hq\\nails\\a0_000_pwa_base__nails_r.mesh",
+      "meshAppearance": "01_ca_pale",
+      "bindTo": "root",
+      "source": "a0_000_pwa_base__full.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "t0_000_pwa_base__full",
+      "mesh": "base\\characters\\common\\player_base_bodies\\player_female_average\\t0_000_pwa_base__full.mesh",
+      "meshAppearance": "01_ca_pale",
+      "bindTo": "root",
+      "source": "t0_000_pwa_base__full.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "MorphTargetSkinnedMesh2004",
+      "mesh": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\hx_000_pwa_c__basehead_cyberware_07.mesh",
+      "meshAppearance": "cyberware_07",
+      "bindTo": "face_rig",
+      "source": "hx_000_pwa__cyberware_07.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "heb_000_pwa__basehead",
+      "mesh": "base\\npv-build\\myv03_8edc798d\\myv03_8edc798d_heb.mesh",
+      "meshAppearance": "01_ca_pale_d04",
+      "bindTo": "face_rig",
+      "source": "baked heb_ layer (face morphs applied)"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "hx_000_pwa__basehead_makeup_eyes_01",
+      "mesh": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\hx_000_pwa_c__basehead_makeup_eyes_01.mesh",
+      "meshAppearance": "black_31",
+      "bindTo": "face_rig",
+      "source": "hx_000_pwa__basehead_makeup_eyes_01.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "hx_000_pwa__basehead_makeup_lips_01",
+      "mesh": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\hx_000_pwa_c__basehead_makeup_lips_01.mesh",
+      "meshAppearance": "burgundy_19",
+      "bindTo": "face_rig",
+      "source": "hx_000_pwa__basehead_makeup_lips_01.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "hx_000_pwa__basehead_pimples_01",
+      "mesh": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\hx_000_pwa_c__basehead_pimples_01.mesh",
+      "meshAppearance": "pimples__black_02",
+      "bindTo": "face_rig",
+      "source": "hx_000_pwa__basehead_pimples_01.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "hx_000_pwa__morphs_makeup_freckles_01",
+      "mesh": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\hx_000_pwa_c__basehead_makeup_freckles_01.mesh",
+      "meshAppearance": "frecles_brown_10",
+      "bindTo": "face_rig",
+      "source": "hx_000_pwa__morphs_makeup_freckles_01.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "MorphTargetSkinnedMesh3637",
+      "mesh": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\he_000_pwa_c__basehead.mesh",
+      "meshAppearance": "eyelashes__black_salt_n_pepper",
+      "bindTo": "face_rig",
+      "source": "he_000_pwa__basehead.ent (eyelashes only)"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "ht_000_pwa__basehead",
+      "mesh": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\ht_000_pwa_c__basehead.mesh",
+      "meshAppearance": "teeth_001",
+      "bindTo": "face_rig",
+      "source": "ht_000_pwa__basehead.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "morph_w__tattoo_08",
+      "mesh": "base\\characters\\head\\player_base_heads\\player_female_average\\h0_000_pwa_c__basehead\\hx_000_pwa_c__basehead_tattoo_08.mesh",
+      "meshAppearance": "01_ca_pale",
+      "bindTo": "face_rig",
+      "source": "hx_000_pwa__tattoo_08.ent"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "a0_000_pwa_base_hq__full",
+      "mesh": "base\\characters\\common\\player_base_bodies\\player_female_average\\arms_hq\\a0_000_pwa_base_hq__full.mesh",
+      "meshAppearance": "01_ca_pale",
+      "bindTo": "root",
+      "source": "arms mesh"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "t0_000_pwa_base__full_seamfix",
+      "mesh": "base\\characters\\common\\player_base_bodies\\player_female_average\\t0_000_pwa_base__full_seamfix.mesh",
+      "meshAppearance": "01_ca_pale",
+      "bindTo": "root",
+      "source": "seamfix"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "sedth_eyes_r_g",
+      "mesh": "sedth\\ccxl\\sedth_eyes_ccxl\\mesh\\ccxl_eyes_r_pwa_glow_eyes.mesh",
+      "meshAppearance": "eg_63",
+      "bindTo": "face_rig",
+      "source": "modded eyes (sedth)"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "sedth_eyes_r",
+      "mesh": "sedth\\ccxl\\sedth_eyes_ccxl\\mesh\\ccxl_eyes_r_pwa_split_eyes.mesh",
+      "meshAppearance": "e_01",
+      "bindTo": "face_rig",
+      "source": "modded eyes (sedth)"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "sedth_eyes_l_g",
+      "mesh": "sedth\\ccxl\\sedth_eyes_ccxl\\mesh\\ccxl_eyes_l_pwa_glow_eyes.mesh",
+      "meshAppearance": "eg_63",
+      "bindTo": "face_rig",
+      "source": "modded eyes (sedth)"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "sedth_eyes_l",
+      "mesh": "sedth\\ccxl\\sedth_eyes_ccxl\\mesh\\ccxl_eyes_l_pwa_split_eyes.mesh",
+      "meshAppearance": "e_01",
+      "bindTo": "face_rig",
+      "source": "modded eyes (sedth)"
+    },
+    {
+      "type": "entAnimatedComponent",
+      "name": "hair_dangle",
+      "graph": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt1.animgraph",
+      "rig": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt1.rig",
+      "bindTo": "root",
+      "source": "modded hair dangle"
+    },
+    {
+      "type": "entAnimatedComponent",
+      "name": "hair_dangle",
+      "graph": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt2.animgraph",
+      "rig": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt2.rig",
+      "bindTo": "root",
+      "source": "modded hair dangle"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "hair_1",
+      "mesh": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt1.mesh",
+      "meshAppearance": "teal_ombre",
+      "bindTo": "hair_dangle",
+      "source": "modded hair"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "hair_2",
+      "mesh": "base\\mel_ccxl_hair\\meshes\\edie_hair_pt2.mesh",
+      "meshAppearance": "teal_ombre",
+      "bindTo": "hair_dangle",
+      "source": "modded hair"
+    },
+    {
+      "type": "entSkinnedMeshComponent",
+      "name": "hair_shadow",
+      "mesh": "base\\mel_ccxl_hair\\meshes\\hair_shadow.mesh",
+      "meshAppearance": "default",
+      "bindTo": "root",
+      "source": "modded hair"
+    },
+    {
+      "type": "entGarmentSkinnedMeshComponent",
+      "name": "t2_1g1_bswghfem_full_gun_harness_01_s",
+      "mesh": "base\\1geralt1\\player\\body_suit_with_gun_harness\\garment\\torso\\mesh\\t2_1g1_bswghfem_full_gun_harness_01_s.mesh",
+      "meshAppearance": "silver_black_02",
+      "bindTo": "root",
+      "source": "clothing:outer_torso (equipped)"
+    },
+    {
+      "type": "entGarmentSkinnedMeshComponent",
+      "name": "t2_1g1_bswghfem_full_gun_harness_01_shadow",
+      "mesh": "base\\1geralt1\\player\\body_suit_with_gun_harness\\garment\\torso\\mesh\\t2_1g1_bswghfem_full_gun_harness_01_shadow.mesh",
+      "meshAppearance": "default",
+      "bindTo": "root",
+      "source": "clothing:outer_torso (equipped)"
+    },
+    {
+      "type": "entGarmentSkinnedMeshComponent",
+      "name": "t1_1g1_bswghfem_bodysuitsweater_01",
+      "mesh": "base\\1geralt1\\player\\body_suit_with_gun_harness\\garment\\torso\\mesh\\t1_1g1_bswghfem_bodysuitsweater_01.mesh",
+      "meshAppearance": "yellow",
+      "bindTo": "root",
+      "source": "clothing:inner_torso (equipped)"
+    },
+    {
+      "type": "entGarmentSkinnedMeshComponent",
+      "name": "t1_1g1_bswghfem_bodysuitsweater_00_cuff",
+      "mesh": "base\\1geralt1\\player\\body_suit_with_gun_harness\\garment\\torso\\mesh\\t1_1g1_bswghfem_bodysuitsweater_00_cuff.mesh",
+      "meshAppearance": "default",
+      "bindTo": "root",
+      "source": "clothing:inner_torso (equipped)"
+    }
+  ]
+}

@@ -1,120 +1,246 @@
 # npv-build
 
-Turn your Cyberpunk 2077 save into an AMM-spawnable NPC clone of V.
+**Turn your Cyberpunk 2077 save into an AMM-spawnable NPC clone of V — in one command.**
+
+![version](https://img.shields.io/badge/version-1.0.0-blue)
+![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
+![assets](https://img.shields.io/badge/CDPR%20bytes%20in%20repo-none-green)
 
 `npv-build` reads your save file, extracts V's character creation data (face
-morphs, skin tone, eyes, makeup, hair, cyberware), bakes the face geometry,
-and produces a **ready-to-install mod** — no manual steps required.
+morphs, skin tone, eyes, makeup, hair, cyberware, and equipped clothing), bakes
+the face geometry in Blender, and produces a **ready-to-install mod** that spawns
+V as an NPC via [Appearance Menu Mod (AMM)](https://www.nexusmods.com/cyberpunk2077/mods/790).
 
-## Prerequisites
+> No game files are bundled with this tool. Everything is built from *your own*
+> install at build time.
+
+---
+
+## TL;DR
+
+**What you get:** a folder you copy into your game, then spawn your V as an NPC
+from the AMM menu. Their face, skin, eyes, makeup, hair, and outfit match your
+character.
+
+**What you *don't* have to do:** no manual Blender sculpting, no clicking around
+the WolvenKit GUI, no hand-editing `.app`/`.ent` files. The CLI does all of it.
+
+**Jump to:** [Requirements](#requirements) · [Install](#install) ·
+[Quick Start](#quick-start) · [CLI Reference](#cli-reference) ·
+[Troubleshooting](#troubleshooting) · [Limitations](#limitations) ·
+[For developers](#for-developers)
+
+---
+
+## How it works (30-second version)
+
+```
+your save  →  resolve assets  →  bake face (Blender)  →  author .ent/.app
+   ↓                                                            ↓
+parse CC   →  …                                          inject components
+                                                                ↓
+                                                  pack .archive + AMM spawn script
+```
+
+You point the tool at a save and a name; it hands you an installable mod. The
+[deep dive](#how-it-works-deep-dive) explains each stage.
+
+---
+
+## Requirements
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| [WolvenKit CLI](https://github.com/WolvenKit/WolvenKit) | 8.18.x | Must be on `PATH` |
-| [Blender](https://www.blender.org/) | 4.x+ | For face morph baking (headless) |
-| Python | 3.9+ | Runtime |
-| .NET 8.0 SDK | 8.x | For building `npv-inject` (or use pre-built binary) |
-| [AMM](https://www.nexusmods.com/cyberpunk2077/mods/790) | Any | Required in-game |
+| [WolvenKit CLI](https://github.com/WolvenKit/WolvenKit) | 8.18.x | Must be on `PATH`. A different version only **warns** — it won't stop the build, but isn't guaranteed to work. |
+| [Blender](https://www.blender.org/) | 4.x | Used headless to bake face morphs. Native `blender` on `PATH`, **or** a Flatpak install (see note below). |
+| Python | ≥ 3.9 | `tomli` / `tomli-w` are installed automatically. |
+| .NET 8 SDK | 8.x | Needed to build `npv-inject` (the component injector). **Not shipped pre-built** — you build it once. |
+| [AMM](https://www.nexusmods.com/cyberpunk2077/mods/790) | any | Required in-game to spawn the NPC. |
 
-## Installation
+> **Flatpak Blender:** if you use the Flatpak (`org.blender.Blender`), grant it
+> filesystem access once so it can read the staged mesh files:
+> ```bash
+> flatpak override --user --filesystem=host org.blender.Blender
+> ```
+> The tool auto-detects native `blender` first, then falls back to Flatpak.
+
+<details>
+<summary>Where to download these</summary>
+
+- **WolvenKit** — [releases](https://github.com/WolvenKit/WolvenKit/releases) (grab the CLI).
+- **Blender** — [blender.org/download](https://www.blender.org/download/) or your distro's Flatpak.
+- **.NET 8 SDK** — [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/8.0).
+- **AMM** and **Cyber Engine Tweaks (CET)** — from [Nexus Mods](https://www.nexusmods.com/cyberpunk2077/mods/790).
+
+</details>
+
+---
+
+## Install
 
 ```bash
 cd npv_project
 python -m venv venv
-source venv/bin/activate    # Linux/macOS
-# venv\Scripts\activate     # Windows
+source venv/bin/activate     # Linux/macOS
+# venv\Scripts\activate      # Windows
 pip install -e .
 
-# Build the component injector
+# Build the component injector (one-time)
 dotnet build tools/npv-inject -c Release
 ```
 
+After this, the `npv-build` command is on your `PATH`. The injector is located
+automatically in this order: `PATH` → `tools/npv-inject/bin/Release/net8.0/` →
+`tools/npv-inject/bin/Debug/net8.0/`.
+
+Verify the install:
+
+```bash
+npv-build --help
+```
+
+---
+
 ## Quick Start
+
+### 1. Build the mod
+
+The smallest useful command:
+
+```bash
+npv-build /path/to/sav.dat "My V" \
+  --output ./my_v_mod \
+  --game-dir "/path/to/Cyberpunk 2077"
+```
+
+A fuller example with overrides:
 
 ```bash
 npv-build /path/to/sav.dat "My V" \
   --output ./my_v_mod \
   --game-dir "/path/to/Cyberpunk 2077" \
   --hair zara \
+  --skin 01_ca_pale \
   --garment 'base\characters\garment\player_equipment\torso\t1_097_pwa_tank__corset_doll_prostitute.ent' \
   -v
 ```
 
-This produces a ready-to-install mod at `./my_v_mod/`. Copy the `archive/`
-and `bin/` folders into your game directory and spawn via AMM.
+> `--game-dir` is **remembered after the first run** (saved to your config), so
+> you can omit it on later builds.
 
-### Save file locations
+### Find your save
 
-- **Windows:** `%USERPROFILE%\Saved Games\CD Projekt Red\Cyberpunk 2077\`
-- **Linux/Proton:** `~/.steam/steam/steamapps/compatdata/1091500/pfx/drive_c/users/steamuser/Saved Games/CD Projekt Red/Cyberpunk 2077/`
+| OS | Location |
+|----|----------|
+| **Windows** | `%USERPROFILE%\Saved Games\CD Projekt Red\Cyberpunk 2077\` |
+| **Linux/Proton** | `~/.steam/steam/steamapps/compatdata/1091500/pfx/drive_c/users/steamuser/Saved Games/CD Projekt Red/Cyberpunk 2077/` |
+
+Each save folder contains a `sav.dat` — that's the file you point the tool at.
+
+### Capturing V's *actual* outfit (optional)
+
+The save file records your face, hair, and makeup — but **not** the clothes V is
+wearing. To dress the NPC in V's real outfit, use the bundled **CET dumper**:
+
+1. Install the CET script (`npv_build/data/cet_dumper/init.lua`) as a CET mod.
+2. Load your game and trigger the dump — it writes a JSON file with V's equipped
+   garments.
+3. Pass that file with `--cc-json`:
+
+```bash
+npv-build /path/to/sav.dat "My V" --output ./my_v_mod \
+  --game-dir "/path/to/Cyberpunk 2077" \
+  --cc-json /path/to/cc_dump.json
+```
+
+With **save + `--cc-json`**, face/hair come from the save (most reliable there)
+and the equipped clothing is overlaid from the dump. Without it, a sensible
+**fallback outfit** is used. `--garment` overrides layer on top either way.
+
+> **No save?** `--cc-json` can be used on its own — the `<sav.dat>` argument is
+> optional when a dump is provided.
+
+### 2. Install and spawn
+
+The build writes everything to `./my_v_mod/`. Copy the two install folders into
+your game directory:
+
+```bash
+cp -r my_v_mod/archive/ "/path/to/Cyberpunk 2077/"
+cp -r my_v_mod/bin/     "/path/to/Cyberpunk 2077/"
+```
+
+Launch the game, then open the **CET overlay → AMM → Custom Entities →** select
+your NPV name **→ Spawn**.
+
+---
 
 ## CLI Reference
 
 ```
-npv-build <sav.dat> <NPV name> --output <dir> [options]
+npv-build [<sav.dat>] <NPV name> --output <dir> [options]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `<sav.dat>` | Path to your Cyberpunk 2077 save file |
-| `<NPV name>` | Display name for the NPC in AMM |
-| `--output <dir>` | Where to write the WolvenKit project |
-| `--game-dir <path>` | Cyberpunk 2077 install directory (saved after first use) |
-| `--hair <id>` | Hair override: modded name (`zara`), vanilla number (`1`), or `none` |
-| `--garment <path>` | Garment .ent depot path (repeatable for multiple items) |
-| `--cc-json <path>` | Use a CET CC dump instead of parsing the save |
-| `-v` / `-vv` | Verbose / very verbose output |
+`<sav.dat>` is optional **only** when `--cc-json` is supplied.
 
-## What the CLI Produces
+| Argument / Flag | Required | Description |
+|-----------------|----------|-------------|
+| `<sav.dat>` | conditional | Path to your save file. Optional if `--cc-json` is given. |
+| `<NPV name>` | yes | Display name for the NPC in AMM. |
+| `--output <dir>` | yes | Where to write the mod project. |
+| `--game-dir <path>` | first run | Cyberpunk 2077 install directory. **Saved after first use**; required again only if it changes. |
+| `--cc-json <path>` | — | Use a CET CC dump (face and/or equipped clothing) instead of, or alongside, the save. |
+| `--hair <id\|none>` | — | Hair override: vanilla number (`1` → `hh_001`), modded name (`zara`), or `none`. |
+| `--skin <tone>` | — | Skin-tone `meshAppearance` override (e.g. `01_ca_pale`). |
+| `--garment <depot_path>` | — | Add a garment `.ent` depot path. **Repeatable** — pass once per item. |
+| `--template-cache <dir>` | — | Override the template cache location (default: `~/.cache/npv/templates`). |
+| `--clear-cache` | — | Wipe the template cache before running. |
+| `-v` / `-vv` | — | Verbose / very-verbose output. |
+
+### Config & cache
+
+- **Config:** `~/.config/npv/config.toml` (Linux) · `%APPDATA%\npv\` (Windows).
+  Only `game_dir` is persisted.
+- **Cache:** `~/.cache/npv/` — uncooked templates plus a per-game-patch asset
+  index. Safe to delete; it's rebuilt on demand (or use `--clear-cache`).
+
+### What the build produces
 
 ```
 my_v_mod/
-  archive/pc/mod/<mod_id>.archive       # Packed mod archive (ready to install)
-  bin/.../Custom Entities/<mod_id>.lua   # AMM custom entity script
-  source/archive/                        # Intermediate cooked files (for debugging)
-  npv_components.json                    # Component specs (for debugging)
-  cc_settings.json                       # Parsed CC data (for debugging)
-  asset_paths.json                       # Resolved asset paths (for debugging)
+  archive/pc/mod/<mod_id>.archive          # Packed mod — install this
+  bin/.../Custom Entities/<mod_id>.lua      # AMM spawn script — install this
+  source/archive/                           # Intermediate cooked files (debug)
+  npv_components.json                       # Component specs (debug)
+  cc_settings.json                          # Parsed CC data (debug)
+  asset_paths.json                          # Resolved asset paths (debug)
 ```
 
-The CLI automates the entire NPV creation process:
-- Parses your save and extracts all CC data
-- Resolves the exact material variants (skin tone, eye colour, makeup)
-- Bakes V's face shape into the head mesh via Blender
-- Creates a mod-scoped morphtarget
-- Copies and configures the donor NPC entity (animation rig)
-- Injects all mesh components into the `.app` cooked binary (`npv-inject`)
-- Packs the final `.archive`
-- Generates the AMM spawn script
-
-## Install
-
-Copy the `archive/` and `bin/` folders from the output into your game
-directory:
-
-```bash
-cp -r my_v_mod/archive/ "/path/to/Cyberpunk 2077/"
-cp -r my_v_mod/bin/ "/path/to/Cyberpunk 2077/"
-```
-
-Launch the game. Open the CET overlay > **AMM** > **Custom Entities** > select
-your NPV name > **Spawn**.
+> **`<mod_id>`** is a deterministic hash of `(NPV name, CC settings)`. Rebuilding
+> the same V produces the same ID, so reinstalls overwrite in place rather than
+> piling up duplicates.
 
 ---
 
-## Troubleshooting
+## Advanced / manual workflow
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| NPC T-poses | `AppearanceParts` tag in .app | Do NOT add `AppearanceParts` to visualTags. The template .app is correct as-is. |
-| Head/parts floating | Missing skeleton bindings | Set both `parentTransform.bindName` and `skinning.bindName` to `root` on every component |
-| Blurry/dark face | Wrong component type | Head must be `entMorphTargetSkinnedMeshComponent` with `morphResource`, not plain `entSkinnedMeshComponent` |
-| Wrong skin tone | Incorrect meshAppearance | Double-check `meshAppearance` matches `npv_components.json` exactly |
-| NPC invisible | Components not added | Open .app in WolvenKit GUI and verify the components array is populated |
-| Bald NPC | Hair components missing | Add all hair entries from `npv_components.json` (usually 3-4 mesh + 1 shadow) |
-| Wrong face shape | Morph bake issue | Verify the morphtarget `DepotPath` points to `<mod_id>_morphs.morphtarget` |
+The CLI is the recommended path and handles everything above. If you'd rather
+sculpt morphs by hand in Blender, resolve assets manually, or understand the
+underlying file formats, see the in-depth walkthrough:
 
-## How It Works
+➡️ **[NPV_Creation_Guide.md](NPV_Creation_Guide.md)** — manual save parsing,
+asset mapping, Blender morph baking, and fixing common visual glitches.
+
+One detail worth knowing either way: the NPC is built on a **rig-appropriate
+donor entity** — `pwa` for the female body rig, `pma` for male — which carries
+the full animation infrastructure. The CLI picks the right one for you.
+
+---
+
+## How It Works (deep dive)
+
+<details>
+<summary>The full pipeline, stage by stage</summary>
 
 1. **Save parsing** — Reads the CC node from `sav.dat`: face morphs
    (jaw/nose/mouth/eyes/ears), skin tone, eyes, teeth, makeup, hair, cyberware.
@@ -130,29 +256,80 @@ your NPV name > **Spawn**.
 4. **Morphtarget authoring** — Copies the stock morphtarget to a mod-scoped
    depot path, redirects its `baseMesh` to the baked head mesh.
 
-5. **Donor entity** — Copies Judy's cooked `.ent` (101 components including
-   animation controllers, AI, rig, locomotion). Only the appearance list is
-   swapped to point at our `.app`.
+5. **Donor entity** — Copies a **rig-appropriate donor's** cooked `.ent`
+   (`pwa` for female, `pma` for male) — ~101 components including animation
+   controllers, AI, rig, and locomotion. Only the appearance list is swapped to
+   point at our `.app`, preserving the full animation infrastructure.
 
-6. **Component spec generation** — Uncooks each stock part-ent, extracts mesh
-   component details (type, name, depot paths, material variants), applies
-   recipe overrides, and serializes to `npv_components.json`.
+6. **Component spec generation & injection** — Uncooks each stock part-ent,
+   extracts mesh component details (type, name, depot paths, material variants),
+   applies recipe overrides, serializes to `npv_components.json`, then injects
+   the components into the cooked `.app` via `npv-inject`. Finally packs the
+   `.archive` and generates the AMM spawn script.
 
-## Modded Dependencies
+</details>
 
-If your V uses modded hair, body replacers, or custom garments, those mods
-must remain installed. `npv-build` references their assets by depot path — it
-does not redistribute them. The CLI warns about external dependencies during
+---
+
+## Troubleshooting
+
+### Build won't start / fails early
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `Either <sav.dat> or --cc-json must be provided` | No input given | Pass a save path, or a `--cc-json` dump, or both. |
+| `WolvenKit.CLI not found in PATH` | WolvenKit isn't installed/on `PATH` | Install WolvenKit CLI 8.18.x and add it to `PATH`. |
+| `Save file not found` / version mismatch | Wrong path, or an unsupported game patch | Check the path; confirm your save matches a supported patch. |
+| `game_dir required` mid-build | Head baking needs the game install | Pass `--game-dir` (it's needed once mesh export/import runs). |
+| Blender errors when reading staged files | Flatpak sandbox blocks access | Run `flatpak override --user --filesystem=host org.blender.Blender`. |
+| `npv-inject not found` | Injector not built | Run `dotnet build tools/npv-inject -c Release`. |
+
+### NPC looks wrong in-game
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| NPC T-poses | `AppearanceParts` tag in `.app` | Don't add `AppearanceParts` to visualTags. The generated `.app` is correct as-is. |
+| Head/parts floating | Missing skeleton bindings | Both `parentTransform.bindName` and `skinning.bindName` must be `root` on every component. |
+| Blurry/dark face | Wrong component type | Head must be `entMorphTargetSkinnedMeshComponent` with `morphResource`, not a plain `entSkinnedMeshComponent`. |
+| Wrong skin tone | Incorrect `meshAppearance` | Confirm `meshAppearance` matches `npv_components.json` exactly. |
+| NPC invisible | Components not added | Open the `.app` in WolvenKit and verify the components array is populated. |
+| Bald NPC | Hair components missing | Add all hair entries from `npv_components.json` (usually 3-4 mesh + 1 shadow). |
+| Wrong face shape | Morph bake issue | Verify the morphtarget `DepotPath` points to `<mod_id>_morphs.morphtarget`. |
+
+---
+
+## Modded dependencies
+
+If your V uses modded hair, body replacers, or custom garments, those mods must
+**remain installed**. `npv-build` references their assets by depot path — it does
+not copy or redistribute them. The CLI warns about external dependencies during
 the build.
 
-## Current Limitations
+---
 
-- **Clothing from save** — Not yet automated. Use `--garment` flags with depot
-  paths.
-- **Hair auto-resolve** — Use `--hair` flag. Automatic resolution from the
-  save's hair name is planned.
+## Limitations
+
+- **Clothing** — V's worn outfit is captured via the bundled **CET dumper +
+  `--cc-json`** (the save alone contains no clothing). Without a dump, a fallback
+  outfit is used. `--garment` overrides are always available.
 - **Static hair** — Modded hair renders without dangle physics.
-- **No facial expressions** — Face morphs are baked into static geometry. Shape
-  is correct but won't animate.
-- **Female V only** — Male V (`pma` rig) is untested but likely works with
-  minor changes.
+- **No facial expressions** — Face morphs are baked into static geometry. The
+  shape is correct but won't animate.
+- **Male rig less tested** — The `pma` (male) rig works but has had less testing
+  than `pwa` (female).
+
+---
+
+## For developers
+
+- **Architecture overview** — [CLAUDE.md](CLAUDE.md) (module pipeline & design decisions).
+- **Glossary / terminology** — [CONTEXT.md](CONTEXT.md).
+- **Decision records** — [docs/adr/](docs/adr/).
+- **Internal specs** — `SPEC.md`, `SPEC-app-v2.md`, `SPEC-clothing.md`,
+  `SPEC-inject.md` (design references; may lag the code).
+
+Entry point is `npv_build/cli.py` (`main`). Run the test suite with:
+
+```bash
+pytest
+```

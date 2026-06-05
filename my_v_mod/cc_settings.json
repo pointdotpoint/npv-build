@@ -30,8 +30,8 @@
       "index": 0,
       "rig": "pwa",
       "group": "basehead",
-      "variant": "14_gradient_grey",
-      "raw": "he_000_pwa__basehead__14_gradient_grey",
+      "variant": "65_double_eye_black",
+      "raw": "he_000_pwa__basehead__65_double_eye_black",
       "cname_hash": 7132639559252259433,
       "label": "eyes_color"
     },
@@ -40,9 +40,9 @@
       "prefix": "",
       "index": 0,
       "rig": "",
-      "group": "03_ginger_copper",
+      "group": "",
       "variant": "",
-      "raw": "female__03_ginger_copper",
+      "raw": "36_aqua_blonde",
       "cname_hash": 17106258827450951271,
       "label": "eyebrows_color5"
     },
@@ -97,7 +97,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_134",
+      "raw": "w_cyber_63",
       "cname_hash": 14197559811872289465,
       "label": "sedth_eyes_r_glow"
     },
@@ -108,7 +108,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_00",
+      "raw": "w_cyber_01",
       "cname_hash": 6856928448914508605,
       "label": "sedth_eyes_r"
     },
@@ -119,7 +119,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_134",
+      "raw": "w_cyber_63",
       "cname_hash": 2928220669390706475,
       "label": "sedth_eyes_l_glow"
     },
@@ -130,7 +130,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_00",
+      "raw": "w_cyber_01",
       "cname_hash": 3924751065588567707,
       "label": "sedth_eyes_l"
     },
@@ -152,9 +152,9 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "62_molten_marmalade",
-      "cname_hash": 8562440229685862528,
-      "label": "fhair_miyavivi_twistup_soft"
+      "raw": "04_teal_ombre",
+      "cname_hash": 8182083651202699348,
+      "label": "edie_hair"
     },
     {
       "slot": "character_customization",
@@ -184,8 +184,8 @@
       "index": 0,
       "rig": "pwa",
       "group": "basehead",
-      "variant": "14_gradient_grey",
-      "raw": "he_000_pwa__basehead__14_gradient_grey",
+      "variant": "65_double_eye_black",
+      "raw": "he_000_pwa__basehead__65_double_eye_black",
       "cname_hash": 7132639559252259433,
       "label": "eyes_color"
     },
@@ -194,9 +194,9 @@
       "prefix": "",
       "index": 0,
       "rig": "",
-      "group": "03_ginger_copper",
+      "group": "",
       "variant": "",
-      "raw": "female__03_ginger_copper",
+      "raw": "36_aqua_blonde",
       "cname_hash": 17106258827450951271,
       "label": "eyebrows_color5"
     },
@@ -262,9 +262,9 @@
       "rig": "pwa",
       "group": "basehead",
       "variant": "makeup_lips_01",
-      "raw": "hx_000_pwa__basehead__makeup_lips_01__01_black",
-      "cname_hash": 14796345255993851567,
-      "label": "makeupLips_08"
+      "raw": "hx_000_pwa__basehead__makeup_lips_01__11_burgundy",
+      "cname_hash": 10234284494549635702,
+      "label": "makeupLips_glossy_19"
     },
     {
       "slot": "character_customization",
@@ -295,7 +295,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_134",
+      "raw": "w_cyber_63",
       "cname_hash": 14197559811872289465,
       "label": "sedth_eyes_r_glow"
     },
@@ -306,7 +306,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_00",
+      "raw": "w_cyber_01",
       "cname_hash": 6856928448914508605,
       "label": "sedth_eyes_r"
     },
@@ -317,7 +317,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_134",
+      "raw": "w_cyber_63",
       "cname_hash": 2928220669390706475,
       "label": "sedth_eyes_l_glow"
     },
@@ -328,7 +328,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_00",
+      "raw": "w_cyber_01",
       "cname_hash": 3924751065588567707,
       "label": "sedth_eyes_l"
     },
@@ -339,9 +339,9 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "62_molten_marmalade",
-      "cname_hash": 8562440229685862528,
-      "label": "fhair_miyavivi_twistup_soft"
+      "raw": "04_teal_ombre",
+      "cname_hash": 8182083651202699348,
+      "label": "edie_hair"
     },
     {
       "slot": "character_customization",
@@ -351,8 +351,8 @@
       "group": "",
       "variant": "",
       "raw": "default",
-      "cname_hash": 16044652036579568713,
-      "label": "fhair_miyavivi_twistup_soft_fpp"
+      "cname_hash": 13197346067702850835,
+      "label": "edie_hair_fpp"
     },
     {
       "slot": "TPP_proxy",
@@ -384,8 +384,8 @@
       "group": "",
       "variant": "",
       "raw": "default",
-      "cname_hash": 16044652036579568713,
-      "label": "fhair_miyavivi_twistup_soft_fpp"
+      "cname_hash": 13197346067702850835,
+      "label": "edie_hair_fpp"
     },
     {
       "slot": "TPP_photomode",
@@ -415,8 +415,8 @@
       "index": 0,
       "rig": "pwa",
       "group": "basehead",
-      "variant": "14_gradient_grey",
-      "raw": "he_000_pwa__basehead__14_gradient_grey",
+      "variant": "65_double_eye_black",
+      "raw": "he_000_pwa__basehead__65_double_eye_black",
       "cname_hash": 7132639559252259433,
       "label": "eyes_color"
     },
@@ -425,9 +425,9 @@
       "prefix": "",
       "index": 0,
       "rig": "",
-      "group": "03_ginger_copper",
+      "group": "",
       "variant": "",
-      "raw": "female__03_ginger_copper",
+      "raw": "36_aqua_blonde",
       "cname_hash": 17106258827450951271,
       "label": "eyebrows_color5"
     },
@@ -482,7 +482,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_134",
+      "raw": "w_cyber_63",
       "cname_hash": 14197559811872289465,
       "label": "sedth_eyes_r_glow"
     },
@@ -493,7 +493,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_00",
+      "raw": "w_cyber_01",
       "cname_hash": 6856928448914508605,
       "label": "sedth_eyes_r"
     },
@@ -504,7 +504,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_134",
+      "raw": "w_cyber_63",
       "cname_hash": 2928220669390706475,
       "label": "sedth_eyes_l_glow"
     },
@@ -515,7 +515,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_00",
+      "raw": "w_cyber_01",
       "cname_hash": 3924751065588567707,
       "label": "sedth_eyes_l"
     },
@@ -548,9 +548,9 @@
       "rig": "pwa",
       "group": "basehead",
       "variant": "makeup_lips_01",
-      "raw": "hx_000_pwa__basehead__makeup_lips_01__01_black",
-      "cname_hash": 14796345255993851567,
-      "label": "makeupLips_08"
+      "raw": "hx_000_pwa__basehead__makeup_lips_01__11_burgundy",
+      "cname_hash": 10234284494549635702,
+      "label": "makeupLips_glossy_19"
     },
     {
       "slot": "face",
@@ -570,7 +570,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_134",
+      "raw": "w_cyber_63",
       "cname_hash": 14197559811872289465,
       "label": "sedth_eyes_r_glow"
     },
@@ -581,7 +581,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_00",
+      "raw": "w_cyber_01",
       "cname_hash": 6856928448914508605,
       "label": "sedth_eyes_r"
     },
@@ -592,7 +592,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_134",
+      "raw": "w_cyber_63",
       "cname_hash": 2928220669390706475,
       "label": "sedth_eyes_l_glow"
     },
@@ -603,7 +603,7 @@
       "rig": "",
       "group": "",
       "variant": "",
-      "raw": "w_cyber_00",
+      "raw": "w_cyber_01",
       "cname_hash": 3924751065588567707,
       "label": "sedth_eyes_l"
     },
@@ -1203,39 +1203,6 @@
     },
     {
       "slot": "FPP_Body",
-      "prefix": "t0",
-      "index": 0,
-      "rig": "",
-      "group": "01_ca_pale",
-      "variant": "",
-      "raw": "t0_000_pwa_base__01_ca_pale",
-      "cname_hash": 13876824607332389147,
-      "label": "body_color"
-    },
-    {
-      "slot": "FPP_Body",
-      "prefix": "t0",
-      "index": 0,
-      "rig": "",
-      "group": "01_ca_pale",
-      "variant": "",
-      "raw": "t0_000_pwa_base__01_ca_pale",
-      "cname_hash": 6124762102644877205,
-      "label": "body_color_censored"
-    },
-    {
-      "slot": "FPP_Body",
-      "prefix": "",
-      "index": 0,
-      "rig": "",
-      "group": "nipple",
-      "variant": "01_ca_pale",
-      "raw": "female_i0_002_base__nipple__01_ca_pale",
-      "cname_hash": 17949477145130904651,
-      "label": "nipples_03"
-    },
-    {
-      "slot": "FPP_Body",
       "prefix": "female",
       "index": 1,
       "rig": "",
@@ -1394,7 +1361,7 @@
     "raw": "h0_000_pwa__basehead__01_ca_pale"
   },
   "eyes": {
-    "raw": "he_000_pwa__basehead__14_gradient_grey"
+    "raw": "he_000_pwa__basehead__65_double_eye_black"
   },
   "teeth": {
     "raw": "female_ht_000__basehead"
@@ -1403,13 +1370,13 @@
     "tone_id": "01_ca_pale"
   },
   "hair": {
-    "style_id": "miyavivi_twistup_soft",
-    "raw": "fhair_miyavivi_twistup_soft"
+    "style_id": "edie",
+    "raw": "edie_hair"
   },
   "overlays": [
     "hx_000_pwa__cyberware_07__01_ca_pale",
     "hx_000_pwa__basehead_makeup_eyes__01_black",
-    "hx_000_pwa__basehead__makeup_lips_01__01_black",
+    "hx_000_pwa__basehead__makeup_lips_01__11_burgundy",
     "hx_000_pwa__morphs_makeup_freckles_01__02_very_light_brown",
     "hx_000_pwa__basehead_pimples_01__black_02"
   ],
@@ -1419,5 +1386,31 @@
     "mouth": "h013",
     "jaw": "h114",
     "ear": "h035"
-  }
+  },
+  "clothing": [
+    {
+      "appearance": "silver_black_02",
+      "mesh": "hash:17698076678924766248ULL",
+      "name": "t2_1g1_bswghfem_full_gun_harness_01_s",
+      "slot": "outer_torso"
+    },
+    {
+      "appearance": "default",
+      "mesh": "hash:7373441955471467811ULL",
+      "name": "t2_1g1_bswghfem_full_gun_harness_01_shadow",
+      "slot": "outer_torso"
+    },
+    {
+      "appearance": "yellow",
+      "mesh": "hash:2200231809071344630ULL",
+      "name": "t1_1g1_bswghfem_bodysuitsweater_01",
+      "slot": "inner_torso"
+    },
+    {
+      "appearance": "default",
+      "mesh": "hash:11890251205863766028ULL",
+      "name": "t1_1g1_bswghfem_bodysuitsweater_00_cuff",
+      "slot": "inner_torso"
+    }
+  ]
 }
