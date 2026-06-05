@@ -304,6 +304,35 @@ local function gather()
   -- Equipped clothing: the player's live garment mesh components ARE the worn
   -- outfit. Capture name/mesh/appearance/slot so npv-build can dress the NPV in
   -- V's actual clothes (consumed by resolve_clothing via --cc-json).
+  -- Resolve a component's mesh ResRef across CET accessor variants. The mesh is a
+  -- raRef<CMesh>; depending on the CET/game version it surfaces as comp.mesh.value,
+  -- comp.mesh.hash, comp:GetResourcePath(), or comp.mesh:ToString(). Try all.
+  local function meshPathOf(comp)
+    local mesh = nil
+    pcall(function()
+      local m = comp.mesh
+      if m ~= nil then
+        if type(m) == "userdata" then
+          if m.value ~= nil and tostring(m.value) ~= "" then mesh = safeCNameStr(m.value) end
+          if (mesh == nil or mesh == "") and m.hash ~= nil then
+            local h = tostring(m.hash)
+            if h ~= "0" and h ~= "" then mesh = "hash:" .. h end
+          end
+          if (mesh == nil or mesh == "") and m.GetPath then
+            pcall(function() mesh = safeCNameStr(m:GetPath()) end)
+          end
+        else
+          mesh = safeCNameStr(m)
+        end
+      end
+    end)
+    if (mesh == nil or mesh == "") then
+      pcall(function() mesh = safeCNameStr(comp:GetResourcePath()) end)
+    end
+    if mesh == "" then mesh = nil end
+    return mesh
+  end
+
   pcall(function()
     local comps = player:GetComponents()
     if not comps then return end
@@ -311,6 +340,7 @@ local function gather()
       { "t2_", "outer_torso" }, { "t1_", "inner_torso" },
       { "l1_", "legs" }, { "s1_", "feet" }, { "h1_", "head" },
     }
+    local probe = {}
     for _, comp in ipairs(comps) do
       local cn = nil
       pcall(function() cn = safeCNameStr(comp:GetName()) end)
@@ -320,27 +350,40 @@ local function gather()
           if cn:sub(1, #ps[1]) == ps[1] then slot = ps[2] break end
         end
         if slot then
-          local mesh = nil
-          pcall(function()
-            local m = comp.mesh
-            if m and m.value then mesh = safeCNameStr(m.value) end
-          end)
+          local mesh = meshPathOf(comp)
           local appearance = nil
           pcall(function()
             local a = comp.meshAppearance
             if a ~= nil then appearance = safeCNameStr(a) end
           end)
-          if mesh then
-            table.insert(out.clothing, {
-              name = cn,
-              mesh = mesh,
-              appearance = appearance or "default",
-              slot = slot,
-            })
+          -- Capture unconditionally (name+slot are reliable); mesh best-effort.
+          -- The build can resolve a missing mesh from the garment name/.ent.
+          table.insert(out.clothing, {
+            name = cn,
+            mesh = mesh,
+            appearance = appearance or "default",
+            slot = slot,
+          })
+          -- Diagnostic: what each accessor returned for the first few garments,
+          -- so we can fix mesh resolution without many in-game round-trips.
+          if #probe < 6 then
+            local p = { name = cn, slot = slot }
+            pcall(function() p.type = safeCNameStr(comp:GetClassName()) end)
+            pcall(function()
+              local m = comp.mesh
+              p.mesh_is = type(m)
+              if type(m) == "userdata" then
+                pcall(function() p.mesh_value = m.value and tostring(m.value) or nil end)
+                pcall(function() p.mesh_hash = m.hash and tostring(m.hash) or nil end)
+              end
+            end)
+            pcall(function() p.GetResourcePath = safeCNameStr(comp:GetResourcePath()) end)
+            table.insert(probe, p)
           end
         end
       end
     end
+    out.diagnostics.clothing_probe = probe
   end)
 
   return out
