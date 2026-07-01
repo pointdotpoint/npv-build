@@ -68,6 +68,16 @@ def _blender_cmd():
     """Return the argv prefix to invoke Blender headless."""
     if shutil.which("blender"):
         return ["blender"]
+    # Check local cache
+    import sys
+    from .config import get_cache_dir
+    tools_dir = get_cache_dir() / "tools" / "blender"
+    if tools_dir.exists():
+        ext = ".exe" if sys.platform == "win32" else ""
+        binary_name = f"blender{ext}"
+        for path in tools_dir.rglob(binary_name):
+            if path.is_file() and not path.is_symlink():
+                return [str(path)]
     # flatpak fallback
     return ["flatpak", "run", "org.blender.Blender"]
 
@@ -79,12 +89,18 @@ def _depot_to_rel(depot: str) -> str:
 def _run(cmd, verbosity, error_prefix):
     stream = verbosity >= 2
     try:
+        import sys
         res = subprocess.run(
             cmd,
-            stdout=None if stream else subprocess.PIPE,
-            stderr=None if stream else subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
         )
+        if stream:
+            if res.stdout:
+                sys.stdout.write(res.stdout)
+            if res.stderr:
+                sys.stderr.write(res.stderr)
     except FileNotFoundError as e:
         raise BlenderError(f"{error_prefix}: command not found: {e}")
     if res.returncode != 0:

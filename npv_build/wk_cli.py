@@ -292,8 +292,6 @@ class WolvenKit:
             )
         return version
 
-    # -- internal: single subprocess runner --------------------------------
-
     def _run(
         self,
         args: list[str],
@@ -301,7 +299,14 @@ class WolvenKit:
         operation: str = "",
         allow_exit_codes: tuple[int, ...] = (),
     ) -> subprocess.CompletedProcess[str]:
-        cmd = [self._cfg.cli_binary, *args]
+        binary = self._cfg.cli_binary
+        if not shutil.which(binary):
+            from .config import get_cache_dir
+            ext = ".exe" if sys.platform == "win32" else ""
+            local_path = get_cache_dir() / "tools" / "wolvenkit" / f"WolvenKit.CLI{ext}"
+            if local_path.exists():
+                binary = str(local_path)
+        cmd = [binary, *args]
         stream = self._cfg.verbosity >= 2
 
         if stream:
@@ -310,10 +315,15 @@ class WolvenKit:
         try:
             result = subprocess.run(
                 cmd,
-                stdout=None if stream else subprocess.PIPE,
-                stderr=None if stream else subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
             )
+            if stream:
+                if result.stdout:
+                    sys.stdout.write(result.stdout)
+                if result.stderr:
+                    sys.stderr.write(result.stderr)
         except FileNotFoundError:
             raise WolvenKitError(
                 f"{self._cfg.cli_binary} not found in PATH. "

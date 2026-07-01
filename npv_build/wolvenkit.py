@@ -67,12 +67,18 @@ def _inject_components(
 
     stream = verbosity >= 2
     try:
+        import sys
         result = subprocess.run(
             cmd,
-            stdout=None if stream else subprocess.PIPE,
-            stderr=None if stream else subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
         )
+        if stream:
+            if result.stdout:
+                sys.stdout.write(result.stdout)
+            if result.stderr:
+                sys.stderr.write(result.stderr)
     except FileNotFoundError:
         raise WolvenKitError(
             f"{INJECT_BINARY} not found. Build it with: dotnet build tools/npv-inject",
