@@ -102,17 +102,24 @@ class CCharacterCustomization:
 def detect_patch(version: tuple) -> str:
     v1, v2, v3 = version
     versions_file = Path(__file__).parent / "data" / "save_versions.json"
+    supported_builds = []
     if versions_file.exists():
         try:
             with open(versions_file) as f:
                 versions = json.load(f)
+            supported_builds = sorted(versions.keys())
             v2_str = str(v2)
             if v2_str in versions:
                 return versions[v2_str]
         except (OSError, json.JSONDecodeError):
             pass
-    logger.warning(f"game build {v2} not found in save_versions.json. Defaulting to patch 2.13.")
-    return "2.13"
+    # Build number not found: hard-fail with remediation
+    supported_str = ", ".join(supported_builds) if supported_builds else "none configured"
+    raise UnsupportedPatchError(
+        f"Game build {v2} is not supported. Supported builds: {supported_str}.",
+        remediation="Run `npv-build --probe-save <sav.dat>` and open an issue with the output.",
+        module_name="Save Parser",
+    )
 
 
 def decode_selection(slot_label: str, raw: str, cn_hash: int = 0) -> dict:

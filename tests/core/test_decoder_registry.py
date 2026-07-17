@@ -29,3 +29,15 @@ def test_unknown_v3_raises_unsupported_patch(synth_save_2310, monkeypatch):
 def test_v195_still_parses(synth_save_2310):
     result = sp.parse_save(synth_save_2310)
     assert isinstance(result, dict)
+
+
+def test_detect_patch_known():
+    assert sp.detect_patch((269, 2310, 195)) == "2.13"
+
+
+def test_detect_patch_unknown_build_raises():
+    with pytest.raises(UnsupportedPatchError) as ei:
+        sp.detect_patch((269, 9999, 195))
+    assert "9999" in str(ei.value)
+    assert "2310" in str(ei.value)
+    assert ei.value.remediation
