@@ -141,4 +141,10 @@ def format_report(report: dict) -> str:
     )
     for p in report["unmapped_candidates"]:
         lines.append(f"  + {p}")
+    lines.append(
+        "note: unmapped_candidates only scans known basehead stem prefixes "
+        f"({', '.join(HEAD_PRESET_STEM_PREFIXES)}). A wholly new prefix family "
+        "introduced in a future patch will not appear here -- update "
+        "HEAD_PRESET_STEM_PREFIXES by hand if the game adds one."
+    )
     return "\n".join(lines)

@@ -49,7 +49,8 @@ def main(argv: list[str] | None = None):
         "(missing/unmapped head parts), then exit. Unmapped candidates are "
         "scoped to head-preset basehead stems only (h0_/he_/ht_/heb_); hair, "
         "tattoo, facial-hair, and item .ent files are resolved separately "
-        "and are not candidates here.",
+        "and are not candidates here. A wholly new prefix family in a future "
+        "patch requires updating HEAD_PRESET_STEM_PREFIXES by hand.",
     )
     parser.add_argument(
         "--mapping-patch",
