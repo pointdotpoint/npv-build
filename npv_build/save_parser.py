@@ -2,8 +2,10 @@ import json
 import logging
 import re
 import struct
+from collections.abc import Callable
 from pathlib import Path
 
+from .core.errors import UnsupportedPatchError
 from .save_format import SaveContainer, SaveFormatError, _Reader
 
 logger = logging.getLogger(__name__)
@@ -156,22 +158,7 @@ def decode_selection(slot_label: str, raw: str, cn_hash: int = 0) -> dict:
     }
 
 
-def parse_save(save_path: Path) -> dict:
-    if not save_path.exists():
-        raise SaveParserError(f"Save file not found: {save_path}")
-
-    try:
-        data = save_path.read_bytes()
-    except Exception as e:
-        raise SaveParserError(f"Failed to read save file: {e}") from e
-
-    try:
-        sc = SaveContainer(data)
-    except SaveFormatError as e:
-        raise SaveParserError(f"Save format error: {e}") from e
-    except Exception as e:
-        raise SaveParserError(f"Unexpected container parse error: {e}") from e
-
+def _decode_cc_v195(sc: SaveContainer) -> dict:
     raw = sc.node_bytes("CharacetrCustomization_Appearances")
     if raw is None:
         raise SaveParserError("no CC node — is this a character save?")
@@ -308,3 +295,43 @@ def parse_save(save_path: Path) -> dict:
     }
 
     return cc_settings
+
+
+CC_DECODERS: dict[int, Callable[[SaveContainer], dict]] = {195: _decode_cc_v195}
+
+
+def _resolve_decoder(v3: int) -> Callable[[SaveContainer], dict]:
+    decoder = CC_DECODERS.get(v3)
+    if decoder is None:
+        supported = ", ".join(str(k) for k in sorted(CC_DECODERS))
+        raise UnsupportedPatchError(
+            f"This save's character-customization struct version (v3={v3}) is not supported "
+            f"(supported: {supported}).",
+            remediation=(
+                "The game patch is newer than this npv-build release. "
+                "Run `npv-build --probe-save <sav.dat>` and open an issue with the output."
+            ),
+            module_name="Save Parser",
+        )
+    return decoder
+
+
+def parse_save(save_path: Path) -> dict:
+    if not save_path.exists():
+        raise SaveParserError(f"Save file not found: {save_path}")
+
+    try:
+        data = save_path.read_bytes()
+    except Exception as e:
+        raise SaveParserError(f"Failed to read save file: {e}") from e
+
+    try:
+        sc = SaveContainer(data)
+    except SaveFormatError as e:
+        raise SaveParserError(f"Save format error: {e}") from e
+    except Exception as e:
+        raise SaveParserError(f"Unexpected container parse error: {e}") from e
+
+    _v1, _v2, v3 = sc.version
+    decoder = _resolve_decoder(v3)
+    return decoder(sc)
