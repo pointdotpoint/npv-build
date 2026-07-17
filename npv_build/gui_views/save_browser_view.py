@@ -99,6 +99,10 @@ class SaveBrowserView(ctk.CTkFrame):
             from PIL import Image
 
             pil_image = Image.open(thumbnail)
+            pil_image.load()  # force eager decode now, inside the guard - catches
+            # truncated/corrupt pixel data that Image.open() (lazy, header-only) misses.
+            # Without this, CTkImage defers decoding until CTkButton draws it, which
+            # happens outside this try/except and would crash the whole save list.
             image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=_THUMB_SIZE)
             self._image_refs.append(image)
             return image
