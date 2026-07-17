@@ -6,67 +6,87 @@ import threading
 from pathlib import Path
 
 from .config import get_cache_dir
-from .orchestrator import OrchestratorError, run_orchestrator
+from .core.cancel import CancelToken
+from .core.errors import NpvError, PipelineCancelled
+from .core.logging_setup import CallbackHandler, configure_logging
+from .core.pipeline import BuildRequest, PipelineService
 from .save_parser import parse_save
 
 logger = logging.getLogger(__name__)
 
+# Stage list captured from the real PipelineService at import time. Tests
+# monkeypatch the module-level `PipelineService` name (used to *instantiate*
+# the service) with a fake that has no STAGES attribute, so progress mapping
+# must not depend on that patchable name.
+_STAGES = tuple(PipelineService.STAGES)
 
-class LogRedirector:
-    """Redirects stdout and stderr to a thread-safe queue."""
+# Kwarg names the GUI passes to BuildWorker.start() that are not BuildRequest
+# fields and must be stripped before constructing the request.
+_NON_REQUEST_KWARGS = ("verbosity",)
 
-    def __init__(self, log_queue: queue.Queue):
-        self.queue = log_queue
 
-    def write(self, text: str):
-        if text:
-            self.queue.put(("log", text))
+def _request_kwargs(kwargs: dict) -> dict:
+    """Map the GUI's build kwargs onto BuildRequest field names.
 
-    def flush(self):
-        pass
+    The GUI's kwarg names already match BuildRequest's fields 1:1 (they were
+    originally written for run_orchestrator's identically-named parameters).
+    The one exception is `verbosity`, which BuildRequest has no field for
+    (logging verbosity is now handled by configure_logging), so it is
+    dropped here if present.
+    """
+    return {k: v for k, v in kwargs.items() if k not in _NON_REQUEST_KWARGS}
 
 
 class BuildWorker:
-    """Executes run_orchestrator in a background thread."""
+    """Drives PipelineService.build() in a background thread."""
 
     def __init__(self, log_queue: queue.Queue):
-        self.log_queue = log_queue
-        self._thread = None
+        self.queue = log_queue
+        self._thread: threading.Thread | None = None
+        self._token: CancelToken | None = None
+
+    def _make_token(self) -> CancelToken:
+        return CancelToken()
 
     def start(self, **kwargs):
+        self._token = self._make_token()
         self._thread = threading.Thread(target=self._run, kwargs=kwargs, daemon=True)
         self._thread.start()
 
-    def _run(self, **kwargs):
-        # Redirect standard outputs
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        redirector = LogRedirector(self.log_queue)
-        sys.stdout = redirector
-        sys.stderr = redirector
-
-        try:
-            # We set verbosity to 2 so subprocess calls print their details
-            kwargs["verbosity"] = 2
-            out_dir = run_orchestrator(**kwargs)
-            self.log_queue.put(("done", out_dir))
-        except OrchestratorError as e:
-            self.log_queue.put(("error", f"[{e.module_name}] {str(e)}"))
-        except Exception as e:  # noqa: BLE001 - worker thread must survive to report to GUI queue
-            import traceback
-
-            logger.exception("Unhandled error in build worker thread")
-            tb = traceback.format_exc()
-            self.log_queue.put(("log", f"Traceback:\n{tb}"))
-            self.log_queue.put(("error", str(e)))
-        finally:
-            # Restore standard outputs
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
+    def cancel(self):
+        if self._token is not None:
+            self._token.cancel()
 
     @property
     def is_alive(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
+
+    def _run(self, **kwargs):
+        stages = _STAGES
+
+        def on_event(ev):
+            if ev.kind == "stage_started":
+                self.queue.put(("log", f"[{ev.stage}] {ev.message}\n"))
+                self.queue.put(("progress", stages.index(ev.stage) / len(stages)))
+            elif ev.kind in ("stage_completed", "stage_skipped"):
+                self.queue.put(("progress", (stages.index(ev.stage) + 1) / len(stages)))
+            elif ev.kind == "failed":
+                self.queue.put(("log", f"[{ev.stage}] FAILED: {ev.message}\n"))
+
+        handler = CallbackHandler(lambda line: self.queue.put(("log", line + "\n")))
+        configure_logging(verbosity=2, extra_handler=handler)
+        try:
+            req = BuildRequest(resume=kwargs.pop("resume", False), **_request_kwargs(kwargs))
+            result = PipelineService().build(req, on_event=on_event, cancel=self._token)
+            self.queue.put(("done", result.output_dir))
+        except PipelineCancelled:
+            self.queue.put(("error", "Build cancelled."))
+        except NpvError as e:
+            msg = e.user_message + (f"\n{e.remediation}" if e.remediation else "")
+            self.queue.put(("error", msg))
+        except Exception as e:  # noqa: BLE001 - worker thread must survive to report to GUI queue
+            logger.exception("Unexpected build failure")
+            self.queue.put(("error", str(e)))
 
 
 class InstallerWorker:
@@ -81,12 +101,6 @@ class InstallerWorker:
         self._thread.start()
 
     def _run(self):
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        redirector = LogRedirector(self.log_queue)
-        sys.stdout = redirector
-        sys.stderr = redirector
-
         try:
             from .installer import auto_install_missing
 
@@ -103,9 +117,6 @@ class InstallerWorker:
             tb = traceback.format_exc()
             self.log_queue.put(("log", f"Traceback:\n{tb}"))
             self.log_queue.put(("install_error", str(e)))
-        finally:
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
 
     @property
     def is_alive(self) -> bool:

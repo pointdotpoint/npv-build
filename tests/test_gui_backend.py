@@ -1,6 +1,9 @@
+import queue as queue_mod
 from pathlib import Path
 
 import npv_build.gui_backend as gui_backend
+from npv_build.core.errors import NpvError
+from npv_build.core.pipeline import PipelineEvent
 
 
 def test_check_dependencies(monkeypatch):
@@ -60,3 +63,59 @@ def test_preview_save(monkeypatch):
     assert res["hair_style"] == "hh_001"
     assert res["hair_color"] == "black"
     assert res["selections_count"] == 3
+
+
+def _drain(q):
+    items = []
+    while True:
+        try:
+            items.append(q.get_nowait())
+        except queue_mod.Empty:
+            return items
+
+
+def test_build_worker_success_posts_done(monkeypatch, tmp_path):
+    class FakeService:
+        def build(self, req, on_event=None, cancel=None):
+            on_event(PipelineEvent(kind="stage_started", stage="parse_save", message="Parsing save"))
+            on_event(PipelineEvent(kind="stage_completed", stage="parse_save", message="ok"))
+
+            class R:
+                output_dir = str(tmp_path)
+
+            return R()
+
+    monkeypatch.setattr(gui_backend, "PipelineService", FakeService)
+    q = queue_mod.Queue()
+    w = gui_backend.BuildWorker(q)
+    save = tmp_path / "s.dat"
+    save.write_bytes(b"x")
+    w.start(save_path=save, npv_name="V", output_dir=tmp_path, game_dir=tmp_path, template_cache=tmp_path, clear_cache=False)
+    w._thread.join(timeout=10)
+    items = _drain(q)
+    assert ("done", str(tmp_path)) in items
+    assert any(kind == "log" and "parse_save" in str(val) or "Parsing" in str(val) for kind, val in items)
+
+
+def test_build_worker_error_posts_error(monkeypatch, tmp_path):
+    class FakeService:
+        def build(self, req, on_event=None, cancel=None):
+            raise NpvError("bad save", remediation="pick another")
+
+    monkeypatch.setattr(gui_backend, "PipelineService", FakeService)
+    q = queue_mod.Queue()
+    w = gui_backend.BuildWorker(q)
+    save = tmp_path / "s.dat"
+    save.write_bytes(b"x")
+    w.start(save_path=save, npv_name="V", output_dir=tmp_path, game_dir=tmp_path, template_cache=tmp_path, clear_cache=False)
+    w._thread.join(timeout=10)
+    items = _drain(q)
+    errs = [val for kind, val in items if kind == "error"]
+    assert errs and "bad save" in errs[0] and "pick another" in errs[0]
+
+
+def test_build_worker_cancel_sets_token(monkeypatch, tmp_path):
+    q = queue_mod.Queue()
+    w = gui_backend.BuildWorker(q)
+    w.cancel()  # before start: must not raise
+    assert w._make_token().cancelled is False  # fresh token per start
