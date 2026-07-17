@@ -227,3 +227,14 @@ Both spike mods installed to the game dir 2026-07-17 (install log: `/tmp/claude-
 - H1 = PROMISING (spawn+anim proven; eye-fidelity defect to root-cause) → supports **retiring npv-inject** but with a fidelity caveat, not a clean green.
 - H2 = FAILED-as-built (loaded but no-op patch) → does **NOT** currently support retiring the donor entity; needs a second iteration to reach a real verdict.
 - Net: neither hypothesis is a clean YES this round. Branch decision leans **B (keep current design)** for now, with H1 as a tracked follow-up (root-cause the eye defect; if it's just cc_selections and not a round-trip loss, H1 graduates to A′) and H2 as a re-test (fix custom-path + patch syntax).
+
+## M2 T7 executed — patch 2.31 support (2026-07-17)
+
+User confirmed client is on 2.31 and created a new save (`ManualSave-0`, written 16:52). Probe: `(269, 2310, 195)` — **identical build + CC struct to every 2.13 save**. CDPR kept the save-format build (2310) and the CC struct (v3=195) stable from 2.13 through 2.31. `parse_save` decoded it cleanly (body_rig=pwa, 102 selections, all CC fields present — sane, not garbage).
+
+**Outcome:** the plan's "v3 differs → author a new decoder" branch did NOT fire. T7 collapsed to relabel + alias:
+- `save_versions.json`: `2310 -> "2.31"` (was `"2.13"` — the label was stale, not the format).
+- `mapping.resolve_table_key()`: aliases `2.2/2.21/2.3/2.31 -> "2.13"` shared tables (mapping, donor, part index) — one physical table set serves the whole current patch line; a future asset-changing patch just drops its alias and vendors a new file.
+- 2.13 saves still resolve (identity path), proven by the unchanged `test_mapping` explicit-2.13 test.
+
+**Real proof:** full E2E build from the 2.31 `ManualSave-0` → `v_2_31_build_26d728d6.archive` + AMM lua + mod-manager `.zip` + checkpoint manifest, exit 0. Decoded THIS save's character (Senna skin tones, genitals_none) — distinct from the earlier 2.13 e2e build, confirming live decode not cache. The whole pipeline (parse → resolve → bake → author → assemble → pack → zip) works on patch 2.31.
