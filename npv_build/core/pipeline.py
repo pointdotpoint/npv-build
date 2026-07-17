@@ -16,6 +16,7 @@ from ..save_parser import parse_save
 from ..wk_cli import WolvenKit, WolvenKitConfig
 from ..wolvenkit import build_project
 from .cancel import CancelToken
+from .errors import NpvError
 from .packaging import package_mod
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class BuildRequest:
     save_path: Path | None
     npv_name: str
     output_dir: Path
-    game_dir: Path
+    game_dir: Path | None
     template_cache: Path
     clear_cache: bool = False
     cc_json_path: Path | None = None
@@ -150,6 +151,12 @@ class PipelineService:
         def emit(kind: str, stage: str | None, message: str) -> None:
             if on_event is not None:
                 on_event(PipelineEvent(kind=kind, stage=stage, message=message))
+
+        if req.game_dir is None:
+            raise NpvError(
+                "No game directory configured",
+                remediation="Set --game-dir or configure it in the GUI settings.",
+            )
 
         req.output_dir.mkdir(parents=True, exist_ok=True)
 

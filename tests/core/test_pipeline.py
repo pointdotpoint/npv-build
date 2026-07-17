@@ -5,7 +5,7 @@ import pytest
 
 import npv_build.core.pipeline as pl
 from npv_build.core.cancel import CancelToken
-from npv_build.core.errors import PipelineCancelled
+from npv_build.core.errors import NpvError, PipelineCancelled
 from npv_build.core.pipeline import BuildRequest, PipelineService
 
 
@@ -113,6 +113,20 @@ def test_cancel_before_stage(fake_stages, tmp_path):
     token.cancel()
     with pytest.raises(PipelineCancelled):
         PipelineService().build(_req(tmp_path), cancel=token)
+    assert fake_stages == []
+
+
+def test_build_raises_actionable_error_when_game_dir_none(fake_stages, tmp_path):
+    """game_dir is Path | None (e.g. GUI settings not configured yet). Rather
+    than blowing up deep in WolvenKitConfig/resolve_assets with an opaque
+    TypeError, PipelineService.build must guard at the top and raise an
+    NpvError with remediation telling the user how to fix it."""
+    req = _req(tmp_path, game_dir=None)
+    with pytest.raises(NpvError) as exc_info:
+        PipelineService().build(req)
+    assert "game dir" in exc_info.value.user_message.lower()
+    assert exc_info.value.remediation
+    # Must fail before any stage runs.
     assert fake_stages == []
 
 
