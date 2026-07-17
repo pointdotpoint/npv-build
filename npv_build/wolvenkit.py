@@ -21,7 +21,7 @@ from .clothing import resolve_clothing
 from .config_editor import _MESH_COMPONENT_TYPES
 from .core.errors import NpvError, ToolError
 from .core.proc import run_tool
-from .head_bake import find_stock_head_part, prepare_head
+from .head_bake import find_stock_head_part, prepare_head, verify_morphtarget
 from .wk_cli import WolvenKit, WolvenKitError
 
 logger = logging.getLogger(__name__)
@@ -1012,6 +1012,14 @@ def build_project(
     # --- Cook JSON -> binary ---
     logger.info("[WolvenKit] Cooking JSON to binary...")
     wk.deserialize(source_dir)
+
+    # Verify the baked morphtarget survived the JSON->binary cook with its
+    # shapekeys intact (spec PC-6, guards WolvenKit issue #849 shape-key
+    # loss). Only applies when a bake actually produced one; user-supplied
+    # mesh/GLB overrides may not.
+    morphtarget_cooked = source_dir / "base" / "npv-build" / mod_id / f"{mod_id}_morphs.morphtarget"
+    if morphtarget_cooked.exists():
+        verify_morphtarget(wk, morphtarget_cooked)
 
     for p in list(source_dir.rglob("*.json")):
         p.unlink()

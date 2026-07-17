@@ -88,10 +88,44 @@ def triangulate(obj):
     me.update()
 
 
+def clean_normals(obj):
+    """Recompute Basis normals and strip any custom split normals.
+
+    After bake_morphs() collapses the shapekey mix into the Basis (removing
+    all shape keys), the mesh can still carry custom split normals computed
+    for whichever shapekey was last active/edited in-editor. Left in place,
+    those stale normals get baked into the glTF export and can leak visible
+    shading artifacts (or, combined with degenerate baked geometry, contribute
+    to the shape-key/normal corruption WolvenKit's import has been observed
+    to produce — WK#849). Recomputing normals from the final baked geometry
+    and clearing any custom split-normal layer ensures the exported mesh's
+    normals reflect the ACTUAL baked result, not leftover editor state.
+    """
+    bpy.context.view_layer.objects.active = obj
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    obj.select_set(True)
+
+    if bpy.context.object.mode != "OBJECT":
+        bpy.ops.object.mode_set(mode="OBJECT")
+
+    me = obj.data
+    if me.has_custom_normals:
+        bpy.ops.mesh.customdata_custom_splitnormals_clear()
+
+    # calc_normals_split() is a deprecated no-op on Blender 4.1+ (normals are
+    # always computed from face/vertex data now); guard for older versions
+    # where it's still needed to force a Basis-normal recompute.
+    if hasattr(me, "calc_normals_split"):
+        me.calc_normals_split()
+    me.update()
+
+
 def export_glb(path, mesh_objs):
     # WolvenKit mesh import requires triangulated geometry WITH tangents.
     for obj in mesh_objs:
         triangulate(obj)
+        clean_normals(obj)
         # Ensure a UV layer exists (tangents need UVs) and compute tangents on export.
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(

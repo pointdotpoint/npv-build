@@ -13,6 +13,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from .core.errors import BakeVerificationError
 from .wk_cli import WolvenKit, WolvenKitError
 
 logger = logging.getLogger(__name__)
@@ -244,6 +245,47 @@ def _restore_part_materials(
 
         mat_count = len(stock_rc.get("materialEntries", []))
         logger.info(f"[Head] restored {mat_count} materials from stock head")
+
+
+def verify_morphtarget(
+    wk: WolvenKit,
+    morphtarget_path: Path,
+    expected_min_targets: int = 1,
+) -> int:
+    """Verify a baked .morphtarget survived WolvenKit import with its shapekeys intact.
+
+    Guards WolvenKit issue #849: the import --keep step has been observed to
+    silently drop shape-key (morph target) data, producing a .morphtarget
+    that loads fine in-game but deforms nothing. We serialize the produced
+    file back to JSON and count Data.RootChunk.targets (confirmed against a
+    real WolvenKit 8.19.0 serialize() of a freshly-baked morphtarget — there
+    is no numTargets scalar; the count is len(targets)).
+
+    Returns the found target count. Raises BakeVerificationError if fewer
+    than expected_min_targets targets are present.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        json_path = wk.serialize(morphtarget_path, dest=Path(td))
+        data = json.loads(json_path.read_text(encoding="utf-8"))
+
+    targets = data.get("Data", {}).get("RootChunk", {}).get("targets", [])
+    found = len(targets)
+
+    if found < expected_min_targets:
+        raise BakeVerificationError(
+            f"Baked morphtarget {morphtarget_path.name} has {found} shape "
+            f"target(s), expected at least {expected_min_targets}",
+            remediation=(
+                "WolvenKit's import --keep step has a known bug (WolvenKit "
+                "issue #849) that can silently drop shape-key data during "
+                "mesh import. Re-run the bake, or check for a WolvenKit "
+                "update that fixes #849."
+            ),
+            details=f"morphtarget={morphtarget_path}, found={found}, expected>={expected_min_targets}",
+        )
+
+    logger.info(f"[Head] verified morphtarget {morphtarget_path.name}: {found} shape targets")
+    return found
 
 
 def _finalize_head(
