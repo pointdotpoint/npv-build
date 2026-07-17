@@ -526,5 +526,5 @@ def test_append_amm_appearance(tmp_path):
 
 ## Notes / Dependencies
 
-- **M3 outcome feeds Task 5 and Task 7:** if the ArchiveXL spike (M3) chose branch A/A′, the mod manager's `.xl` handling and multi-appearance's merge mechanism are the right primitives; if branch B, they still work (they operate on whatever the pipeline emits). The plan is branch-agnostic by design.
+- **M3 outcome (ADR 0001) = Branch A′:** `npv-inject` is being retired (WolvenKit round-trip replaces it — M4/M5 backlog), so the **wizard's dependency check (Task 4 / GUI-2) must drop .NET** from what it detects/installs (keep WolvenKit + Blender). The donor entity stays. The mod manager's `.xl` handling (Task 5) and multi-appearance merge (Task 7) are the right primitives either way and operate on whatever the pipeline emits.
 - **No new concurrency:** the single-build-at-a-time invariant (M1) stays; `configure_logging`'s global handler is safe under it. Do not add a second concurrent worker.
