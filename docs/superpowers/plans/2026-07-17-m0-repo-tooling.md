@@ -150,7 +150,8 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "tomli-w"
+    "tomli-w",
+    "lz4"
 ]
 
 [project.optional-dependencies]
