@@ -240,12 +240,31 @@ def _inline_handle_refs(comp: dict[str, Any], resolved_twin: dict[str, Any]) -> 
     shape `build_component_json` already produces for freshly-built
     components, so donor-copied and freshly-built components round-trip
     through the same code path.
+
+    Index alignment between `components[k]` and `compiledData.Data.Chunks[k]`
+    is asserted, not assumed: WolvenKit's expanded chunk carries its own
+    `HandleId` alongside `Data` (confirmed against a real serialized .app —
+    e.g. `chunks[1].parentTransform == {"HandleId": "2", "Data": {...}}` for
+    a component whose bare field was `{"HandleRefId": 2}`). We compare that
+    `HandleId` against the `HandleRefId` being resolved and raise loudly on
+    a mismatch, so a future donor file with non-index-aligned handles fails
+    fast instead of silently producing a wrong-but-valid-looking .app.
     """
     out = dict(comp)
     for key, value in comp.items():
         if isinstance(value, dict) and set(value.keys()) == {"HandleRefId"}:
+            ref_id = value["HandleRefId"]
             twin_value = resolved_twin.get(key)
             if isinstance(twin_value, dict) and "Data" in twin_value:
+                twin_handle_id = twin_value.get("HandleId")
+                if twin_handle_id is not None and str(twin_handle_id) != str(ref_id):
+                    raise InjectError(
+                        f"Handle-ref mismatch resolving '{key}': component expects "
+                        f"HandleRefId {ref_id!r} but the index-matched compiledData "
+                        f"chunk carries HandleId {twin_handle_id!r}. Donor component "
+                        "and compiledData.Data.Chunks are no longer index-aligned — "
+                        "refusing to inline a possibly-wrong handle."
+                    )
                 out[key] = {"Data": twin_value["Data"]}
     return out
 

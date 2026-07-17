@@ -176,6 +176,33 @@ def test_inline_handle_refs_resolves_bare_handle_ref():
     }
 
 
+def test_inline_handle_refs_raises_on_handle_id_mismatch():
+    """Hardening regression (T7 review): resolution is by array index, but
+    the resolved chunk's own HandleId must still equal the HandleRefId being
+    resolved. If a future donor file has non-index-aligned handles, this
+    must fail loudly instead of silently inlining the wrong Data — the
+    'subtly-wrong injector' failure mode this module must never ship."""
+    comp = {
+        "$type": "entAnimationSetupExtensionComponent",
+        "name": {"$type": "CName", "$storage": "string", "$value": "man_face_base_animations"},
+        "controlBinding": {"HandleRefId": "1"},
+    }
+    resolved_twin = {
+        "$type": "entAnimationSetupExtensionComponent",
+        "controlBinding": {
+            # Mismatched: index-matched chunk actually carries HandleId "2",
+            # not the "1" the component's HandleRefId points to.
+            "HandleId": "2",
+            "Data": {
+                "$type": "entAnimationControlBinding",
+                "bindName": {"$type": "CName", "$storage": "string", "$value": "root"},
+            },
+        },
+    }
+    with pytest.raises(InjectError, match="Handle-ref mismatch"):
+        _inline_handle_refs(comp, resolved_twin)
+
+
 def test_inline_handle_refs_leaves_already_inline_fields_untouched():
     comp = {
         "$type": "entSkinnedMeshComponent",
