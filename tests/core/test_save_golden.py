@@ -27,8 +27,8 @@ def test_golden_2_31_save_parses(tmp_path):
 
     d = parse_save(save_path)
     golden = json.loads(_GOLDEN.read_text())
-    for k, v in golden.items():
-        assert d[k] == v
-    assert d["patch"] == "2.31"
-    assert "body_rig" in d
-    assert "selections" in d and len(d["selections"]) > 0
+    assert d["patch"] == golden["patch"] == "2.31"
+    assert d["body_rig"] == golden["body_rig"]
+    # Pin the exact decoded selection count, not just >0, so a decoder
+    # regression that changes the count is caught.
+    assert len(d["selections"]) == golden["selections_count"]
