@@ -10,6 +10,7 @@ from .errors import SecurityError
 
 
 def is_safe_member(name: str, dest: Path) -> bool:
+    name = name.replace("\\", "/")
     dest_resolved = dest.resolve()
     target = (dest_resolved / name).resolve()
     try:
@@ -45,7 +46,7 @@ def safe_extract_tar(archive: Path, dest: Path) -> None:
             if member.islnk() or member.issym():
                 # link targets can escape too
                 if not is_safe_member(member.linkname, dest):
-                    _reject(member.name, dest)
+                    _reject(member.linkname, dest)
         t.extractall(dest)
 
 
