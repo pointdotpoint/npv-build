@@ -10,7 +10,7 @@
 | M1 — core foundation | ✅ merged | errors/cancel/proc/logging/platform + PipelineService (checkpoint/resume/cancel); CLI+GUI on core; 122 tests |
 | M2 — patch currency | ✅ complete (8/8) merged | 2.31 = same format as 2.13; relabel+alias; real 2.31 build proven |
 | M3 — ArchiveXL spike | ✅ complete, merged | ADR 0001 = Branch A' (retire npv-inject; keep donor; H2-v2 follow-up) |
-| M4 — GUI overhaul | 🚧 executing | `docs/superpowers/plans/2026-07-17-m4-gui-overhaul.md` |
+| M4 — GUI overhaul | ✅ complete, merged | gui_logic/ + gui_views/ split; wizard, save browser, build view, mod manager, settings, multi-appearance; 214 tests |
 | M5 — security + tests | 📄 spec only | not yet planned |
 | M6 — release bundles | 📄 spec only | not yet planned |
 
