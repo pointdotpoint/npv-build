@@ -139,11 +139,28 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
 
         with tempfile.TemporaryDirectory() as td:
             td_path = Path(td)
+
+            # Validate every member BEFORE extracting. rglob(td_path) after
+            # extraction can only see files that landed *inside* td_path, so it
+            # is structurally blind to the actual CVE-2022-30333 threat: unrar
+            # writing a member like "../../evil" to a path *outside* td_path.
+            # Listing the archive first (unrar lb = bare list, one member path
+            # per line, no headers/sizes) lets us catch traversal in the names
+            # themselves before anything is written to disk.
+            listing = run_tool(["unrar", "lb", str(source_path)], tool="unrar", timeout=300)
+            members = [line for line in listing.stdout.splitlines() if line.strip()]
+            for member in members:
+                if not is_safe_member(member, td_path):
+                    raise SecurityError(
+                        f"Archive member escapes the extraction directory: {member!r}",
+                        remediation="The archive may be malicious or corrupt; do not extract it.",
+                        details=f"dest={td_path}",
+                    ) from None
+
             run_tool(["unrar", "x", "-y", str(source_path), td], tool="unrar", timeout=300)
 
-            # unrar can't be pre-validated via py7zr; validate post-extract that no
-            # extracted member resolved outside the temp dir (e.g. via a symlink or
-            # traversal that unrar itself resolved on disk).
+            # Defensive post-extract check too (cheap, catches anything the
+            # listing didn't reveal, e.g. symlinks resolved on disk by unrar).
             for p in td_path.rglob("*"):
                 rel = str(p.relative_to(td_path))
                 if not is_safe_member(rel, td_path):
