@@ -1,4 +1,3 @@
-import json
 from npv_build.config_editor import build_app_template
 
 

@@ -18,8 +18,11 @@ def resolve_clothing(
     win over both. Layered torso (t1_ + t2_) is preserved.
     """
     PREFIX_SLOTS = [
-        ("t2_", "outer_torso"), ("t1_", "inner_torso"),
-        ("l1_", "legs"), ("s1_", "feet"), ("h1_", "head"),
+        ("t2_", "outer_torso"),
+        ("t1_", "inner_torso"),
+        ("l1_", "legs"),
+        ("s1_", "feet"),
+        ("h1_", "head"),
     ]
 
     def slot_for(basename: str) -> str:
@@ -36,26 +39,30 @@ def resolve_clothing(
             name = item.get("name", "")
             if not mesh or not name:
                 continue
-            base_specs.append({
-                "comp_type": "entGarmentSkinnedMeshComponent",
-                "name": name,
-                "mesh": mesh,
-                "appearance": item.get("appearance") or "default",
-                "source": f"clothing:{item.get('slot') or 'equipped'} (equipped)",
-            })
+            base_specs.append(
+                {
+                    "comp_type": "entGarmentSkinnedMeshComponent",
+                    "name": name,
+                    "mesh": mesh,
+                    "appearance": item.get("appearance") or "default",
+                    "source": f"clothing:{item.get('slot') or 'equipped'} (equipped)",
+                }
+            )
             if verbosity > 0:
                 print(f"[Clothing] equipped {item.get('slot') or '?'}: {name}")
     else:
         fallback_file = Path(__file__).parent / "data" / "fallback_outfit.json"
         fallback = json.loads(fallback_file.read_text()).get(body_rig, {})
         for slot_name, slot_data in fallback.items():
-            base_specs.append({
-                "comp_type": "entGarmentSkinnedMeshComponent",
-                "name": slot_data["name"],
-                "mesh": slot_data["mesh"],
-                "appearance": slot_data["appearance"],
-                "source": f"clothing:{slot_name}",
-            })
+            base_specs.append(
+                {
+                    "comp_type": "entGarmentSkinnedMeshComponent",
+                    "name": slot_data["name"],
+                    "mesh": slot_data["mesh"],
+                    "appearance": slot_data["appearance"],
+                    "source": f"clothing:{slot_name}",
+                }
+            )
 
     # apply --garment overrides by slot: an override replaces any base spec in the
     # same slot (custom_ slot for unknown prefixes so it is purely additive).
@@ -69,13 +76,15 @@ def resolve_clothing(
         slot = slot_for(basename) or f"custom_{i}"
         overridden_slots.add(slot)
         name = basename.rsplit(".", 1)[0]
-        override_specs.append({
-            "comp_type": "entGarmentSkinnedMeshComponent",
-            "name": name,
-            "mesh": g,
-            "appearance": "default",
-            "source": f"clothing:{slot}",
-        })
+        override_specs.append(
+            {
+                "comp_type": "entGarmentSkinnedMeshComponent",
+                "name": name,
+                "mesh": g,
+                "appearance": "default",
+                "source": f"clothing:{slot}",
+            }
+        )
         if verbosity > 0:
             print(f"[Clothing] override {slot}: {name}")
 

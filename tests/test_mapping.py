@@ -1,6 +1,6 @@
 import pytest
-from pathlib import Path
-from npv_build.mapping import resolve_assets, MappingError
+
+from npv_build.mapping import MappingError, resolve_assets
 
 
 def test_resolve_assets_valid():
@@ -45,7 +45,10 @@ def test_resolve_assets_valid():
 
     assert assets["patch"] == "2.13"
     assert assets["body_rig"] == "pwa"
-    assert assets["head_app"] == "base\\characters\\head\\player_base_heads\\appearances\\head\\h0_000__basehead.app"
+    assert (
+        assets["head_app"]
+        == "base\\characters\\head\\player_base_heads\\appearances\\head\\h0_000__basehead.app"
+    )
     assert assets["head_appearance_name"] == "h0_000_pwa__basehead__01_ca_pale"
 
     # Assert part_entities lists head preset parts, body base, and arms

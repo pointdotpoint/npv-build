@@ -39,3 +39,21 @@ packages = ["npv_build"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "WolvenKit",
+    "my_v_mod",
+    "external_v_01_mod",
+    "test_v_mod",
+    "release_test",
+    "app_verify",
+    "trial_out",
+    "latest_v_mod",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]

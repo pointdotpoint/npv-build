@@ -1,8 +1,8 @@
 """Integration test for build_project — requires WolvenKit CLI + game dir."""
-import json
+
 import os
+
 import pytest
-from pathlib import Path
 
 GAME_DIR = os.environ.get("NPV_GAME_DIR", "")
 SKIP_REASON = "Set NPV_GAME_DIR to run integration tests"
@@ -43,52 +43,83 @@ def test_apply_recipe_overrides():
         {"name": "h0_000_pwa_c__basehead", "appearance": "default"},
         {"name": "a0_000_pwa_base_hq__full", "appearance": "default"},
     ]
-    
+
     # 1. Test direct component override
     recipe_overrides = [
         {
-            "partResource": {"DepotPath": {"$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"}},
+            "partResource": {
+                "DepotPath": {
+                    "$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"
+                }
+            },
             "componentsOverrides": [
                 {
                     "componentName": {"$value": "h0_000_pwa_c__basehead"},
                     "meshAppearance": {"$value": "01_ca_pale_d04"},
                 }
-            ]
+            ],
         }
     ]
 
     parts_overrides = _apply_recipe_overrides(components, recipe_overrides)
     assert components[0]["appearance"] == "01_ca_pale_d04"
     assert len(parts_overrides) == 1
-    assert parts_overrides[0]["partResource"]["DepotPath"]["$value"] == "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"
+    assert (
+        parts_overrides[0]["partResource"]["DepotPath"]["$value"]
+        == "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"
+    )
     assert len(parts_overrides[0]["componentsOverrides"]) == 1
-    assert parts_overrides[0]["componentsOverrides"][0]["componentName"]["$value"] == "h0_000_pwa_c__basehead"
-    assert parts_overrides[0]["componentsOverrides"][0]["meshAppearance"]["$value"] == "01_ca_pale_d04"
+    assert (
+        parts_overrides[0]["componentsOverrides"][0]["componentName"]["$value"]
+        == "h0_000_pwa_c__basehead"
+    )
+    assert (
+        parts_overrides[0]["componentsOverrides"][0]["meshAppearance"]["$value"] == "01_ca_pale_d04"
+    )
 
     # 2. Test alias remapping from stock MorphTargetSkinnedMesh7243
     components[0]["appearance"] = "default"
     recipe_overrides_alias = [
         {
-            "partResource": {"DepotPath": {"$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"}},
+            "partResource": {
+                "DepotPath": {
+                    "$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"
+                }
+            },
             "componentsOverrides": [
                 {
                     "componentName": {"$value": "MorphTargetSkinnedMesh7243"},
                     "meshAppearance": {"$value": "01_ca_pale_d04"},
                 }
-            ]
+            ],
         }
     ]
 
     parts_overrides_alias = _apply_recipe_overrides(components, recipe_overrides_alias)
     assert components[0]["appearance"] == "01_ca_pale_d04"
     assert len(parts_overrides_alias) == 1
-    assert parts_overrides_alias[0]["partResource"]["DepotPath"]["$value"] == "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"
+    assert (
+        parts_overrides_alias[0]["partResource"]["DepotPath"]["$value"]
+        == "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"
+    )
     # Both stock MorphTargetSkinnedMesh7243 AND duplicated h0_000_pwa_c__basehead should be present!
     assert len(parts_overrides_alias[0]["componentsOverrides"]) == 2
-    assert parts_overrides_alias[0]["componentsOverrides"][0]["componentName"]["$value"] == "MorphTargetSkinnedMesh7243"
-    assert parts_overrides_alias[0]["componentsOverrides"][0]["meshAppearance"]["$value"] == "01_ca_pale_d04"
-    assert parts_overrides_alias[0]["componentsOverrides"][1]["componentName"]["$value"] == "h0_000_pwa_c__basehead"
-    assert parts_overrides_alias[0]["componentsOverrides"][1]["meshAppearance"]["$value"] == "01_ca_pale_d04"
+    assert (
+        parts_overrides_alias[0]["componentsOverrides"][0]["componentName"]["$value"]
+        == "MorphTargetSkinnedMesh7243"
+    )
+    assert (
+        parts_overrides_alias[0]["componentsOverrides"][0]["meshAppearance"]["$value"]
+        == "01_ca_pale_d04"
+    )
+    assert (
+        parts_overrides_alias[0]["componentsOverrides"][1]["componentName"]["$value"]
+        == "h0_000_pwa_c__basehead"
+    )
+    assert (
+        parts_overrides_alias[0]["componentsOverrides"][1]["meshAppearance"]["$value"]
+        == "01_ca_pale_d04"
+    )
 
 
 def test_apply_recipe_overrides_dedupes_duplicate_component_appearances():
@@ -102,10 +133,20 @@ def test_apply_recipe_overrides_dedupes_duplicate_component_appearances():
     ]
     recipe_overrides = [
         {
-            "partResource": {"DepotPath": {"$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\hx_000_pwa__basehead_makeup_lips_01.ent"}},
+            "partResource": {
+                "DepotPath": {
+                    "$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\hx_000_pwa__basehead_makeup_lips_01.ent"
+                }
+            },
             "componentsOverrides": [
-                {"componentName": {"$value": "hx_000_pwa__basehead_makeup_lips_01"}, "meshAppearance": {"$value": "yellow_01"}},
-                {"componentName": {"$value": "hx_000_pwa__basehead_makeup_lips_01"}, "meshAppearance": {"$value": "burgundy_19"}},
+                {
+                    "componentName": {"$value": "hx_000_pwa__basehead_makeup_lips_01"},
+                    "meshAppearance": {"$value": "yellow_01"},
+                },
+                {
+                    "componentName": {"$value": "hx_000_pwa__basehead_makeup_lips_01"},
+                    "meshAppearance": {"$value": "burgundy_19"},
+                },
             ],
         }
     ]
@@ -116,18 +157,32 @@ def test_apply_recipe_overrides_dedupes_duplicate_component_appearances():
     assert components[0]["appearance"] == "burgundy_19"
     # partsOverrides must NOT carry both colors for the same component
     cos = parts_overrides[0]["componentsOverrides"]
-    lip_cos = [c for c in cos if c["componentName"]["$value"] == "hx_000_pwa__basehead_makeup_lips_01"]
-    assert len(lip_cos) == 1, f"expected one lip override, got {len(lip_cos)}: {[c['meshAppearance']['$value'] for c in lip_cos]}"
+    lip_cos = [
+        c for c in cos if c["componentName"]["$value"] == "hx_000_pwa__basehead_makeup_lips_01"
+    ]
+    assert len(lip_cos) == 1, (
+        f"expected one lip override, got {len(lip_cos)}: {[c['meshAppearance']['$value'] for c in lip_cos]}"
+    )
     assert lip_cos[0]["meshAppearance"]["$value"] == "burgundy_19"
 
 
 def _stock_eye_overrides():
     return [
         {
-            "partResource": {"DepotPath": {"$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\he_000_pwa__basehead.ent"}},
+            "partResource": {
+                "DepotPath": {
+                    "$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\face_decals\\he_000_pwa__basehead.ent"
+                }
+            },
             "componentsOverrides": [
-                {"componentName": {"$value": "MorphTargetSkinnedMesh3637"}, "meshAppearance": {"$value": "double_eye_black"}},
-                {"componentName": {"$value": "MorphTargetSkinnedMesh3637"}, "meshAppearance": {"$value": "eyelashes__black_salt_n_pepper"}},
+                {
+                    "componentName": {"$value": "MorphTargetSkinnedMesh3637"},
+                    "meshAppearance": {"$value": "double_eye_black"},
+                },
+                {
+                    "componentName": {"$value": "MorphTargetSkinnedMesh3637"},
+                    "meshAppearance": {"$value": "eyelashes__black_salt_n_pepper"},
+                },
             ],
         }
     ]
@@ -141,8 +196,11 @@ def test_stock_eye_lashes_only_when_modded_eyes():
     components = [{"name": "MorphTargetSkinnedMesh3637", "appearance": "default"}]
     parts = _apply_recipe_overrides(components, _stock_eye_overrides(), modded_eyes=True)
 
-    eye_cos = [c for c in parts[0]["componentsOverrides"]
-               if c["componentName"]["$value"] == "MorphTargetSkinnedMesh3637"]
+    eye_cos = [
+        c
+        for c in parts[0]["componentsOverrides"]
+        if c["componentName"]["$value"] == "MorphTargetSkinnedMesh3637"
+    ]
     assert len(eye_cos) == 1, [c["meshAppearance"]["$value"] for c in eye_cos]
     assert eye_cos[0]["meshAppearance"]["$value"] == "eyelashes__black_salt_n_pepper"
     assert components[0]["appearance"] == "eyelashes__black_salt_n_pepper"
@@ -156,8 +214,11 @@ def test_stock_eye_iris_when_no_modded_eyes():
     components = [{"name": "MorphTargetSkinnedMesh3637", "appearance": "default"}]
     parts = _apply_recipe_overrides(components, _stock_eye_overrides(), modded_eyes=False)
 
-    eye_cos = [c for c in parts[0]["componentsOverrides"]
-               if c["componentName"]["$value"] == "MorphTargetSkinnedMesh3637"]
+    eye_cos = [
+        c
+        for c in parts[0]["componentsOverrides"]
+        if c["componentName"]["$value"] == "MorphTargetSkinnedMesh3637"
+    ]
     assert len(eye_cos) == 1, [c["meshAppearance"]["$value"] for c in eye_cos]
     assert eye_cos[0]["meshAppearance"]["$value"] == "double_eye_black"
 
@@ -166,15 +227,19 @@ def test_asset_paths_carries_equipped_clothing():
     """resolve_assets surfaces cc_settings['clothing'] as asset_paths['equipped_clothing']
     so build_project can pass it to resolve_clothing."""
     from npv_build.mapping import resolve_assets
+
     cc = {
         "patch": "2.13",
         "body_rig": "pwa",
         "selections": [],
         "clothing": [
-            {"name": "t1_x", "mesh": "base\\g\\t1_x.mesh",
-             "appearance": "default", "slot": "inner_torso"},
+            {
+                "name": "t1_x",
+                "mesh": "base\\g\\t1_x.mesh",
+                "appearance": "default",
+                "slot": "inner_torso",
+            },
         ],
     }
     ap = resolve_assets(cc, game_dir=None)
     assert ap["equipped_clothing"] == cc["clothing"]
-

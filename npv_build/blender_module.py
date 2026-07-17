@@ -14,6 +14,7 @@ Flatpak Blender note: the sandbox cannot read /tmp; we stage under $HOME and
 require `flatpak override --user --filesystem=host org.blender.Blender` (done
 once at setup).
 """
+
 import json
 import os
 import shutil
@@ -70,7 +71,9 @@ def _blender_cmd():
         return ["blender"]
     # Check local cache
     import sys
+
     from .config import get_cache_dir
+
     tools_dir = get_cache_dir() / "tools" / "blender"
     if tools_dir.exists():
         ext = ".exe" if sys.platform == "win32" else ""
@@ -90,10 +93,10 @@ def _run(cmd, verbosity, error_prefix):
     stream = verbosity >= 2
     try:
         import sys
+
         res = subprocess.run(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
         if stream:
@@ -102,7 +105,7 @@ def _run(cmd, verbosity, error_prefix):
             if res.stderr:
                 sys.stderr.write(res.stderr)
     except FileNotFoundError as e:
-        raise BlenderError(f"{error_prefix}: command not found: {e}")
+        raise BlenderError(f"{error_prefix}: command not found: {e}") from e
     if res.returncode != 0:
         tail = ""
         if not stream:
@@ -111,9 +114,17 @@ def _run(cmd, verbosity, error_prefix):
     return res
 
 
-def bake_face_mesh(game_dir: Path, body_rig: str, face_morphs: dict, out_mesh_path: Path,
-                   verbosity: int = 0, wk=None, mt_depot: str = None, mesh_depot: str = None,
-                   stage_name: str = "bake"):
+def bake_face_mesh(
+    game_dir: Path,
+    body_rig: str,
+    face_morphs: dict,
+    out_mesh_path: Path,
+    verbosity: int = 0,
+    wk=None,
+    mt_depot: str = None,
+    mesh_depot: str = None,
+    stage_name: str = "bake",
+):
     """Run the full bake chain. Returns the path to the baked .mesh (out_mesh_path)
     on success, or None if morphs/assets are unavailable (caller falls back to
     the stock head mesh).
@@ -143,25 +154,31 @@ def bake_face_mesh(game_dir: Path, body_rig: str, face_morphs: dict, out_mesh_pa
 
     mt_depot = mt_depot or HEAD_MORPHTARGET[body_rig]
     mesh_depot = mesh_depot or HEAD_FACE_MESH[body_rig]
-    mt_basename = mt_depot.replace("\\", "/").rsplit("/", 1)[-1]   # h0_000_pwa__morphs.morphtarget
+    mt_basename = mt_depot.replace("\\", "/").rsplit("/", 1)[-1]  # h0_000_pwa__morphs.morphtarget
     mesh_basename = mesh_depot.replace("\\", "/").rsplit("/", 1)[-1]
 
     # 1. extract morphtarget + face mesh (CR2W skeletons) into a depot tree.
     extract_dir = stage / "extract"
     extract_dir.mkdir(parents=True, exist_ok=True)
     import re as _re
+
     rgx = r"(" + _re.escape(mt_basename) + r"|" + _re.escape(mesh_basename) + r")$"
     if wk:
         wk.extract(rgx, archive=appearance_arch, dest=extract_dir)
     else:
-        _run([CLI_BINARY, "extract", str(appearance_arch), "-o", str(extract_dir), "-r", rgx],
-             verbosity, "ExtractFailed")
+        _run(
+            [CLI_BINARY, "extract", str(appearance_arch), "-o", str(extract_dir), "-r", rgx],
+            verbosity,
+            "ExtractFailed",
+        )
 
     mt_fs = extract_dir / _depot_to_rel(mt_depot)
     mesh_fs = extract_dir / _depot_to_rel(mesh_depot)
     if not mt_fs.exists() or not mesh_fs.exists():
         if verbosity > 0:
-            print(f"[Blender] extract missing files (mt={mt_fs.exists()}, mesh={mesh_fs.exists()}); skip bake")
+            print(
+                f"[Blender] extract missing files (mt={mt_fs.exists()}, mesh={mesh_fs.exists()}); skip bake"
+            )
         return None
 
     # 2. export morphtarget -> glb
@@ -170,8 +187,11 @@ def bake_face_mesh(game_dir: Path, body_rig: str, face_morphs: dict, out_mesh_pa
     if wk:
         in_glb = wk.export(mt_fs, dest=glb_dir)
     else:
-        _run([CLI_BINARY, "export", str(mt_fs), "-o", str(glb_dir), "-gp", str(game_dir)],
-             verbosity, "ExportFailed")
+        _run(
+            [CLI_BINARY, "export", str(mt_fs), "-o", str(glb_dir), "-gp", str(game_dir)],
+            verbosity,
+            "ExportFailed",
+        )
         in_glb = glb_dir / (mt_basename + ".glb")
         if not in_glb.exists():
             cands = list(glb_dir.glob("*.glb"))
@@ -190,9 +210,20 @@ def bake_face_mesh(game_dir: Path, body_rig: str, face_morphs: dict, out_mesh_pa
     shutil.copy2(BAKE_SCRIPT, local_script)
     if verbosity > 0:
         print(f"[Blender] baking morphs {face_morphs} ...")
-    _run(_blender_cmd() + ["--background", "--python", str(local_script), "--",
-                           str(in_glb), str(baked_glb), str(job_path)],
-         verbosity, "BakeFailed")
+    _run(
+        _blender_cmd()
+        + [
+            "--background",
+            "--python",
+            str(local_script),
+            "--",
+            str(in_glb),
+            str(baked_glb),
+            str(job_path),
+        ],
+        verbosity,
+        "BakeFailed",
+    )
     if not baked_glb.exists():
         raise BlenderError("BakeFailed: no baked .glb produced")
 
@@ -208,6 +239,7 @@ def bake_face_mesh(game_dir: Path, body_rig: str, face_morphs: dict, out_mesh_pa
     mesh_mtime_before = mesh_fs.stat().st_mtime if mesh_fs.exists() else 0
     if wk:
         from .wk_cli import WolvenKitError
+
         try:
             wk.import_mesh(mesh_fs.parent, dest=mesh_fs.parent, allow_exit_codes=(3,))
         except WolvenKitError:
@@ -215,9 +247,20 @@ def bake_face_mesh(game_dir: Path, body_rig: str, face_morphs: dict, out_mesh_pa
                 raise
     else:
         try:
-            _run([CLI_BINARY, "import", str(mesh_fs.parent), "-o", str(mesh_fs.parent),
-                  "--keep", "-gp", str(game_dir)],
-                 verbosity, "ImportFailed")
+            _run(
+                [
+                    CLI_BINARY,
+                    "import",
+                    str(mesh_fs.parent),
+                    "-o",
+                    str(mesh_fs.parent),
+                    "--keep",
+                    "-gp",
+                    str(game_dir),
+                ],
+                verbosity,
+                "ImportFailed",
+            )
         except BlenderError:
             if not mesh_fs.exists() or mesh_fs.stat().st_mtime <= mesh_mtime_before:
                 raise

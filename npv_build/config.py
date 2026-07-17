@@ -1,11 +1,14 @@
 import os
 import sys
 from pathlib import Path
+
 import tomli_w
+
 try:
     import tomllib
 except ImportError:
     import tomli as tomllib
+
 
 def get_config_dir() -> Path:
     if sys.platform == "win32":
@@ -19,6 +22,7 @@ def get_config_dir() -> Path:
             base = os.path.expanduser("~/.config")
         return Path(base) / "npv"
 
+
 def get_cache_dir() -> Path:
     if sys.platform == "win32":
         base = os.environ.get("LOCALAPPDATA")
@@ -31,12 +35,14 @@ def get_cache_dir() -> Path:
             base = os.path.expanduser("~/.cache")
         return Path(base) / "npv"
 
+
 def load_config() -> dict:
     config_path = get_config_dir() / "config.toml"
     if not config_path.exists():
         return {}
     with open(config_path, "rb") as f:
         return tomllib.load(f)
+
 
 def save_config(config: dict):
     config_dir = get_config_dir()

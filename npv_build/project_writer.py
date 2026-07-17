@@ -23,28 +23,28 @@ def write_components_json(component_specs, appearance_name, out_path: Path):
             mesh_lower = (spec.get("mesh") or "").lower()
             source_lower = (spec.get("source") or "").lower()
             is_head = (
-                any(p in name_lower for p in ["h0_", "he_", "ht_", "hb_", "hx_", "heb_"]) or
-                "player_base_heads" in mesh_lower or
-                "characters\\head" in mesh_lower or
-                "characters/head" in mesh_lower or
-                "basehead" in name_lower or
-                "basehead" in source_lower or
-                "_head.mesh" in mesh_lower or
-                "eyes" in name_lower or
-                "eyes" in source_lower or
-                "eyes" in mesh_lower or
-                "teeth" in name_lower or
-                "teeth" in source_lower or
-                "cyberware" in name_lower or
-                "cyberware" in source_lower or
-                "makeup" in name_lower or
-                "makeup" in source_lower or
-                "freckles" in name_lower or
-                "freckles" in source_lower or
-                "pimples" in name_lower or
-                "pimples" in source_lower or
-                ("tattoo" in name_lower and "tattoo_08" in mesh_lower) or
-                ("tattoo" in source_lower and "tattoo_08" in mesh_lower)
+                any(p in name_lower for p in ["h0_", "he_", "ht_", "hb_", "hx_", "heb_"])
+                or "player_base_heads" in mesh_lower
+                or "characters\\head" in mesh_lower
+                or "characters/head" in mesh_lower
+                or "basehead" in name_lower
+                or "basehead" in source_lower
+                or "_head.mesh" in mesh_lower
+                or "eyes" in name_lower
+                or "eyes" in source_lower
+                or "eyes" in mesh_lower
+                or "teeth" in name_lower
+                or "teeth" in source_lower
+                or "cyberware" in name_lower
+                or "cyberware" in source_lower
+                or "makeup" in name_lower
+                or "makeup" in source_lower
+                or "freckles" in name_lower
+                or "freckles" in source_lower
+                or "pimples" in name_lower
+                or "pimples" in source_lower
+                or ("tattoo" in name_lower and "tattoo_08" in mesh_lower)
+                or ("tattoo" in source_lower and "tattoo_08" in mesh_lower)
             )
             bind_to = "face_rig" if is_head else "root"
 

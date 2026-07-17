@@ -1,4 +1,5 @@
 """Tests for the clothing module."""
+
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -41,13 +42,7 @@ def test_resolve_clothing_defaults(mock_fallback):
         MockPath.__truediv__ = Path.__truediv__
         MockPath.return_value.__truediv__ = lambda self, other: mock_fallback.parent / other
         # Direct approach: patch the file reading
-        import npv_build.clothing as mod
-        original = mod.Path
-        try:
-            # Simpler: just call with the real module but mock the data file
-            pass
-        finally:
-            pass
+        # Simpler: just call with the real module but mock the data file
 
     # Test with the actual module, relying on the real fallback_outfit.json
     specs = resolve_clothing("pwa")
@@ -57,19 +52,22 @@ def test_resolve_clothing_defaults(mock_fallback):
 
 
 def test_resolve_clothing_garment_override():
-    specs = resolve_clothing("pwa", garment_overrides=[
-        "base\\characters\\garment\\t1_097_pwa_tank.ent"
-    ])
+    specs = resolve_clothing(
+        "pwa", garment_overrides=["base\\characters\\garment\\t1_097_pwa_tank.ent"]
+    )
     names = [s["name"] for s in specs]
     assert "t1_097_pwa_tank" in names
 
 
 def test_resolve_clothing_slot_detection():
-    specs = resolve_clothing("pwa", garment_overrides=[
-        "base\\garment\\t2_jacket.ent",
-        "base\\garment\\l1_pants.ent",
-        "base\\garment\\s1_boots.ent",
-    ])
+    specs = resolve_clothing(
+        "pwa",
+        garment_overrides=[
+            "base\\garment\\t2_jacket.ent",
+            "base\\garment\\l1_pants.ent",
+            "base\\garment\\s1_boots.ent",
+        ],
+    )
     sources = [s["source"] for s in specs]
     assert "clothing:outer_torso" in sources
     assert "clothing:legs" in sources
@@ -84,10 +82,18 @@ def test_resolve_clothing_empty_overrides():
 
 def test_resolve_clothing_uses_equipped_outfit():
     equipped = [
-        {"name": "t1_097_pwa_tank", "mesh": "base\\g\\t1_097_pwa_tank.mesh",
-         "appearance": "red", "slot": "inner_torso"},
-        {"name": "l1_055_pwa_pants", "mesh": "base\\g\\l1_055_pwa_pants.mesh",
-         "appearance": "black", "slot": "legs"},
+        {
+            "name": "t1_097_pwa_tank",
+            "mesh": "base\\g\\t1_097_pwa_tank.mesh",
+            "appearance": "red",
+            "slot": "inner_torso",
+        },
+        {
+            "name": "l1_055_pwa_pants",
+            "mesh": "base\\g\\l1_055_pwa_pants.mesh",
+            "appearance": "black",
+            "slot": "legs",
+        },
     ]
     specs = resolve_clothing("pwa", equipped=equipped)
     names = [s["name"] for s in specs]
@@ -101,10 +107,18 @@ def test_resolve_clothing_uses_equipped_outfit():
 
 def test_resolve_clothing_equipped_keeps_both_torso_layers():
     equipped = [
-        {"name": "t1_inner", "mesh": "base\\g\\t1_inner.mesh",
-         "appearance": "default", "slot": "inner_torso"},
-        {"name": "t2_outer", "mesh": "base\\g\\t2_outer.mesh",
-         "appearance": "default", "slot": "outer_torso"},
+        {
+            "name": "t1_inner",
+            "mesh": "base\\g\\t1_inner.mesh",
+            "appearance": "default",
+            "slot": "inner_torso",
+        },
+        {
+            "name": "t2_outer",
+            "mesh": "base\\g\\t2_outer.mesh",
+            "appearance": "default",
+            "slot": "outer_torso",
+        },
     ]
     specs = resolve_clothing("pwa", equipped=equipped)
     names = [s["name"] for s in specs]
@@ -113,12 +127,15 @@ def test_resolve_clothing_equipped_keeps_both_torso_layers():
 
 def test_resolve_clothing_garment_override_beats_equipped():
     equipped = [
-        {"name": "l1_old", "mesh": "base\\g\\l1_old.mesh",
-         "appearance": "default", "slot": "legs"},
+        {"name": "l1_old", "mesh": "base\\g\\l1_old.mesh", "appearance": "default", "slot": "legs"},
     ]
-    specs = resolve_clothing("pwa", garment_overrides=[
-        "base\\garment\\l1_new_pwa.ent",
-    ], equipped=equipped)
+    specs = resolve_clothing(
+        "pwa",
+        garment_overrides=[
+            "base\\garment\\l1_new_pwa.ent",
+        ],
+        equipped=equipped,
+    )
     names = [s["name"] for s in specs]
     assert "l1_new_pwa" in names
     assert "l1_old" not in names

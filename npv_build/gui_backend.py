@@ -1,15 +1,17 @@
-import sys
 import queue
-import threading
 import shutil
+import sys
+import threading
 from pathlib import Path
-from .config import load_config, save_config, get_cache_dir
-from .orchestrator import run_orchestrator, OrchestratorError
-from .save_parser import parse_save, SaveParserError
+
+from .config import get_cache_dir
+from .orchestrator import OrchestratorError, run_orchestrator
+from .save_parser import parse_save
 
 
 class LogRedirector:
     """Redirects stdout and stderr to a thread-safe queue."""
+
     def __init__(self, log_queue: queue.Queue):
         self.queue = log_queue
 
@@ -23,6 +25,7 @@ class LogRedirector:
 
 class BuildWorker:
     """Executes run_orchestrator in a background thread."""
+
     def __init__(self, log_queue: queue.Queue):
         self.log_queue = log_queue
         self._thread = None
@@ -48,6 +51,7 @@ class BuildWorker:
             self.log_queue.put(("error", f"[{e.module_name}] {str(e)}"))
         except Exception as e:
             import traceback
+
             tb = traceback.format_exc()
             self.log_queue.put(("log", f"Traceback:\n{tb}"))
             self.log_queue.put(("error", str(e)))
@@ -63,6 +67,7 @@ class BuildWorker:
 
 class InstallerWorker:
     """Executes auto_install_missing in a background thread."""
+
     def __init__(self, log_queue: queue.Queue):
         self.log_queue = log_queue
         self._thread = None
@@ -80,7 +85,7 @@ class InstallerWorker:
 
         try:
             from .installer import auto_install_missing
-            
+
             def progress_cb(msg, pct):
                 self.log_queue.put(("log", f"{msg}\n"))
                 self.log_queue.put(("progress", pct / 100.0))
@@ -89,6 +94,7 @@ class InstallerWorker:
             self.log_queue.put(("install_done", None))
         except Exception as e:
             import traceback
+
             tb = traceback.format_exc()
             self.log_queue.put(("log", f"Traceback:\n{tb}"))
             self.log_queue.put(("install_error", str(e)))
@@ -104,18 +110,17 @@ class InstallerWorker:
 def check_dependencies(game_dir: Path | None) -> dict:
     """Check if the required external tools are available."""
     from .wolvenkit import _resolve_inject_binary
-    from .config import get_cache_dir
-    
+
     tools_dir = get_cache_dir() / "tools"
     ext = ".exe" if sys.platform == "win32" else ""
-    
+
     # WolvenKit.CLI
     wkit_binary = "WolvenKit.CLI"
     wkit_found = bool(shutil.which(wkit_binary))
     if not wkit_found:
         local_wkit = tools_dir / "wolvenkit" / f"WolvenKit.CLI{ext}"
         wkit_found = local_wkit.exists()
-    
+
     # Blender
     blender_found = bool(shutil.which("blender") or shutil.which("org.blender.Blender"))
     if not blender_found:
@@ -126,7 +131,7 @@ def check_dependencies(game_dir: Path | None) -> dict:
                 if path.is_file() and not path.is_symlink():
                     blender_found = True
                     break
-    
+
     # npv-inject
     npv_inject_found = False
     try:
@@ -135,20 +140,14 @@ def check_dependencies(game_dir: Path | None) -> dict:
             npv_inject_found = True
     except Exception:
         pass
-        
+
     # Game Directory Verification
     game_dir_valid = False
     if game_dir:
-        archive_path = (
-            game_dir
-            / "archive"
-            / "pc"
-            / "content"
-            / "basegame_4_appearance.archive"
-        )
+        archive_path = game_dir / "archive" / "pc" / "content" / "basegame_4_appearance.archive"
         if archive_path.exists():
             game_dir_valid = True
-            
+
     return {
         "wolvenkit": wkit_found,
         "blender": blender_found,

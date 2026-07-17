@@ -1,5 +1,5 @@
-import pytest
 from pathlib import Path
+
 import npv_build.gui_backend as gui_backend
 
 
@@ -17,10 +17,7 @@ def test_check_dependencies(monkeypatch):
     monkeypatch.setattr(gui_backend.shutil, "which", mock_which)
 
     # Mock _resolve_inject_binary
-    monkeypatch.setattr(
-        "npv_build.wolvenkit._resolve_inject_binary",
-        lambda: "/path/to/npv-inject"
-    )
+    monkeypatch.setattr("npv_build.wolvenkit._resolve_inject_binary", lambda: "/path/to/npv-inject")
 
     # Test with game_dir=None
     res = gui_backend.check_dependencies(None)
@@ -51,11 +48,8 @@ def test_preview_save(monkeypatch):
         return {
             "body_rig": "pwa",
             "skin_tone": "01_ca_pale",
-            "hair": {
-                "style": "hh_001",
-                "color": "black"
-            },
-            "selections": [1, 2, 3]
+            "hair": {"style": "hh_001", "color": "black"},
+            "selections": [1, 2, 3],
         }
 
     monkeypatch.setattr(gui_backend, "parse_save", mock_parse_save)

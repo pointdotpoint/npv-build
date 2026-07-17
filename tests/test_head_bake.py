@@ -1,15 +1,24 @@
 """Tests for the head_bake module."""
-import pytest
 
-from npv_build.head_bake import find_stock_head_part, swap_head_part, _is_detail_layer_override
+from npv_build.head_bake import _is_detail_layer_override, find_stock_head_part, swap_head_part
 
 
 class TestFindStockHeadPart:
     def test_finds_from_recipe_parts(self):
         asset_paths = {
             "recipe_parts": [
-                {"resource": {"DepotPath": {"$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"}}},
-                {"resource": {"DepotPath": {"$value": "base\\characters\\garment\\some_garment.ent"}}},
+                {
+                    "resource": {
+                        "DepotPath": {
+                            "$value": "base\\characters\\head\\player_base_heads\\appearances\\entity\\head\\h0_000_pwa__basehead.ent"
+                        }
+                    }
+                },
+                {
+                    "resource": {
+                        "DepotPath": {"$value": "base\\characters\\garment\\some_garment.ent"}
+                    }
+                },
             ],
             "part_entities": [],
         }

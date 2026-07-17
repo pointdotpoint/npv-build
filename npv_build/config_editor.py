@@ -96,7 +96,6 @@ def build_app_template(mod_id: str, parts_overrides: list[dict] | None = None):
     }
 
 
-
 NPC_BASE_ENT = {
     "pwa": "base\\characters\\entities\\main_npc\\judy.ent",
     "pma": "base\\characters\\entities\\main_npc\\thompson.ent",

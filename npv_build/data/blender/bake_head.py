@@ -13,14 +13,16 @@ WolvenKit re-imports into a .mesh.
 
 Pure bpy, no addons. Tested against Blender 5.x.
 """
-import bpy
+
 import json
 import sys
+
+import bpy
 
 
 def argv_after_dashes():
     if "--" in sys.argv:
-        return sys.argv[sys.argv.index("--") + 1:]
+        return sys.argv[sys.argv.index("--") + 1 :]
     return []
 
 
@@ -68,7 +70,7 @@ def bake_morphs(obj, morph_region_pairs):
     while obj.data.shape_keys:
         obj.shape_key_remove(obj.data.shape_keys.key_blocks[0])
     # Write baked coordinates into the base mesh
-    for v, co in zip(obj.data.vertices, coords):
+    for v, co in zip(obj.data.vertices, coords, strict=True):
         v.co = co
     obj.data.update()
     return applied
@@ -76,6 +78,7 @@ def bake_morphs(obj, morph_region_pairs):
 
 def triangulate(obj):
     import bmesh
+
     me = obj.data
     bm = bmesh.new()
     bm.from_mesh(me)
@@ -97,9 +100,9 @@ def export_glb(path, mesh_objs):
         use_selection=False,
         export_yup=True,
         export_skins=True,
-        export_morph=False,        # morphs are baked in; export none
+        export_morph=False,  # morphs are baked in; export none
         export_apply=False,
-        export_tangents=True,      # WolvenKit requires tangents
+        export_tangents=True,  # WolvenKit requires tangents
         export_normals=True,
     )
 

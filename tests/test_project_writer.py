@@ -1,21 +1,25 @@
 import json
-from pathlib import Path
+
 from npv_build.project_writer import write_components_json, write_readme
 
 
 def test_components_json_structure(tmp_path):
     specs = [
-        {"comp_type": "entMorphTargetSkinnedMeshComponent",
-         "name": "MorphTargetSkinnedMesh7243",
-         "mesh": "base\\characters\\head\\my_head.mesh",
-         "appearance": "01_ca_pale",
-         "morph_resource": "base\\characters\\head\\my_morphs.morphtarget",
-         "source": "baked head"},
-        {"comp_type": "entSkinnedMeshComponent",
-         "name": "hair_1",
-         "mesh": "base\\hair\\mesh.mesh",
-         "appearance": "molten_marmalade",
-         "source": "modded hair"},
+        {
+            "comp_type": "entMorphTargetSkinnedMeshComponent",
+            "name": "MorphTargetSkinnedMesh7243",
+            "mesh": "base\\characters\\head\\my_head.mesh",
+            "appearance": "01_ca_pale",
+            "morph_resource": "base\\characters\\head\\my_morphs.morphtarget",
+            "source": "baked head",
+        },
+        {
+            "comp_type": "entSkinnedMeshComponent",
+            "name": "hair_1",
+            "mesh": "base\\hair\\mesh.mesh",
+            "appearance": "molten_marmalade",
+            "source": "modded hair",
+        },
     ]
     out = tmp_path / "npv_components.json"
     write_components_json(specs, "my_npv_abc_appearance", out)

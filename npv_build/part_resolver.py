@@ -61,11 +61,12 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
         try:
             res = subprocess.run(cmd, capture_output=True, text=True, check=True)
         except Exception as e:
-            raise ResolverError(f"WolvenKit archive list failed: {e}")
+            raise ResolverError(f"WolvenKit archive list failed: {e}") from e
         raw_lines = [line.strip() for line in res.stdout.splitlines() if line.strip()]
 
     depot_paths = [
-        line for line in raw_lines
+        line
+        for line in raw_lines
         if (line.endswith(".ent") or line.endswith(".app")) and line.startswith("base\\")
     ]
 
@@ -83,7 +84,8 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
             head_apps[depot_stem(p)] = p
 
     head_app_paths = [
-        p for p in depot_paths
+        p
+        for p in depot_paths
         if p.endswith(".app") and "player_base_heads" in p and "appearances\\head" in p
     ]
 
@@ -99,13 +101,23 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
         temp_dir_path = Path(tempfile.mkdtemp(prefix="wk_index_"))
         try:
             subprocess.run(
-                [cli_binary, "uncook", "-p", str(archive_path), "-r", uncook_regex,
-                 "-o", str(temp_dir_path), "-s"],
-                capture_output=True, check=True,
+                [
+                    cli_binary,
+                    "uncook",
+                    "-p",
+                    str(archive_path),
+                    "-r",
+                    uncook_regex,
+                    "-o",
+                    str(temp_dir_path),
+                    "-s",
+                ],
+                capture_output=True,
+                check=True,
             )
         except Exception as e:
             shutil.rmtree(temp_dir_path, ignore_errors=True)
-            raise ResolverError(f"WolvenKit uncook failed: {e}")
+            raise ResolverError(f"WolvenKit uncook failed: {e}") from e
 
     try:
         if verbosity > 0:
@@ -116,7 +128,7 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
             if not json_file.exists():
                 continue
             try:
-                with open(json_file, "r") as f:
+                with open(json_file) as f:
                     app_data = json.load(f)
                 appearances = app_data.get("Data", {}).get("RootChunk", {}).get("appearances", [])
                 names = []
@@ -161,6 +173,7 @@ def resolve_appearance_to_app(index: dict, selection: str, slot_label: str = "")
     Returns the best-matching .app depot path, or "".
     """
     import re as _re
+
     a2a = index.get("appearance_to_app", {})
     raw = a2a.get(selection)
     # Backwards-compat: old index stored a single string. Normalize to list.
@@ -184,7 +197,9 @@ def resolve_appearance_to_app(index: dict, selection: str, slot_label: str = "")
     sel_shape = None
     # feature_NN__ pattern: an NN that sits between a non-color feature token
     # and a __ separator.
-    m = _re.search(r"(?:eyes|lips|cheeks|freckles|pimples|cyberware|tattoo|scars)_(\d{2})__", selection)
+    m = _re.search(
+        r"(?:eyes|lips|cheeks|freckles|pimples|cyberware|tattoo|scars)_(\d{2})__", selection
+    )
     if m:
         sel_shape = m.group(1)
 
@@ -255,9 +270,7 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
         # Match each feature .app by its full depot path basename (they live in
         # varied subdirs: makeup_eyes\, eyebrows\, etc.), so anchor on the
         # filename. Escape regex-special chars in stems.
-        basenames = sorted({
-            app.replace("\\", "/").rsplit("/", 1)[-1] for app in feature_apps
-        })
+        basenames = sorted({app.replace("\\", "/").rsplit("/", 1)[-1] for app in feature_apps})
         alt = "|".join(_re.escape(b) for b in basenames)
         regex = r"appearances\\head\\.*(" + alt + r")$"
         if wk:
@@ -268,7 +281,17 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
                     print(f"[Recipe] uncook failed: {e}")
                 return {"parts": [], "overrides": []}
         else:
-            cmd = [cli_binary, "uncook", "-p", str(archive_path), "-r", regex, "-o", str(temp_dir), "-s"]
+            cmd = [
+                cli_binary,
+                "uncook",
+                "-p",
+                str(archive_path),
+                "-r",
+                regex,
+                "-o",
+                str(temp_dir),
+                "-s",
+            ]
             try:
                 subprocess.run(cmd, capture_output=True, check=True)
             except Exception as e:
@@ -304,8 +327,10 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
             for ov in target.get("partsOverrides", []):
                 merged_overrides.append(ov)
             if verbosity > 0:
-                print(f"[Recipe]   {want_name}: +{len(target.get('partsValues',[]))} parts, "
-                      f"+{len(target.get('partsOverrides',[]))} overrides")
+                print(
+                    f"[Recipe]   {want_name}: +{len(target.get('partsValues', []))} parts, "
+                    f"+{len(target.get('partsOverrides', []))} overrides"
+                )
 
     # Remap each override's componentName values to the part's REAL component
     # names. The recipe's overrides were copied from cooked head .apps where
@@ -335,6 +360,7 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
     if not part_paths:
         return
     import re as _re
+
     basenames = sorted({p.replace("\\", "/").rsplit("/", 1)[-1] for p in part_paths})
     alt = "|".join(_re.escape(b) for b in basenames)
     regex = r"(" + alt + r")$"
@@ -352,8 +378,19 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
         else:
             try:
                 subprocess.run(
-                    [cli_binary, "uncook", "-p", str(archive), "-r", regex, "-o", str(temp_dir), "-s"],
-                    capture_output=True, check=True,
+                    [
+                        cli_binary,
+                        "uncook",
+                        "-p",
+                        str(archive),
+                        "-r",
+                        regex,
+                        "-o",
+                        str(temp_dir),
+                        "-s",
+                    ],
+                    capture_output=True,
+                    check=True,
                 )
             except Exception as e:
                 if verbosity > 0:
@@ -372,8 +409,13 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
             except Exception:
                 continue
             names = []
-            chunks = (d.get("Data", {}).get("RootChunk", {})
-                      .get("compiledData", {}).get("Data", {}).get("Chunks", []))
+            chunks = (
+                d.get("Data", {})
+                .get("RootChunk", {})
+                .get("compiledData", {})
+                .get("Data", {})
+                .get("Chunks", [])
+            )
             if not chunks:
                 chunks = d.get("Data", {}).get("RootChunk", {}).get("components", [])
             for c in chunks:
@@ -405,7 +447,9 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
         print(f"[Recipe] remapped {fixed} override componentName(s) to real part components")
 
 
-def extract_hair_components(game_dir: Path, hair_mesh_name: str, body_rig: str = "pwa", verbosity: int = 0, wk=None):
+def extract_hair_components(
+    game_dir: Path, hair_mesh_name: str, body_rig: str = "pwa", verbosity: int = 0, wk=None
+):
     """Find a (modded) hair .app across all mod archives whose appearance carries
     the given hair name, and return its entSkinnedMeshComponent chunks so we can
     author a hair part .ent. Returns ([components], source_archive_name) or ([], None).
@@ -426,17 +470,19 @@ def extract_hair_components(game_dir: Path, hair_mesh_name: str, body_rig: str =
     base = hair_mesh_name
     for pre in ("fhair_", "mhair_"):
         if base.startswith(pre):
-            base = base[len(pre):]
+            base = base[len(pre) :]
             break
     tokens = [t for t in base.split("_") if t and t not in ("soft", "fpp")]
     gender_pref = "fhair_" if body_rig == "pwa" else "mhair_"
 
     # Pre-filter archives by FILENAME or XL sidecar content.
     all_arch = sorted(mod_dir.glob("*.archive"))
+
     def name_matches(arch):
         low = arch.name.lower()
         hits = sum(1 for t in tokens if t in low)
         return hits >= max(1, len(tokens) - 1)
+
     candidates = [a for a in all_arch if name_matches(a)]
 
     # Also search .xl sidecar files for the hair name (CCXL hairs register there)
@@ -466,9 +512,11 @@ def extract_hair_components(game_dir: Path, hair_mesh_name: str, body_rig: str =
             else:
                 res = subprocess.run(
                     [cli_binary, "archive", str(arch), "-l", "--regex", r".*\.app$"],
-                    capture_output=True, text=True, check=True,
+                    capture_output=True,
+                    text=True,
+                    check=True,
                 )
-                lines = [l.strip() for l in res.stdout.splitlines() if l.strip()]
+                lines = [line.strip() for line in res.stdout.splitlines() if line.strip()]
         except Exception:
             continue
         for p in lines:
@@ -500,6 +548,7 @@ def extract_hair_components(game_dir: Path, hair_mesh_name: str, body_rig: str =
         temp_dir = Path(td)
         bn = app_depot.replace("\\", "/").rsplit("/", 1)[-1]
         import re as _re
+
         rgx = _re.escape(bn) + r"$"
         try:
             if wk:
@@ -507,7 +556,8 @@ def extract_hair_components(game_dir: Path, hair_mesh_name: str, body_rig: str =
             else:
                 subprocess.run(
                     [cli_binary, "uncook", "-p", str(arch), "-r", rgx, "-o", str(temp_dir), "-s"],
-                    capture_output=True, check=True,
+                    capture_output=True,
+                    check=True,
                 )
         except Exception as e:
             if verbosity > 0:
@@ -529,8 +579,11 @@ def extract_hair_components(game_dir: Path, hair_mesh_name: str, body_rig: str =
             return [], None, None, None
         a0 = apps[0].get("Data", {})
         chunks = a0.get("compiledData", {}).get("Data", {}).get("Chunks", [])
-        mesh_chunks = [c for c in chunks if c.get("$type") in
-                       ("entSkinnedMeshComponent", "entAnimatedComponent")]
+        mesh_chunks = [
+            c
+            for c in chunks
+            if c.get("$type") in ("entSkinnedMeshComponent", "entAnimatedComponent")
+        ]
         if verbosity > 0:
             print(f"[Hair] extracted {len(mesh_chunks)} hair components")
         # Also return the source .app depot path + appearance name so the
@@ -539,12 +592,14 @@ def extract_hair_components(game_dir: Path, hair_mesh_name: str, body_rig: str =
         return mesh_chunks, arch.name, app_depot, a0.get("name", {}).get("$value", "")
 
 
-def get_or_create_index(patch: str, game_dir: Path = None, reindex: bool = False, verbosity: int = 0, wk=None) -> dict:
+def get_or_create_index(
+    patch: str, game_dir: Path = None, reindex: bool = False, verbosity: int = 0, wk=None
+) -> dict:
     index_path = get_index_path(patch)
 
     if not reindex and index_path.exists():
         try:
-            with open(index_path, "r") as f:
+            with open(index_path) as f:
                 return json.load(f)
         except Exception:
             pass

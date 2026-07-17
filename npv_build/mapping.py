@@ -8,7 +8,13 @@ class MappingError(Exception):
         self.module_name = "Mapping"
 
 
-def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str = None, garments: list = None, wk=None) -> dict:
+def resolve_assets(
+    cc_settings: dict,
+    game_dir: Path = None,
+    hair_override: str = None,
+    garments: list = None,
+    wk=None,
+) -> dict:
     """Resolve CC settings to the list of part-entity (.ent) depot paths that
     compose the NPV's appearance via partsValues.
 
@@ -25,7 +31,7 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
     if not mapping_file.exists():
         raise MappingError(f"MappingNotFoundError: no mapping vendored for patch {patch}.")
 
-    with open(mapping_file, "r") as f:
+    with open(mapping_file) as f:
         mapping = json.load(f)
 
     body_rig = cc_settings.get("body_rig")
@@ -73,13 +79,19 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
                 asset_paths["head_app"] = index["head_apps"][app_key]
                 asset_paths["head_appearance_name"] = head_raw
         else:
-            asset_paths["head_app"] = "base\\characters\\head\\player_base_heads\\appearances\\head\\h0_000__basehead.app"
-            asset_paths["head_appearance_name"] = head_raw or f"h0_000_{body_rig}__basehead__01_ca_pale"
+            asset_paths["head_app"] = (
+                "base\\characters\\head\\player_base_heads\\appearances\\head\\h0_000__basehead.app"
+            )
+            asset_paths["head_appearance_name"] = (
+                head_raw or f"h0_000_{body_rig}__basehead__01_ca_pale"
+            )
             asset_paths["unresolved"].append(head_raw)
 
         # Always add the full set of head preset parts (head, eyes, teeth, eyebrows)
         preset_key = str(head_index).zfill(2)
-        preset_parts = rig_map.get("head_preset_parts", {}).get(preset_key, rig_map.get("head_preset_parts", {}).get("00", []))
+        preset_parts = rig_map.get("head_preset_parts", {}).get(
+            preset_key, rig_map.get("head_preset_parts", {}).get("00", [])
+        )
         for p in preset_parts:
             # If the index has a customized head part entity for this preset, use it
             p_basename = p.replace("\\", "/").rsplit("/", 1)[-1].rsplit(".", 1)[0]
@@ -93,10 +105,12 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
     hair_raw = hair_info.get("raw", "")
     hair_style = hair_info.get("style_id", "")
     if hair_raw.startswith("fhair_") or (hair_raw.endswith("_hair") and hair_style):
-        asset_paths["external_dependencies"].append({
-            "selection": hair_raw,
-            "reason": "modded hair not in base game",
-        })
+        asset_paths["external_dependencies"].append(
+            {
+                "selection": hair_raw,
+                "reason": "modded hair not in base game",
+            }
+        )
 
     # 2. Resolve body + arms parts (Tier 2 curated)
     body_part = rig_map.get("body_part")
@@ -115,10 +129,12 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
         raw = sel.get("raw")
 
         if prefix == "fhair":
-            asset_paths["external_dependencies"].append({
-                "selection": raw,
-                "reason": "modded hair not in base game",
-            })
+            asset_paths["external_dependencies"].append(
+                {
+                    "selection": raw,
+                    "reason": "modded hair not in base game",
+                }
+            )
             continue
 
         key = f"{prefix}_{str(sel.get('index', 0)).zfill(3)}_{body_rig}__{sel.get('group', '')}"
@@ -178,7 +194,6 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
     # selection V made, by reverse-looking-up each appearance name in the index's
     # appearance_to_app map. This covers head/eyes/teeth/eyebrows/makeup/freckles/
     # pimples/scars uniformly — each carries its own material override.
-    appearance_to_app = index.get("appearance_to_app", {})
 
     # Collect candidate appearance names from the authoritative cc selections.
     candidate_names = []
@@ -227,6 +242,7 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
     # Hair colour: V's save stores the colour as e.g. "62_molten_marmalade"
     # (CC option index + meshAppearance name). Strip the numeric prefix.
     import re as _re
+
     hair_color_raw = ""
     for s in selections:
         if s.get("slot") == "character_customization":
@@ -256,7 +272,8 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
         ov = hair_override.strip().lower()
         # Drop any in-save modded-hair dep note; override wins.
         asset_paths["external_dependencies"] = [
-            d for d in asset_paths["external_dependencies"]
+            d
+            for d in asset_paths["external_dependencies"]
             if not d["selection"].startswith("fhair_")
         ]
         if ov in ("none", "bald", "0", ""):
@@ -267,15 +284,20 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
             if hair_ent:
                 asset_paths["part_entities"].append(hair_ent)
                 asset_paths["part_entities"] = list(sorted(set(asset_paths["part_entities"])))
-                print(f"[Mapping] Hair override: vanilla hh_{hair_num} -> {hair_ent.split(chr(92))[-1]}")
+                print(
+                    f"[Mapping] Hair override: vanilla hh_{hair_num} -> {hair_ent.split(chr(92))[-1]}"
+                )
             else:
                 asset_paths["unresolved"].append(f"hair_override:hh_{hair_num}")
                 print(f"[Mapping] Hair override hh_{hair_num} not found in index.")
         elif game_dir:
             # Modded-hair name. Probe `extract_hair_components` with this token.
             from .part_resolver import extract_hair_components
+
             try:
-                comps, src, app_depot, app_name = extract_hair_components(game_dir, ov, body_rig, verbosity=1, wk=wk)
+                comps, src, app_depot, app_name = extract_hair_components(
+                    game_dir, ov, body_rig, verbosity=1, wk=wk
+                )
                 if app_depot:
                     # Prefer attaching the mod's cooked .app by appearance ref
                     # (rig graph stays intact). Fall back to component copy on
@@ -283,23 +305,32 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
                     asset_paths["hair_app"] = app_depot
                     asset_paths["hair_appearance_name"] = app_name
                     asset_paths["hair_components"] = comps  # kept for fallback
-                    asset_paths["external_dependencies"].append({
-                        "selection": ov,
-                        "reason": f"modded hair from {src} (must stay installed)" if src else "modded hair (mod must stay installed)",
-                    })
+                    asset_paths["external_dependencies"].append(
+                        {
+                            "selection": ov,
+                            "reason": f"modded hair from {src} (must stay installed)"
+                            if src
+                            else "modded hair (mod must stay installed)",
+                        }
+                    )
                     print(f"[Mapping] Hair override: modded '{ov}' -> {app_depot} '{app_name}'")
                 else:
                     print(f"[Mapping] Hair override '{ov}': no matching mod archive found.")
                     asset_paths["unresolved"].append(f"hair_override:{ov}")
             except Exception as e:
                 print(f"Warning: hair override extraction failed ({e}); NPV will be bald.")
-    elif (hair_raw.startswith("fhair_") or (hair_raw.endswith("_hair") and hair_style)) and game_dir:
+    elif (
+        hair_raw.startswith("fhair_") or (hair_raw.endswith("_hair") and hair_style)
+    ) and game_dir:
         # Modded hair: attach via the mod's cooked .app appearance reference.
         # For CCXL hairs (label like "edie_hair"), use the style_id as the search token.
         hair_search_token = hair_raw if hair_raw.startswith("fhair_") else hair_style
         from .part_resolver import extract_hair_components
+
         try:
-            comps, src, app_depot, app_name = extract_hair_components(game_dir, hair_search_token, body_rig, verbosity=1, wk=wk)
+            comps, src, app_depot, app_name = extract_hair_components(
+                game_dir, hair_search_token, body_rig, verbosity=1, wk=wk
+            )
             if app_depot:
                 asset_paths["hair_app"] = app_depot
                 asset_paths["hair_appearance_name"] = app_name
@@ -311,7 +342,7 @@ def resolve_assets(cc_settings: dict, game_dir: Path = None, hair_override: str 
             print(f"Warning: hair extraction failed ({e}); NPV will be bald.")
 
     # Garment overrides: add explicit garment .ent depot paths as parts.
-    for g in (garments or []):
+    for g in garments or []:
         g = g.strip()
         if g and g not in asset_paths["part_entities"]:
             asset_paths["part_entities"].append(g)
@@ -325,7 +356,8 @@ def _find_vanilla_hair_ent(index: dict, body_rig: str, hair_num: str) -> str:
     non-cyberware preferred)."""
     prefix = f"hh_{hair_num}_{body_rig}__"
     matches = [
-        p for stem, p in index.get("part_ents", {}).items()
+        p
+        for stem, p in index.get("part_ents", {}).items()
         if stem.startswith(prefix) and "fpp" not in p.lower()
     ]
     if not matches:

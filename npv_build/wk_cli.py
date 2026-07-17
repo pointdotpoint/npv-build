@@ -4,13 +4,14 @@ Centralises all WolvenKit CLI subprocess calls behind one module.
 Every other module that needs WolvenKit receives a WolvenKit instance
 rather than calling subprocess.run directly.
 """
+
 from __future__ import annotations
 
 import json
 import re as _re
+import shutil
 import subprocess
 import sys
-import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,10 +39,7 @@ class WolvenKitConfig:
     def appearance_archive(self) -> Path:
         if not self.game_dir:
             raise WolvenKitError("game_dir required", operation="config")
-        return (
-            self.game_dir / "archive" / "pc" / "content"
-            / "basegame_4_appearance.archive"
-        )
+        return self.game_dir / "archive" / "pc" / "content" / "basegame_4_appearance.archive"
 
 
 class WolvenKit:
@@ -95,11 +93,11 @@ class WolvenKit:
         cmd = [self._cfg.cli_binary, "archive", str(archive), "-l", "--regex", pattern]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True)
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             raise WolvenKitError(
                 f"{self._cfg.cli_binary} not found in PATH.",
                 operation="archive list",
-            )
+            ) from e
         if result.returncode != 0:
             tail = ((result.stderr or "") + (result.stdout or ""))[-1500:]
             raise WolvenKitError(
@@ -107,11 +105,7 @@ class WolvenKit:
                 operation="archive list",
                 exit_code=result.returncode,
             )
-        return [
-            line.strip()
-            for line in (result.stdout or "").splitlines()
-            if line.strip()
-        ]
+        return [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
 
     # -- batch uncook (caller owns the output dir) -------------------------
 
@@ -204,8 +198,7 @@ class WolvenKit:
             raise WolvenKitError("game_dir required for export", operation="export")
         dest.mkdir(parents=True, exist_ok=True)
         self._run(
-            ["export", str(cr2w_file), "-o", str(dest),
-             "-gp", str(self._cfg.game_dir)],
+            ["export", str(cr2w_file), "-o", str(dest), "-gp", str(self._cfg.game_dir)],
             operation="export",
         )
         glbs = list(dest.glob("*.glb"))
@@ -232,8 +225,7 @@ class WolvenKit:
             raise WolvenKitError("game_dir required for import", operation="import")
         dest.mkdir(parents=True, exist_ok=True)
         self._run(
-            ["import", str(source_dir), "-o", str(dest),
-             "--keep", "-gp", str(self._cfg.game_dir)],
+            ["import", str(source_dir), "-o", str(dest), "--keep", "-gp", str(self._cfg.game_dir)],
             operation="import",
             allow_exit_codes=allow_exit_codes,
         )
@@ -276,12 +268,12 @@ class WolvenKit:
                 capture_output=True,
                 text=True,
             )
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             raise WolvenKitError(
                 f"{self._cfg.cli_binary} not found in PATH. "
                 "Install WolvenKit CLI and ensure it is on PATH.",
                 operation="version",
-            )
+            ) from e
         version = (result.stdout or "").strip()
         if not version.startswith(SUPPORTED_VERSION_PREFIX):
             print(
@@ -302,6 +294,7 @@ class WolvenKit:
         binary = self._cfg.cli_binary
         if not shutil.which(binary):
             from .config import get_cache_dir
+
             ext = ".exe" if sys.platform == "win32" else ""
             local_path = get_cache_dir() / "tools" / "wolvenkit" / f"WolvenKit.CLI{ext}"
             if local_path.exists():
@@ -315,8 +308,7 @@ class WolvenKit:
         try:
             result = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
             )
             if stream:
@@ -324,12 +316,12 @@ class WolvenKit:
                     sys.stdout.write(result.stdout)
                 if result.stderr:
                     sys.stderr.write(result.stderr)
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             raise WolvenKitError(
                 f"{self._cfg.cli_binary} not found in PATH. "
                 "Install WolvenKit CLI and ensure it is on PATH.",
                 operation=operation,
-            )
+            ) from e
 
         ok_codes = {0} | set(allow_exit_codes)
         if result.returncode not in ok_codes:
@@ -339,8 +331,7 @@ class WolvenKit:
                 tail = raw[-1500:]
             raise WolvenKitError(
                 f"{operation}: {self._cfg.cli_binary} {args[0]} "
-                f"exited with code {result.returncode}."
-                + (f"\n{tail}" if tail else ""),
+                f"exited with code {result.returncode}." + (f"\n{tail}" if tail else ""),
                 operation=operation,
                 exit_code=result.returncode,
             )

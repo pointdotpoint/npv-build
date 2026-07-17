@@ -1,29 +1,33 @@
-from pathlib import Path
-import shutil
 import hashlib
-import re
-
 import json
-from .save_parser import parse_save, SaveParserError
-from .mapping import resolve_assets, MappingError
+import re
+import shutil
+from pathlib import Path
+
+from .mapping import MappingError, resolve_assets
+from .save_parser import SaveParserError, parse_save
 from .wk_cli import WolvenKit, WolvenKitConfig, WolvenKitError
 from .wolvenkit import build_project
+
 
 class OrchestratorError(Exception):
     def __init__(self, module_name, message):
         super().__init__(message)
         self.module_name = module_name
 
+
 def slugify(text: str) -> str:
     text = text.lower()
-    text = re.sub(r'[^a-z0-9]+', '_', text)
-    return text.strip('_')
+    text = re.sub(r"[^a-z0-9]+", "_", text)
+    return text.strip("_")
+
 
 def compute_mod_id(npv_name: str, cc_settings: dict) -> str:
     slug = slugify(npv_name)
-    canonical_json = json.dumps([npv_name, cc_settings], separators=(',', ':'), sort_keys=True)
-    hash_digest = hashlib.sha256(canonical_json.encode('utf-8')).hexdigest()[:8]
+    canonical_json = json.dumps([npv_name, cc_settings], separators=(",", ":"), sort_keys=True)
+    hash_digest = hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()[:8]
     return f"{slug}_{hash_digest}"
+
 
 def run_orchestrator(
     save_path: Path,
@@ -53,14 +57,15 @@ def run_orchestrator(
     try:
         wk.check_version()
     except WolvenKitError as e:
-        raise OrchestratorError(e.module_name, str(e))
+        raise OrchestratorError(e.module_name, str(e)) from e
 
     if dump_head_glb:
         from .head_bake import dump_head_glb as _dump_head_glb
+
         body_rig = "pwa"
         if cc_json_path:
             try:
-                with open(cc_json_path, "r") as f:
+                with open(cc_json_path) as f:
                     dump_data_for_rig = json.load(f)
                 body_rig = dump_data_for_rig.get("body_rig", "pwa")
             except Exception:
@@ -97,10 +102,10 @@ def run_orchestrator(
         if verbosity > 0:
             print(f"[CC Loader] Loading CC dump from {cc_json_path}...")
         try:
-            with open(cc_json_path, "r") as f:
+            with open(cc_json_path) as f:
                 dump_data = json.load(f)
         except Exception as e:
-            raise OrchestratorError("CC Loader", f"Failed to load --cc-json: {e}")
+            raise OrchestratorError("CC Loader", f"Failed to load --cc-json: {e}") from e
 
     if save_path is not None:
         if verbosity > 0:
@@ -108,16 +113,18 @@ def run_orchestrator(
         try:
             cc_settings = parse_save(save_path)
         except SaveParserError as e:
-            raise OrchestratorError(e.module_name, str(e))
+            raise OrchestratorError(e.module_name, str(e)) from e
         except Exception as e:
-            raise OrchestratorError("Save Parser", f"Unexpected error: {e}")
+            raise OrchestratorError("Save Parser", f"Unexpected error: {e}") from e
         # Overlay ONLY the equipped clothing from the dump onto the save CC.
         if dump_data is not None:
             clothing = dump_data.get("clothing", [])
             cc_settings["clothing"] = clothing
             if verbosity > 0:
-                print(f"[CC Loader] Overlaid {len(clothing)} equipped garment(s) "
-                      "from the CET dump onto the save CC.")
+                print(
+                    f"[CC Loader] Overlaid {len(clothing)} equipped garment(s) "
+                    "from the CET dump onto the save CC."
+                )
     else:
         # --cc-json only: the dump is the sole CC source.
         cc_settings = dump_data
@@ -131,20 +138,20 @@ def run_orchestrator(
     if verbosity > 0:
         print("[Mapping] Resolving asset paths...")
     try:
-        asset_paths = resolve_assets(cc_settings, game_dir, hair_override=hair_override, garments=garments or [], wk=wk)
+        asset_paths = resolve_assets(
+            cc_settings, game_dir, hair_override=hair_override, garments=garments or [], wk=wk
+        )
     except MappingError as e:
-        raise OrchestratorError(e.module_name, str(e))
+        raise OrchestratorError(e.module_name, str(e)) from e
     except Exception as e:
-        raise OrchestratorError("Mapping", f"Unexpected error: {e}")
+        raise OrchestratorError("Mapping", f"Unexpected error: {e}") from e
 
     with open(output_dir / "asset_paths.json", "w") as f:
         json.dump(asset_paths, f, indent=2)
 
-
     # Compute deterministic Mod ID
     mod_id = compute_mod_id(npv_name, cc_settings)
     appearance_name = f"{mod_id}_appearance"
-    app_depot = f"base\\npv-build\\{mod_id}\\{mod_id}.app"
 
     body_rig = asset_paths.get("body_rig", "pwa")
     ent_depot_path = f"base\\\\npv-build\\\\{mod_id}\\\\{mod_id}.ent"
@@ -158,7 +165,9 @@ def run_orchestrator(
 
     lua_comments = []
     if ext_deps:
-        print("\n[Orchestrator] WARNING: External mod dependencies detected! These assets are not in the base game:")
+        print(
+            "\n[Orchestrator] WARNING: External mod dependencies detected! These assets are not in the base game:"
+        )
         for dep in ext_deps:
             sel = dep.get("selection")
             reason = dep.get("reason")
@@ -166,7 +175,9 @@ def run_orchestrator(
             lua_comments.append(f"-- WARNING: External mod dependency: {sel} ({reason})")
 
     if unresolved:
-        print("\n[Orchestrator] WARNING: Unresolved base-game selections (using sensible fallbacks):")
+        print(
+            "\n[Orchestrator] WARNING: Unresolved base-game selections (using sensible fallbacks):"
+        )
         for unr in unresolved:
             print(f"  - {unr}")
             lua_comments.append(f"-- WARNING: Unresolved selection (fallback used): {unr}")
@@ -198,7 +209,7 @@ def run_orchestrator(
   attributes = nil
 }}
 """
-    
+
     # Build WolvenKit project (all binary assets, no archive packing)
     if verbosity > 0:
         print("[Project] Building WolvenKit project...")
@@ -218,15 +229,25 @@ def run_orchestrator(
             restore_head_materials=restore_head_materials,
         )
     except WolvenKitError as e:
-        raise OrchestratorError(e.module_name, str(e))
+        raise OrchestratorError(e.module_name, str(e)) from e
     except Exception as e:
         import traceback
-        traceback.print_exc()
-        raise OrchestratorError("WolvenKit Automation", f"Unexpected error: {e}")
 
+        traceback.print_exc()
+        raise OrchestratorError("WolvenKit Automation", f"Unexpected error: {e}") from e
 
     # AMM Lua
-    lua_dir = output_dir / "bin" / "x64" / "plugins" / "cyber_engine_tweaks" / "mods" / "AppearanceMenuMod" / "Collabs" / "Custom Entities"
+    lua_dir = (
+        output_dir
+        / "bin"
+        / "x64"
+        / "plugins"
+        / "cyber_engine_tweaks"
+        / "mods"
+        / "AppearanceMenuMod"
+        / "Collabs"
+        / "Custom Entities"
+    )
     lua_dir.mkdir(parents=True, exist_ok=True)
     lua_file = lua_dir / f"{mod_id}.lua"
     lua_file.write_text(lua_code, encoding="utf-8")
@@ -234,6 +255,6 @@ def run_orchestrator(
     if verbosity > 0:
         print(f"[Orchestrator] Mod built: {output_dir}")
         print(f"[Orchestrator] Components: {len(component_specs)}")
-        print(f"[Orchestrator] Install: copy archive/ and bin/ to your game directory")
+        print("[Orchestrator] Install: copy archive/ and bin/ to your game directory")
 
     return str(output_dir)

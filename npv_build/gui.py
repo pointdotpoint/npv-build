@@ -1,16 +1,15 @@
-import os
-import sys
 import queue
+import sys
+import tkinter as tk
 import webbrowser
 from pathlib import Path
-import tkinter as tk
 from tkinter import filedialog
+
 import customtkinter as ctk
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
-from .config import load_config, save_config, get_cache_dir
-from .gui_backend import check_dependencies, BuildWorker, InstallerWorker, preview_save
-
+from .config import get_cache_dir, load_config, save_config
+from .gui_backend import BuildWorker, InstallerWorker, check_dependencies, preview_save
 
 # Styling Constants
 BG_DARK = "#0b0c10"
@@ -156,7 +155,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             height=30,
             command=self.start_auto_install,
         )
-        self.btn_auto_install.grid(row=4, column=0, columnspan=2, sticky="ew", padx=15, pady=(5, 15))
+        self.btn_auto_install.grid(
+            row=4, column=0, columnspan=2, sticky="ew", padx=15, pady=(5, 15)
+        )
 
         # --- Section 2: Character Creation Save Input ---
         self.frame_char = ctk.CTkFrame(self.scroll_config, fg_color=BG_CARD)
@@ -340,7 +341,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.frame_actions, fg_color="#121212", progress_color=ACCENT_CYAN
         )
         # Hidden initially
-        
+
         # Build Button
         self.btn_build = ctk.CTkButton(
             self.frame_actions,
@@ -371,12 +372,31 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # CET CC JSON
         lbl_cc_json = ctk.CTkLabel(
-            self.frame_adv, text="CET Appearance JSON (--cc-json):", font=("Arial", 11, "bold"), text_color=TEXT_WHITE
+            self.frame_adv,
+            text="CET Appearance JSON (--cc-json):",
+            font=("Arial", 11, "bold"),
+            text_color=TEXT_WHITE,
         )
         lbl_cc_json.grid(row=0, column=0, columnspan=2, sticky="w", padx=15, pady=(10, 2))
-        self.entry_cc_json = ctk.CTkEntry(self.frame_adv, placeholder_text="Path to cc_dump.json", fg_color="#121212", border_color=TEXT_MUTED, text_color=TEXT_WHITE)
+        self.entry_cc_json = ctk.CTkEntry(
+            self.frame_adv,
+            placeholder_text="Path to cc_dump.json",
+            fg_color="#121212",
+            border_color=TEXT_MUTED,
+            text_color=TEXT_WHITE,
+        )
         self.entry_cc_json.grid(row=1, column=0, sticky="ew", padx=(15, 5), pady=5)
-        btn_cc_browse = ctk.CTkButton(self.frame_adv, text="Browse", width=80, fg_color=BG_DARK, hover_color="#333", text_color=ACCENT_CYAN, border_color=ACCENT_CYAN, border_width=1, command=self.browse_cc_json)
+        btn_cc_browse = ctk.CTkButton(
+            self.frame_adv,
+            text="Browse",
+            width=80,
+            fg_color=BG_DARK,
+            hover_color="#333",
+            text_color=ACCENT_CYAN,
+            border_color=ACCENT_CYAN,
+            border_width=1,
+            command=self.browse_cc_json,
+        )
         btn_cc_browse.grid(row=1, column=1, sticky="w", padx=(5, 15), pady=5)
 
         # Hair Override
@@ -384,49 +404,76 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.frame_adv, text="Hair Override:", font=("Arial", 11, "bold"), text_color=TEXT_WHITE
         )
         lbl_hair_ovr.grid(row=2, column=0, columnspan=2, sticky="w", padx=15, pady=(5, 2))
-        
+
         frame_hair_input = ctk.CTkFrame(self.frame_adv, fg_color="transparent")
         frame_hair_input.grid(row=3, column=0, columnspan=2, sticky="ew", padx=15, pady=5)
         frame_hair_input.grid_columnconfigure(0, weight=1)
-        
+
         self.entry_hair_ovr = ctk.CTkEntry(
-            frame_hair_input, placeholder_text="e.g. zara, none, 12, or select/drop a mod file...",
-            fg_color="#121212", border_color=TEXT_MUTED, text_color=TEXT_WHITE
+            frame_hair_input,
+            placeholder_text="e.g. zara, none, 12, or select/drop a mod file...",
+            fg_color="#121212",
+            border_color=TEXT_MUTED,
+            text_color=TEXT_WHITE,
         )
         self.entry_hair_ovr.grid(row=0, column=0, sticky="ew", padx=(0, 5))
-        
+
         if self.TkdndVersion:
             self.entry_hair_ovr.register_drop_target(DND_FILES)
             self.entry_hair_ovr.bind("<<Drop>>", self.handle_hair_drop)
-            
+
         btn_hair_browse = ctk.CTkButton(
-            frame_hair_input, text="Browse", width=80, fg_color=BG_DARK,
-            hover_color="#333", text_color=ACCENT_CYAN, border_color=ACCENT_CYAN,
-            border_width=1, command=self.browse_hair_mod
+            frame_hair_input,
+            text="Browse",
+            width=80,
+            fg_color=BG_DARK,
+            hover_color="#333",
+            text_color=ACCENT_CYAN,
+            border_color=ACCENT_CYAN,
+            border_width=1,
+            command=self.browse_hair_mod,
         )
         btn_hair_browse.grid(row=0, column=1, sticky="w", padx=(5, 5))
-        
+
         btn_hair_clear = ctk.CTkButton(
-            frame_hair_input, text="Clear", width=60, fg_color=BG_DARK,
-            hover_color="#333", text_color=TEXT_MUTED, border_color=TEXT_MUTED,
-            border_width=1, command=self.clear_hair_mod
+            frame_hair_input,
+            text="Clear",
+            width=60,
+            fg_color=BG_DARK,
+            hover_color="#333",
+            text_color=TEXT_MUTED,
+            border_color=TEXT_MUTED,
+            border_width=1,
+            command=self.clear_hair_mod,
         )
         btn_hair_clear.grid(row=0, column=2, sticky="w", padx=(5, 0))
 
         # Skin Override
         lbl_skin_ovr = ctk.CTkLabel(
-            self.frame_adv, text="Skin Tone Override:", font=("Arial", 11, "bold"), text_color=TEXT_WHITE
+            self.frame_adv,
+            text="Skin Tone Override:",
+            font=("Arial", 11, "bold"),
+            text_color=TEXT_WHITE,
         )
         lbl_skin_ovr.grid(row=4, column=0, columnspan=2, sticky="w", padx=15, pady=(5, 2))
-        self.entry_skin_ovr = ctk.CTkEntry(self.frame_adv, placeholder_text="e.g. 01_ca_pale, 02_ca_limestone", fg_color="#121212", border_color=TEXT_MUTED, text_color=TEXT_WHITE)
+        self.entry_skin_ovr = ctk.CTkEntry(
+            self.frame_adv,
+            placeholder_text="e.g. 01_ca_pale, 02_ca_limestone",
+            fg_color="#121212",
+            border_color=TEXT_MUTED,
+            text_color=TEXT_WHITE,
+        )
         self.entry_skin_ovr.grid(row=5, column=0, columnspan=2, sticky="ew", padx=15, pady=5)
 
         # Garment Overrides (Multiple items)
         lbl_garments = ctk.CTkLabel(
-            self.frame_adv, text="Garment Override Depot Paths (Double click to remove):", font=("Arial", 11, "bold"), text_color=TEXT_WHITE
+            self.frame_adv,
+            text="Garment Override Depot Paths (Double click to remove):",
+            font=("Arial", 11, "bold"),
+            text_color=TEXT_WHITE,
         )
         lbl_garments.grid(row=6, column=0, columnspan=2, sticky="w", padx=15, pady=(5, 2))
-        
+
         self.garment_list = tk.Listbox(
             self.frame_adv,
             bg="#121212",
@@ -439,42 +486,113 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self.garment_list.grid(row=7, column=0, sticky="ew", padx=(15, 5), pady=5)
         self.garment_list.bind("<Double-Button-1>", self.remove_selected_garment)
-        
-        btn_add_garment = ctk.CTkButton(self.frame_adv, text="+ Add", width=80, fg_color=BG_DARK, hover_color="#333", text_color=ACCENT_CYAN, border_color=ACCENT_CYAN, border_width=1, command=self.add_garment_override)
+
+        btn_add_garment = ctk.CTkButton(
+            self.frame_adv,
+            text="+ Add",
+            width=80,
+            fg_color=BG_DARK,
+            hover_color="#333",
+            text_color=ACCENT_CYAN,
+            border_color=ACCENT_CYAN,
+            border_width=1,
+            command=self.add_garment_override,
+        )
         btn_add_garment.grid(row=7, column=1, sticky="w", padx=(5, 15), pady=5)
 
         # Custom Head GLB / Mesh / Heb Mesh
         lbl_custom_head = ctk.CTkLabel(
-            self.frame_adv, text="BYO Head Options (Custom Mesh/GLB):", font=("Arial", 11, "bold"), text_color=TEXT_WHITE
+            self.frame_adv,
+            text="BYO Head Options (Custom Mesh/GLB):",
+            font=("Arial", 11, "bold"),
+            text_color=TEXT_WHITE,
         )
         lbl_custom_head.grid(row=8, column=0, columnspan=2, sticky="w", padx=15, pady=(10, 2))
-        
-        self.entry_head_glb = ctk.CTkEntry(self.frame_adv, placeholder_text="Path to user_head.glb", fg_color="#121212", border_color=TEXT_MUTED, text_color=TEXT_WHITE)
+
+        self.entry_head_glb = ctk.CTkEntry(
+            self.frame_adv,
+            placeholder_text="Path to user_head.glb",
+            fg_color="#121212",
+            border_color=TEXT_MUTED,
+            text_color=TEXT_WHITE,
+        )
         self.entry_head_glb.grid(row=9, column=0, sticky="ew", padx=(15, 5), pady=5)
-        btn_glb_browse = ctk.CTkButton(self.frame_adv, text="Browse GLB", width=80, fg_color=BG_DARK, hover_color="#333", text_color=ACCENT_CYAN, border_color=ACCENT_CYAN, border_width=1, command=self.browse_head_glb)
+        btn_glb_browse = ctk.CTkButton(
+            self.frame_adv,
+            text="Browse GLB",
+            width=80,
+            fg_color=BG_DARK,
+            hover_color="#333",
+            text_color=ACCENT_CYAN,
+            border_color=ACCENT_CYAN,
+            border_width=1,
+            command=self.browse_head_glb,
+        )
         btn_glb_browse.grid(row=9, column=1, sticky="w", padx=(5, 15), pady=5)
 
-        self.entry_head_mesh = ctk.CTkEntry(self.frame_adv, placeholder_text="Path to user_head.mesh", fg_color="#121212", border_color=TEXT_MUTED, text_color=TEXT_WHITE)
+        self.entry_head_mesh = ctk.CTkEntry(
+            self.frame_adv,
+            placeholder_text="Path to user_head.mesh",
+            fg_color="#121212",
+            border_color=TEXT_MUTED,
+            text_color=TEXT_WHITE,
+        )
         self.entry_head_mesh.grid(row=10, column=0, sticky="ew", padx=(15, 5), pady=5)
-        btn_mesh_browse = ctk.CTkButton(self.frame_adv, text="Browse Mesh", width=80, fg_color=BG_DARK, hover_color="#333", text_color=ACCENT_CYAN, border_color=ACCENT_CYAN, border_width=1, command=self.browse_head_mesh)
+        btn_mesh_browse = ctk.CTkButton(
+            self.frame_adv,
+            text="Browse Mesh",
+            width=80,
+            fg_color=BG_DARK,
+            hover_color="#333",
+            text_color=ACCENT_CYAN,
+            border_color=ACCENT_CYAN,
+            border_width=1,
+            command=self.browse_head_mesh,
+        )
         btn_mesh_browse.grid(row=10, column=1, sticky="w", padx=(5, 15), pady=5)
 
-        self.entry_heb_mesh = ctk.CTkEntry(self.frame_adv, placeholder_text="Path to user_heb.mesh (details)", fg_color="#121212", border_color=TEXT_MUTED, text_color=TEXT_WHITE)
+        self.entry_heb_mesh = ctk.CTkEntry(
+            self.frame_adv,
+            placeholder_text="Path to user_heb.mesh (details)",
+            fg_color="#121212",
+            border_color=TEXT_MUTED,
+            text_color=TEXT_WHITE,
+        )
         self.entry_heb_mesh.grid(row=11, column=0, sticky="ew", padx=(15, 5), pady=5)
-        btn_heb_browse = ctk.CTkButton(self.frame_adv, text="Browse HEB", width=80, fg_color=BG_DARK, hover_color="#333", text_color=ACCENT_CYAN, border_color=ACCENT_CYAN, border_width=1, command=self.browse_heb_mesh)
+        btn_heb_browse = ctk.CTkButton(
+            self.frame_adv,
+            text="Browse HEB",
+            width=80,
+            fg_color=BG_DARK,
+            hover_color="#333",
+            text_color=ACCENT_CYAN,
+            border_color=ACCENT_CYAN,
+            border_width=1,
+            command=self.browse_heb_mesh,
+        )
         btn_heb_browse.grid(row=11, column=1, sticky="w", padx=(5, 15), pady=5)
 
         # Clear Cache / Restore Head Toggles
         self.switch_clear_cache = ctk.CTkSwitch(
-            self.frame_adv, text="Clear cache before build", font=("Arial", 11), text_color=TEXT_WHITE, progress_color=ACCENT_CYAN
+            self.frame_adv,
+            text="Clear cache before build",
+            font=("Arial", 11),
+            text_color=TEXT_WHITE,
+            progress_color=ACCENT_CYAN,
         )
         self.switch_clear_cache.grid(row=12, column=0, columnspan=2, sticky="w", padx=15, pady=10)
 
         self.switch_restore_head = ctk.CTkSwitch(
-            self.frame_adv, text="Restore head materials", font=("Arial", 11), text_color=TEXT_WHITE, progress_color=ACCENT_CYAN
+            self.frame_adv,
+            text="Restore head materials",
+            font=("Arial", 11),
+            text_color=TEXT_WHITE,
+            progress_color=ACCENT_CYAN,
         )
         self.switch_restore_head.select()
-        self.switch_restore_head.grid(row=13, column=0, columnspan=2, sticky="w", padx=15, pady=(0, 15))
+        self.switch_restore_head.grid(
+            row=13, column=0, columnspan=2, sticky="w", padx=15, pady=(0, 15)
+        )
 
     # --- Toggle Advanced Frame ---
     def toggle_advanced(self):
@@ -498,7 +616,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def run_checks(self):
         game_path_str = self.entry_game_dir.get().strip()
         game_path = Path(game_path_str) if game_path_str else None
-        
+
         status = check_dependencies(game_path)
 
         def update_lamp(lamp, found):
@@ -510,7 +628,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         update_lamp(self.lamp_wkit, status["wolvenkit"])
         update_lamp(self.lamp_blender, status["blender"])
         update_lamp(self.lamp_dotnet, status["npv_inject"])
-        
+
         # Game Dir validation feedback
         if game_path_str:
             if status["game_dir_valid"]:
@@ -524,9 +642,16 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.entry_game_dir.configure(border_color=TEXT_MUTED)
 
         # Disable/Enable Build button based on checks
-        ready = status["wolvenkit"] and status["blender"] and status["npv_inject"] and status["game_dir_valid"]
+        ready = (
+            status["wolvenkit"]
+            and status["blender"]
+            and status["npv_inject"]
+            and status["game_dir_valid"]
+        )
         if ready:
-            self.btn_build.configure(state="normal", border_color=ACCENT_CYAN, text_color=ACCENT_CYAN)
+            self.btn_build.configure(
+                state="normal", border_color=ACCENT_CYAN, text_color=ACCENT_CYAN
+            )
         else:
             self.btn_build.configure(state="disabled", border_color="#333", text_color="#555")
 
@@ -546,14 +671,28 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             if saved_games.exists():
                 init_dir = saved_games
         else:
-            steam_proton = Path.home() / ".steam" / "steam" / "steamapps" / "compatdata" / "1091500" / "pfx" / "drive_c" / "users" / "steamuser" / "Saved Games" / "CD Projekt Red" / "Cyberpunk 2077"
+            steam_proton = (
+                Path.home()
+                / ".steam"
+                / "steam"
+                / "steamapps"
+                / "compatdata"
+                / "1091500"
+                / "pfx"
+                / "drive_c"
+                / "users"
+                / "steamuser"
+                / "Saved Games"
+                / "CD Projekt Red"
+                / "Cyberpunk 2077"
+            )
             if steam_proton.exists():
                 init_dir = steam_proton
 
         path = filedialog.askopenfilename(
             initialdir=str(init_dir),
             title="Select Cyberpunk 2077 Save File",
-            filetypes=[("Save Files", "*.dat"), ("All Files", "*.*")]
+            filetypes=[("Save Files", "*.dat"), ("All Files", "*.*")],
         )
         if path:
             self.entry_save.delete(0, "end")
@@ -573,7 +712,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         if not path_str:
             self.clear_preview()
             return
-            
+
         path = Path(path_str)
         if not path.exists() or not path.is_file():
             self.clear_preview()
@@ -583,8 +722,13 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             prev = preview_save(path)
             self.lbl_prev_rig.configure(text=f"Rig: {prev['body_rig']}", text_color=TEXT_WHITE)
             self.lbl_prev_skin.configure(text=f"Skin: {prev['skin_tone']}", text_color=TEXT_WHITE)
-            self.lbl_prev_hair.configure(text=f"Hair: {prev['hair_style']} (col: {prev['hair_color']})", text_color=TEXT_WHITE)
-            self.lbl_prev_selections.configure(text=f"Selections: {prev['selections_count']}", text_color=TEXT_WHITE)
+            self.lbl_prev_hair.configure(
+                text=f"Hair: {prev['hair_style']} (col: {prev['hair_color']})",
+                text_color=TEXT_WHITE,
+            )
+            self.lbl_prev_selections.configure(
+                text=f"Selections: {prev['selections_count']}", text_color=TEXT_WHITE
+            )
             self.update_default_output()
         except Exception as e:
             self.lbl_prev_rig.configure(text="Rig: Error", text_color=STATUS_RED)
@@ -602,10 +746,12 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         name = self.entry_npv_name.get().strip()
         if not name:
             name = "my_v_mod"
-        
+
         # Safe name for path
-        safe_name = "".join([c if c.isalnum() or c in ("-", "_") else "_" for c in name.lower()]).strip("_")
-        
+        safe_name = "".join(
+            [c if c.isalnum() or c in ("-", "_") else "_" for c in name.lower()]
+        ).strip("_")
+
         # Put in home directory / npv_builds
         default_out = Path.home() / "npv_builds" / safe_name
         self.entry_output.delete(0, "end")
@@ -620,7 +766,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def browse_cc_json(self):
         path = filedialog.askopenfilename(
             title="Select CET CC JSON file",
-            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")]
+            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
         )
         if path:
             self.entry_cc_json.delete(0, "end")
@@ -629,7 +775,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def browse_hair_mod(self):
         game_dir_str = self.entry_game_dir.get().strip()
         if not game_dir_str:
-            self.show_error("Game Dir Required", "Please specify the Game Directory before selecting a hair mod.")
+            self.show_error(
+                "Game Dir Required",
+                "Please specify the Game Directory before selecting a hair mod.",
+            )
             return
 
         file_path = filedialog.askopenfilename(
@@ -638,14 +787,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 ("Cyberpunk Hair Mod Files", "*.archive *.zip *.7z *.rar"),
                 ("Raw Archive", "*.archive"),
                 ("Compressed Archive", "*.zip *.7z *.rar"),
-                ("All files", "*.*")
-            ]
+                ("All files", "*.*"),
+            ],
         )
         if not file_path:
             return
 
         try:
             from .hair_mod_helper import install_hair_mod
+
             derived_name, installed_files = install_hair_mod(Path(file_path), Path(game_dir_str))
 
             self.entry_hair_ovr.delete(0, "end")
@@ -670,11 +820,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         game_dir_str = self.entry_game_dir.get().strip()
         if not game_dir_str:
-            self.show_error("Game Dir Required", "Please specify the Game Directory before dropping a hair mod.")
+            self.show_error(
+                "Game Dir Required", "Please specify the Game Directory before dropping a hair mod."
+            )
             return
 
         try:
             from .hair_mod_helper import install_hair_mod
+
             derived_name, installed_files = install_hair_mod(Path(path_str), Path(game_dir_str))
 
             self.entry_hair_ovr.delete(0, "end")
@@ -692,7 +845,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def browse_head_glb(self):
         path = filedialog.askopenfilename(
             title="Select Custom Head GLB file",
-            filetypes=[("GLB Files", "*.glb"), ("All Files", "*.*")]
+            filetypes=[("GLB Files", "*.glb"), ("All Files", "*.*")],
         )
         if path:
             self.entry_head_glb.delete(0, "end")
@@ -701,7 +854,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def browse_head_mesh(self):
         path = filedialog.askopenfilename(
             title="Select Custom Head Mesh file",
-            filetypes=[("Mesh Files", "*.mesh"), ("All Files", "*.*")]
+            filetypes=[("Mesh Files", "*.mesh"), ("All Files", "*.*")],
         )
         if path:
             self.entry_head_mesh.delete(0, "end")
@@ -710,7 +863,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def browse_heb_mesh(self):
         path = filedialog.askopenfilename(
             title="Select Custom HEB Mesh file",
-            filetypes=[("Mesh Files", "*.mesh"), ("All Files", "*.*")]
+            filetypes=[("Mesh Files", "*.mesh"), ("All Files", "*.*")],
         )
         if path:
             self.entry_heb_mesh.delete(0, "end")
@@ -719,7 +872,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
     def add_garment_override(self):
         path = filedialog.askopenfilename(
             title="Select Garment entity (.ent) file",
-            filetypes=[("Entity Files", "*.ent"), ("All Files", "*.*")]
+            filetypes=[("Entity Files", "*.ent"), ("All Files", "*.*")],
         )
         if path:
             self.garment_list.insert("end", path)
@@ -751,7 +904,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.show_error("Validation Error", "Please specify an Output Directory.")
             return
         if not save_path_str and not cc_json_str:
-            self.show_error("Validation Error", "Either Save File or CET Appearance JSON must be provided.")
+            self.show_error(
+                "Validation Error", "Either Save File or CET Appearance JSON must be provided."
+            )
             return
 
         save_path = Path(save_path_str) if save_path_str else None
@@ -779,9 +934,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             "hair_override": self.entry_hair_ovr.get().strip() or None,
             "skin_override": self.entry_skin_ovr.get().strip() or None,
             "garments": list(self.garment_list.get(0, "end")),
-            "user_head_glb": Path(self.entry_head_glb.get().strip()) if self.entry_head_glb.get().strip() else None,
-            "user_head_mesh": Path(self.entry_head_mesh.get().strip()) if self.entry_head_mesh.get().strip() else None,
-            "user_heb_mesh": Path(self.entry_heb_mesh.get().strip()) if self.entry_heb_mesh.get().strip() else None,
+            "user_head_glb": Path(self.entry_head_glb.get().strip())
+            if self.entry_head_glb.get().strip()
+            else None,
+            "user_head_mesh": Path(self.entry_head_mesh.get().strip())
+            if self.entry_head_mesh.get().strip()
+            else None,
+            "user_heb_mesh": Path(self.entry_heb_mesh.get().strip())
+            if self.entry_heb_mesh.get().strip()
+            else None,
             "restore_head_materials": self.switch_restore_head.get() == 1,
         }
 
@@ -844,7 +1005,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Update UI states
         self.btn_auto_install.configure(state="disabled", text="INSTALLING...")
         self.btn_build.configure(state="disabled")
-        
+
         self.progress_bar.configure(mode="determinate")
         self.progress_bar.set(0)
         self.progress_bar.grid(row=0, column=0, sticky="ew", pady=(0, 10))
@@ -861,7 +1022,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.progress_bar.configure(mode="indeterminate")
 
         if success:
-            self.append_log("\n[Success] All dependencies installed successfully! Ready to build.\n")
+            self.append_log(
+                "\n[Success] All dependencies installed successfully! Ready to build.\n"
+            )
             self.lbl_banner.configure(
                 text="✓ Dependencies Installed Successfully!",
                 fg_color=STATUS_GREEN,
@@ -876,7 +1039,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             )
 
         self.lbl_banner.grid(row=2, column=0, sticky="ew", pady=5)
-        
+
         # Re-run checks to update lamps
         self.run_checks()
 

@@ -3,7 +3,7 @@ import re
 import struct
 from pathlib import Path
 
-from .save_format import SaveContainer, _Reader, SaveFormatError
+from .save_format import SaveContainer, SaveFormatError, _Reader
 
 
 class SaveParserError(Exception):
@@ -99,7 +99,7 @@ def detect_patch(version: tuple) -> str:
     versions_file = Path(__file__).parent / "data" / "save_versions.json"
     if versions_file.exists():
         try:
-            with open(versions_file, "r") as f:
+            with open(versions_file) as f:
                 versions = json.load(f)
             v2_str = str(v2)
             if v2_str in versions:
@@ -160,14 +160,14 @@ def parse_save(save_path: Path) -> dict:
     try:
         data = save_path.read_bytes()
     except Exception as e:
-        raise SaveParserError(f"Failed to read save file: {e}")
+        raise SaveParserError(f"Failed to read save file: {e}") from e
 
     try:
         sc = SaveContainer(data)
     except SaveFormatError as e:
-        raise SaveParserError(f"Save format error: {e}")
+        raise SaveParserError(f"Save format error: {e}") from e
     except Exception as e:
-        raise SaveParserError(f"Unexpected container parse error: {e}")
+        raise SaveParserError(f"Unexpected container parse error: {e}") from e
 
     raw = sc.node_bytes("CharacetrCustomization_Appearances")
     if raw is None:
@@ -178,21 +178,27 @@ def parse_save(save_path: Path) -> dict:
         reader = _CCReader(raw)
         cc = CCharacterCustomization(reader, sc.version)
         if reader.pos > len(raw):
-            raise SaveParserError(f"CC layout mismatch: read past end of data. Cursor: {reader.pos}, Length: {len(raw)}")
+            raise SaveParserError(
+                f"CC layout mismatch: read past end of data. Cursor: {reader.pos}, Length: {len(raw)}"
+            )
         leftover = len(raw) - reader.pos
         if leftover > 0 and v3 != 195:
-            raise SaveParserError(f"CC layout mismatch for save version {sc.version}; parser targets v3=195. Leftover bytes: {leftover}")
+            raise SaveParserError(
+                f"CC layout mismatch for save version {sc.version}; parser targets v3=195. Leftover bytes: {leftover}"
+            )
     except Exception as e:
         if isinstance(e, SaveParserError):
-            raise e
-        raise SaveParserError(f"CC layout mismatch for save version {sc.version}; parser targets v3=195. Original error: {e}")
+            raise
+        raise SaveParserError(
+            f"CC layout mismatch for save version {sc.version}; parser targets v3=195. Original error: {e}"
+        ) from e
 
     # The 'character_customization' slot is the authoritative CC source; the
     # TPP/FPP/photomode slots are render-time duplicates. Each Sel there pairs
     # uk0 (the appearance/resource name) with uk1 (a semantic label such as
     # skin_type_05, eyes_color, teeth, makeupEyes_31, or the hair mesh name).
-    cc_entries = []   # authoritative list of {label(uk1), resource(uk0), cn}
-    selections = []   # full decoded list (all slots) for diagnostics + resolver
+    cc_entries = []  # authoritative list of {label(uk1), resource(uk0), cn}
+    selections = []  # full decoded list (all slots) for diagnostics + resolver
     face_morphs = {}  # {region: morph_name} e.g. {"jaw":"h114","nose":"h042"}
     for g in [cc.ukt0, cc.ukt1, cc.ukt2]:
         if g is None:
@@ -249,10 +255,13 @@ def parse_save(save_path: Path) -> dict:
     hair_entry = next((e for e in cc_entries if (e.get("label") or "").startswith("fhair_")), None)
     if not hair_entry:
         hair_entry = next(
-            (e for e in cc_entries
-             if (e.get("label") or "").endswith("_hair")
-             and not (e.get("label") or "").endswith("_fpp")
-             and e.get("raw", "") != "default"),
+            (
+                e
+                for e in cc_entries
+                if (e.get("label") or "").endswith("_hair")
+                and not (e.get("label") or "").endswith("_fpp")
+                and e.get("raw", "") != "default"
+            ),
             None,
         )
 
@@ -270,7 +279,7 @@ def parse_save(save_path: Path) -> dict:
     hair_style = ""
     hair_raw = ""
     if hair_entry:
-        hair_mesh = hair_entry.get("label", "")        # fhair_miyavivi_twistup_soft or edie_hair
+        hair_mesh = hair_entry.get("label", "")  # fhair_miyavivi_twistup_soft or edie_hair
         hair_raw = hair_mesh
         if hair_mesh.startswith("fhair_"):
             hair_style = hair_mesh[6:]
@@ -283,8 +292,10 @@ def parse_save(save_path: Path) -> dict:
         "patch": detect_patch(sc.version),
         "body_rig": body_rig,
         "selections": selections,
-        "head": {"preset_id": head_sel["index"] if head_sel else 0,
-                  "raw": head_sel["raw"] if head_sel else ""},
+        "head": {
+            "preset_id": head_sel["index"] if head_sel else 0,
+            "raw": head_sel["raw"] if head_sel else "",
+        },
         "eyes": {"raw": eyes_sel["raw"] if eyes_sel else ""},
         "teeth": {"raw": teeth_sel["raw"] if teeth_sel else ""},
         "skin": {"tone_id": skin_tone},

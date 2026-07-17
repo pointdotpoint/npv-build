@@ -1,8 +1,8 @@
 """Tests for the WolvenKit CLI adapter module."""
+
 import json
-import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -22,7 +22,9 @@ def wk():
 class TestWolvenKitConfig:
     def test_appearance_archive_path(self):
         cfg = WolvenKitConfig(game_dir=Path("/game"))
-        assert cfg.appearance_archive == Path("/game/archive/pc/content/basegame_4_appearance.archive")
+        assert cfg.appearance_archive == Path(
+            "/game/archive/pc/content/basegame_4_appearance.archive"
+        )
 
     def test_appearance_archive_no_game_dir(self):
         cfg = WolvenKitConfig()
@@ -77,7 +79,9 @@ class TestRun:
     @patch("subprocess.run")
     def test_run_raises_on_failure(self, mock_run, wk):
         mock_run.return_value = MagicMock(
-            returncode=1, stdout="some output", stderr="some error",
+            returncode=1,
+            stdout="some output",
+            stderr="some error",
         )
         with pytest.raises(WolvenKitError) as exc_info:
             wk.deserialize(Path("/fake/dir"))

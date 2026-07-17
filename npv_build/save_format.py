@@ -15,6 +15,7 @@ Node desc: lpfxd name, then next_idx:i32, child_idx:i32, data_offset:u32, data_s
 """
 
 import struct
+
 import lz4.block
 
 
@@ -49,7 +50,7 @@ class _Reader:
         # Magics are stored as a little-endian uint32 of the 4 ASCII chars, so
         # on disk they appear byte-reversed ('CSAV' -> b'VASC'). Return the
         # logical (un-reversed) tag for comparison.
-        s = self.data[self.pos:self.pos + 4]
+        s = self.data[self.pos : self.pos + 4]
         self.pos += 4
         return s[::-1]
 
@@ -75,12 +76,12 @@ class _Reader:
         cnt = self.read_int64_packed()
         if cnt < 0 and cnt > -0x1000:
             n = -cnt
-            s = self.data[self.pos:self.pos + n]
+            s = self.data[self.pos : self.pos + n]
             self.pos += n
             return s.decode("latin-1")
         elif cnt > 0 and cnt < 0x1000:
             n = cnt
-            raw = self.data[self.pos:self.pos + n * 2]
+            raw = self.data[self.pos : self.pos + n * 2]
             self.pos += n * 2
             # utf-16 stored; CSE narrows to char, we decode utf-16-le
             return raw.decode("utf-16-le", errors="replace")
@@ -173,12 +174,12 @@ class SaveContainer:
             cr = _Reader(self.data, offset)
             if cr.magic() != b"XLZ4":
                 raise SaveFormatError(f"missing XLZ4 at {offset}")
-            csize = size - 8  # size includes XLZ4 tag + a u32? CSE reads csize then block
-            # CSE: after 'XLZ4' it reads uncompressed size (u32) then compressed bytes
-            uncomp = cr.u32()
-            comp_bytes = self.data[cr.pos:cr.pos + (size - 8)]
+            # size includes XLZ4 tag + a u32; CSE reads uncompressed size (u32) then
+            # the compressed bytes. The u32() call advances cr.pos past that field.
+            cr.u32()
+            comp_bytes = self.data[cr.pos : cr.pos + (size - 8)]
             out = lz4.block.decompress(comp_bytes, uncompressed_size=dsize)
-            nodedata[blob_off:blob_off + len(out)] = out
+            nodedata[blob_off : blob_off + len(out)] = out
         self.nodedata = bytes(nodedata)
 
     def find_node(self, name: str):
@@ -191,7 +192,7 @@ class SaveContainer:
         d = self.find_node(name)
         if not d:
             return None
-        return self.nodedata[d.data_offset:d.data_offset + d.data_size]
+        return self.nodedata[d.data_offset : d.data_offset + d.data_size]
 
     def node_names(self):
         return [d.name for d in self.descs]

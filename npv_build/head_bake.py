@@ -3,6 +3,7 @@
 Owns its own staging directories. Takes a WolvenKit adapter instance for
 all CLI operations.
 """
+
 from __future__ import annotations
 
 import json
@@ -12,7 +13,6 @@ import tempfile
 from pathlib import Path
 
 from .wk_cli import WolvenKit, WolvenKitError
-
 
 STOCK_HEAD_MESH = {
     "pwa": "h0_000_pwa_c__basehead.mesh",
@@ -61,7 +61,7 @@ def swap_head_part(asset_paths: dict, stock_head: str, new_head: str) -> None:
 
 def _is_detail_layer_override(component_override: dict) -> bool:
     ma = component_override.get("meshAppearance", {}).get("$value", "")
-    return bool(_re.search(r'_d\d{2}$', ma))
+    return bool(_re.search(r"_d\d{2}$", ma))
 
 
 def _restore_head_materials(
@@ -106,9 +106,44 @@ def _restore_part_materials(
                     continue
                 low = arch.name.lower()
                 # Exclude accessories and unrelated cosmetic categories
-                if any(x in low for x in ("holo", "plugin", "mask", "horn", "ear", "wing", "acc_", "hair", "tattoo", "jacket", "outfit", "boots", "frame", "dealer", "pose", "props", "cyberarm", "armleft", "flat_feet")):
+                if any(
+                    x in low
+                    for x in (
+                        "holo",
+                        "plugin",
+                        "mask",
+                        "horn",
+                        "ear",
+                        "wing",
+                        "acc_",
+                        "hair",
+                        "tattoo",
+                        "jacket",
+                        "outfit",
+                        "boots",
+                        "frame",
+                        "dealer",
+                        "pose",
+                        "props",
+                        "cyberarm",
+                        "armleft",
+                        "flat_feet",
+                    )
+                ):
                     continue
-                if any(k in low for k in ("head", "face", "skin", "complexion", "vtk", "body", "basehead", "h0_000")):
+                if any(
+                    k in low
+                    for k in (
+                        "head",
+                        "face",
+                        "skin",
+                        "complexion",
+                        "vtk",
+                        "body",
+                        "basehead",
+                        "h0_000",
+                    )
+                ):
                     candidates.append(arch)
 
             # Prioritize high-probability matches (VTK head overrides) to check them first
@@ -120,7 +155,7 @@ def _restore_part_materials(
                     high_priority.append(arch)
                 else:
                     low_priority.append(arch)
-            
+
             ordered_candidates = high_priority + low_priority
 
             for arch in ordered_candidates:
@@ -129,11 +164,12 @@ def _restore_part_materials(
                     if matches:
                         mod_archive_path = arch
                         if verbosity > 0:
-                            print(f"[Head] Found custom head mesh override in mod archive: {arch.name}")
+                            print(
+                                f"[Head] Found custom head mesh override in mod archive: {arch.name}"
+                            )
                         break
                 except Exception:
                     pass
-
 
     # Use the custom skin mod archive if found, otherwise fall back to base-game
     source_archive = mod_archive_path or wk.config.appearance_archive
@@ -171,10 +207,15 @@ def _restore_part_materials(
         stock_rc = stock_data.get("Data", {}).get("RootChunk", {})
         baked_rc = baked_data.get("Data", {}).get("RootChunk", {})
 
-        for key in ("materialEntries", "appearances",
-                    "localMaterialInstances", "preloadLocalMaterialInstances",
-                    "externalMaterials", "preloadExternalMaterials",
-                    "localMaterialBuffer"):
+        for key in (
+            "materialEntries",
+            "appearances",
+            "localMaterialInstances",
+            "preloadLocalMaterialInstances",
+            "externalMaterials",
+            "preloadExternalMaterials",
+            "localMaterialBuffer",
+        ):
             if key in stock_rc:
                 baked_rc[key] = stock_rc[key]
 
@@ -185,10 +226,14 @@ def _restore_part_materials(
         for buf in stock_json_path.parent.glob(
             stock_json_path.stem.replace(".mesh", "") + ".mesh.*.buffer"
         ):
-            shutil.copy2(buf, baked_json_dir / buf.name.replace(
-                stock_json_path.stem.replace(".mesh.json", ""),
-                baked_json_path.stem.replace(".mesh.json", "")
-            ))
+            shutil.copy2(
+                buf,
+                baked_json_dir
+                / buf.name.replace(
+                    stock_json_path.stem.replace(".mesh.json", ""),
+                    baked_json_path.stem.replace(".mesh.json", ""),
+                ),
+            )
         for buf in baked_mesh_fs.parent.glob(baked_mesh_fs.stem + ".*.buffer"):
             dest = baked_json_dir / buf.name
             if not dest.exists():
@@ -199,7 +244,6 @@ def _restore_part_materials(
         mat_count = len(stock_rc.get("materialEntries", []))
         if verbosity > 0:
             print(f"[Head] restored {mat_count} materials from stock head")
-
 
 
 def _finalize_head(
@@ -220,6 +264,7 @@ def _finalize_head(
         _restore_head_materials(wk, baked_mesh_fs, body_rig, verbosity)
         if heb_baked_fs:
             from .blender_module import HEB_FACE_MESH
+
             heb_mesh = HEB_FACE_MESH.get(body_rig, "")
             if heb_mesh:
                 _restore_part_materials(wk, heb_baked_fs, heb_mesh, verbosity)
@@ -228,6 +273,7 @@ def _finalize_head(
             print("[Head] material restore skipped; using mesh's own materials")
 
     from .blender_module import HEAD_MORPHTARGET
+
     stock_mt_depot = HEAD_MORPHTARGET.get(body_rig, "")
     mt_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_morphs.morphtarget"
     if not stock_mt_depot:
@@ -272,7 +318,9 @@ def bake_head(
     morphtarget into build_dir at their depot paths.
     """
     from .blender_module import (
-        bake_face_mesh, HEB_MORPHTARGET, HEB_FACE_MESH,
+        HEB_FACE_MESH,
+        HEB_MORPHTARGET,
+        bake_face_mesh,
     )
 
     if not face_morphs:
@@ -281,7 +329,12 @@ def bake_head(
     baked_mesh_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_head.mesh"
     baked_mesh_fs = build_dir / baked_mesh_depot.replace("\\", "/")
     result = bake_face_mesh(
-        wk.config.game_dir, body_rig, face_morphs, baked_mesh_fs, verbosity, wk=wk,
+        wk.config.game_dir,
+        body_rig,
+        face_morphs,
+        baked_mesh_fs,
+        verbosity,
+        wk=wk,
     )
     if not result:
         return None
@@ -297,8 +350,15 @@ def bake_head(
         heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
         heb_baked_fs = build_dir / heb_baked_depot.replace("\\", "/")
         heb_result = bake_face_mesh(
-            wk.config.game_dir, body_rig, face_morphs, heb_baked_fs, verbosity, wk=wk,
-            mt_depot=heb_mt, mesh_depot=heb_mesh, stage_name="bake_heb",
+            wk.config.game_dir,
+            body_rig,
+            face_morphs,
+            heb_baked_fs,
+            verbosity,
+            wk=wk,
+            mt_depot=heb_mt,
+            mesh_depot=heb_mesh,
+            stage_name="bake_heb",
         )
         if heb_result:
             if verbosity > 0:
@@ -329,9 +389,9 @@ def _read_glb_json(glb_path: Path) -> dict | None:
             magic = f.read(4)
             if magic != b"glTF":
                 return None
-            version = int.from_bytes(f.read(4), "little")
-            length = int.from_bytes(f.read(4), "little")
-            
+            f.read(4)  # version (unused)
+            f.read(4)  # total length (unused)
+
             chunk_length = int.from_bytes(f.read(4), "little")
             chunk_type = f.read(4)
             if chunk_type != b"JSON":
@@ -346,7 +406,7 @@ def _get_glb_vertex_count(glb_path: Path) -> int | None:
     glb_json = _read_glb_json(glb_path)
     if not glb_json:
         return None
-    
+
     counts = []
     accessors = glb_json.get("accessors", [])
     for mesh in glb_json.get("meshes", []):
@@ -406,6 +466,7 @@ def _import_user_glb(
 ) -> bool | None:
     """Import user-supplied head GLB, restore materials, rebuild skinning."""
     from .blender_module import HEAD_FACE_MESH
+
     stock_head_depot = HEAD_FACE_MESH.get(body_rig, "")
     if not stock_head_depot:
         raise WolvenKitError(
@@ -435,8 +496,14 @@ def _import_user_glb(
             stock_glb_fs = wk.export(stock_head_fs, dest=stock_glb_dir)
             stock_v_count = _get_glb_vertex_count(stock_glb_fs)
             user_v_count = _get_glb_vertex_count(user_glb)
-            if stock_v_count is not None and user_v_count is not None and stock_v_count != user_v_count:
-                print(f"[Head] warning: head GLB vertex count ({user_v_count}) differs from stock head ({stock_v_count}); skinning may be imperfect")
+            if (
+                stock_v_count is not None
+                and user_v_count is not None
+                and stock_v_count != user_v_count
+            ):
+                print(
+                    f"[Head] warning: head GLB vertex count ({user_v_count}) differs from stock head ({stock_v_count}); skinning may be imperfect"
+                )
         except Exception as e:
             if verbosity > 0:
                 print(f"[Head] warning: could not compare vertex counts ({e})")
@@ -460,6 +527,7 @@ def _import_user_glb(
         heb_baked_depot = None
         if user_heb_mesh:
             from .blender_module import HEB_FACE_MESH
+
             stock_heb_depot = HEB_FACE_MESH.get(body_rig, "")
             if stock_heb_depot:
                 stock_heb_regex = _re.escape(stock_heb_depot) + r"$"
@@ -470,9 +538,14 @@ def _import_user_glb(
                     shutil.copy2(user_heb_mesh, heb_glb_for_import)
                     heb_mtime_before = stock_heb_fs.stat().st_mtime
                     try:
-                        wk.import_mesh(stock_heb_fs.parent, dest=stock_heb_fs.parent, allow_exit_codes=(3,))
+                        wk.import_mesh(
+                            stock_heb_fs.parent, dest=stock_heb_fs.parent, allow_exit_codes=(3,)
+                        )
                     except WolvenKitError:
-                        if not stock_heb_fs.exists() or stock_heb_fs.stat().st_mtime <= heb_mtime_before:
+                        if (
+                            not stock_heb_fs.exists()
+                            or stock_heb_fs.stat().st_mtime <= heb_mtime_before
+                        ):
                             raise
 
                     heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
@@ -513,7 +586,7 @@ def _import_user_mesh(
     baked_mesh_fs.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(user_mesh, baked_mesh_fs)
     if verbosity > 0:
-        print(f"[Head] warning: user mesh — skinning not verified")
+        print("[Head] warning: user mesh — skinning not verified")
 
     heb_baked_fs = None
     heb_baked_depot = None
@@ -547,6 +620,7 @@ def dump_head_glb(
 ) -> None:
     """Export stock head mesh to an editable GLB file."""
     from .blender_module import HEAD_FACE_MESH
+
     stock_head_depot = HEAD_FACE_MESH.get(body_rig, "")
     if not stock_head_depot:
         raise WolvenKitError(
