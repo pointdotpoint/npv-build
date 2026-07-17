@@ -74,6 +74,9 @@ def resolve_assets(
     index = get_or_create_index(table_key, game_dir=game_dir, verbosity=1, wk=wk)
 
     asset_paths = {
+        # Deliberately the RAW patch label (e.g. "2.31"), not table_key — the
+        # manifest/output must report the real patch, while file lookups above
+        # use the aliased table_key. Do not "simplify" this to table_key.
         "patch": patch,
         "body_rig": body_rig,
         "head_app": "",

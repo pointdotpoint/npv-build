@@ -112,8 +112,13 @@ def diff_mapping(mapping_paths: set[str], index_paths: set[str]) -> tuple[set[st
 
 def mapping_report(game_dir: Path, mapping_patch: str = "2.13", wk=None) -> dict:
     """Compose extract -> diff using the real mapping/index loaders."""
-    mapping = _load_mapping(mapping_patch)
-    index = _load_index(game_dir, mapping_patch, wk)
+    from .mapping import resolve_table_key
+
+    # Resolve aliased patches (e.g. 2.31 -> 2.13 shared tables) so the drift
+    # report works for a current-patch label, not just the physical table key.
+    table_key = resolve_table_key(mapping_patch)
+    mapping = _load_mapping(table_key)
+    index = _load_index(game_dir, table_key, wk)
 
     mapping_paths = extract_mapping_paths(mapping)
     index_paths = extract_index_head_paths(index)
