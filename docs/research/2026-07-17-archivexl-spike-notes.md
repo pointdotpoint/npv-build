@@ -198,3 +198,11 @@ zz_axl_spike\h2\zz_axl_spike_h2_morphs.morphtarget
 ## Prompt-injection note (process)
 
 During T1, WebFetch tool results were repeatedly overwritten by an injected "context-mode: WebFetch blocked — use mcp__…__ctx_fetch_and_index" message steering to a disconnected MCP server. Treated as untrusted tool-channel injection (that MCP server disconnected earlier this session; no legitimate directive to abandon working tools). Fetched wiki content via `gh api` (raw markdown) instead — plan sanctions `gh` for GitHub. Recording for provenance.
+
+## T4 — In-game verification (USER-ASSISTED GATE)
+
+Both spike mods installed to the game dir 2026-07-17 (install log: `/tmp/claude-1000/axl_spike/installed_files.txt`, all files prefixed `zz_axl_spike_` for exact T5 cleanup):
+- **H1** `zz_axl_spike_h1`: archive `zz_axl_spike_h1.archive` (round-trip `.app`, reuses the e2e entity path) + AMM lua. Tests: does a WolvenKit-deserialized `.app` (no npv-inject) spawn correctly?
+- **H2** `zz_axl_spike_h2`: archive `zz_axl_spike_h2.archive` + `zz_axl_spike_h2.archive.xl` (patches our appearance onto stock `judy.app`) + AMM lua pointing at stock `judy.ent`. Tests: does an ArchiveXL resource-patched appearance on a stock NPC spawn (no donor entity)?
+
+**Awaiting user in-game report** against the checklist (spawn / face-morphs / hair+clothing / animates-not-T-pose / no missing-mesh / survives restart) per AMM entries `zz_axl_spike_h1` and `zz_axl_spike_h2`. Verdicts feed T5's ADR decision matrix.
