@@ -13,6 +13,27 @@ class MappingError(Exception):
         self.module_name = "Mapping"
 
 
+# Marketing patches that share one vendored asset-table set. CDPR kept the save
+# format (build 2310 / CC struct v3=195) AND the head/appearance assets stable
+# across 2.13 -> 2.31, so all of them resolve to the "2.13" tables. When a future
+# patch changes the assets, vendor a new table file and drop that patch's alias.
+_TABLE_ALIASES = {
+    "2.31": "2.13",
+    "2.3": "2.13",
+    "2.21": "2.13",
+    "2.2": "2.13",
+}
+
+
+def resolve_table_key(patch: str) -> str:
+    """Map a patch label to the vendored table key whose files exist on disk.
+
+    A patch with its own tables resolves to itself; aliased patches (which share
+    assets with an earlier patch) resolve to the shared key.
+    """
+    return _TABLE_ALIASES.get(patch, patch)
+
+
 def resolve_assets(
     cc_settings: dict,
     game_dir: Path = None,
@@ -32,7 +53,8 @@ def resolve_assets(
     if not patch:
         raise MappingError("No patch version found in CC settings.")
 
-    mapping_file = Path(__file__).parent / "data" / "mappings" / f"{patch}.json"
+    table_key = resolve_table_key(patch)
+    mapping_file = Path(__file__).parent / "data" / "mappings" / f"{table_key}.json"
     if not mapping_file.exists():
         raise MappingError(f"MappingNotFoundError: no mapping vendored for patch {patch}.")
 
@@ -45,10 +67,11 @@ def resolve_assets(
 
     rig_map = mapping[body_rig]
 
-    # Load Tier 1 index via part_resolver
+    # Load Tier 1 index via part_resolver (keyed by the shared table key so the
+    # cache is reused across aliased patches).
     from .part_resolver import get_or_create_index
 
-    index = get_or_create_index(patch, game_dir=game_dir, verbosity=1, wk=wk)
+    index = get_or_create_index(table_key, game_dir=game_dir, verbosity=1, wk=wk)
 
     asset_paths = {
         "patch": patch,

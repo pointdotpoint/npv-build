@@ -6,7 +6,7 @@ from npv_build.save_probe import format_probe, probe_save
 def test_probe_reports_version_and_nodes(synth_save_2310):
     info = probe_save(synth_save_2310)
     assert info["version"][1] == info["build"]
-    assert info["patch"] == "2.13"
+    assert info["patch"] == "2.31"
     assert info["supported"] is True
     assert info["cc_node_present"] is True
     assert info["cc_node_size"] > 0
