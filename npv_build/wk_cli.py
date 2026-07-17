@@ -8,6 +8,7 @@ rather than calling subprocess.run directly.
 from __future__ import annotations
 
 import json
+import logging
 import re as _re
 import shutil
 import subprocess
@@ -17,13 +18,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .core.cancel import CancelToken
+from .core.errors import ToolError
+from .core.proc import run_tool
 
-class WolvenKitError(Exception):
+logger = logging.getLogger(__name__)
+
+
+class WolvenKitError(ToolError):
     def __init__(self, message: str, *, operation: str = "", exit_code: int = -1):
-        super().__init__(message)
-        self.module_name = "WolvenKit Automation"
+        super().__init__(message, exit_code=exit_code, module_name="WolvenKit Automation")
         self.operation = operation
-        self.exit_code = exit_code
 
 
 SUPPORTED_VERSION_PREFIX = "8.18."
@@ -34,6 +39,8 @@ class WolvenKitConfig:
     game_dir: Path | None = None
     cli_binary: str = "WolvenKit.CLI"
     verbosity: int = 0
+    timeout_s: float = 600.0
+    cancel: CancelToken | None = None
 
     @property
     def appearance_archive(self) -> Path:
@@ -90,21 +97,10 @@ class WolvenKit:
         """List depot paths matching a regex. Returns filtered lines."""
         archive = archive or self._cfg.appearance_archive
         # Always capture stdout regardless of verbosity — the output IS the data.
-        cmd = [self._cfg.cli_binary, "archive", str(archive), "-l", "--regex", pattern]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True)
-        except FileNotFoundError as e:
-            raise WolvenKitError(
-                f"{self._cfg.cli_binary} not found in PATH.",
-                operation="archive list",
-            ) from e
-        if result.returncode != 0:
-            tail = ((result.stderr or "") + (result.stdout or ""))[-1500:]
-            raise WolvenKitError(
-                f"archive list failed (exit {result.returncode}).\n{tail}",
-                operation="archive list",
-                exit_code=result.returncode,
-            )
+        result = self._run(
+            ["archive", str(archive), "-l", "--regex", pattern],
+            operation="archive list",
+        )
         return [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
 
     # -- batch uncook (caller owns the output dir) -------------------------
@@ -262,18 +258,7 @@ class WolvenKit:
 
     def check_version(self) -> str:
         """Check CLI version. Warns on mismatch, raises only if binary missing."""
-        try:
-            result = subprocess.run(
-                [self._cfg.cli_binary, "--version"],
-                capture_output=True,
-                text=True,
-            )
-        except FileNotFoundError as e:
-            raise WolvenKitError(
-                f"{self._cfg.cli_binary} not found in PATH. "
-                "Install WolvenKit CLI and ensure it is on PATH.",
-                operation="version",
-            ) from e
+        result = self._run(["--version"], operation="version")
         version = (result.stdout or "").strip()
         if not version.startswith(SUPPORTED_VERSION_PREFIX):
             print(
@@ -306,34 +291,28 @@ class WolvenKit:
             print(f"[WolvenKit] $ {' '.join(cmd)}")
 
         try:
-            result = subprocess.run(
+            result = run_tool(
                 cmd,
-                capture_output=True,
-                text=True,
+                tool=self._cfg.cli_binary,
+                timeout=self._cfg.timeout_s,
+                cancel=self._cfg.cancel,
+                allow_exit_codes=tuple(allow_exit_codes),
+                logger=logger,
             )
-            if stream:
-                if result.stdout:
-                    sys.stdout.write(result.stdout)
-                if result.stderr:
-                    sys.stderr.write(result.stderr)
-        except FileNotFoundError as e:
+        except WolvenKitError:
+            raise
+        except ToolError as e:
             raise WolvenKitError(
-                f"{self._cfg.cli_binary} not found in PATH. "
-                "Install WolvenKit CLI and ensure it is on PATH.",
+                f"{operation}: {self._cfg.cli_binary} {args[0]} failed: {e.user_message}"
+                + (f"\n{e.details}" if e.details else ""),
                 operation=operation,
+                exit_code=e.exit_code if e.exit_code is not None else -1,
             ) from e
 
-        ok_codes = {0} | set(allow_exit_codes)
-        if result.returncode not in ok_codes:
-            tail = ""
-            if not stream:
-                raw = (result.stderr or "") + (result.stdout or "")
-                tail = raw[-1500:]
-            raise WolvenKitError(
-                f"{operation}: {self._cfg.cli_binary} {args[0]} "
-                f"exited with code {result.returncode}." + (f"\n{tail}" if tail else ""),
-                operation=operation,
-                exit_code=result.returncode,
-            )
+        if stream:
+            if result.stdout:
+                sys.stdout.write(result.stdout)
+            if result.stderr:
+                sys.stderr.write(result.stderr)
 
-        return result
+        return subprocess.CompletedProcess(cmd, result.returncode, result.stdout, result.stderr)
