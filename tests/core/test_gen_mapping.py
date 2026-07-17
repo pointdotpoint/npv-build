@@ -1,4 +1,9 @@
-from npv_build.gen_mapping import diff_mapping, format_report, mapping_report
+from npv_build.gen_mapping import (
+    diff_mapping,
+    extract_index_head_paths,
+    format_report,
+    mapping_report,
+)
 
 
 def test_diff_finds_missing_and_unmapped():
@@ -30,6 +35,60 @@ def test_diff_mapping_empty_inputs():
     missing, unmapped = diff_mapping(set(), set())
     assert missing == set()
     assert unmapped == set()
+
+
+def test_extract_index_head_paths_excludes_hair_and_tattoo_and_item_stems():
+    # Real part_ents shapes observed in the 2.13 game index: hair (hh_),
+    # tattoo/scar (hx_), facial hair (hb_), and item/earring (i1_) .ent files
+    # all live under player_base_heads alongside baseheads, but are never
+    # referenced by head_preset_parts -- they must not appear as candidates.
+    index = {
+        "part_ents": {
+            "hh_044_pma__hairs_140_fpp": (
+                r"base\characters\head\player_base_heads\appearances\entity"
+                r"\hairs\fpp\hh_044_pma__hairs_140_fpp.ent"
+            ),
+            "hx_000_pwa__tattoo_09": (
+                r"base\characters\head\player_base_heads\appearances\entity"
+                r"\tattoo\hx_000_pwa__tattoo_09.ent"
+            ),
+            "hb_000_pma__fu_manchu": (
+                r"base\characters\head\player_base_heads\appearances\entity"
+                r"\facial_hairs\hb_000_pma__fu_manchu.ent"
+            ),
+            "i1_000_pwa_earring__basehead_04": (
+                r"base\characters\head\player_base_heads\appearances\entity"
+                r"\items\i1_000_pwa_earring__basehead_04.ent"
+            ),
+        }
+    }
+    assert extract_index_head_paths(index) == set()
+
+
+def test_extract_index_head_paths_includes_basehead_family_stems():
+    # The four prefixes actually present in data/mappings/2.13.json's
+    # head_preset_parts: h0_/he_/ht_ (head dir) and heb_ (face_decals dir).
+    index = {
+        "part_ents": {
+            "h0_000_pwa__basehead": (
+                r"base\characters\head\player_base_heads\appearances\entity"
+                r"\head\h0_000_pwa__basehead.ent"
+            ),
+            "he_000_pwa__basehead": (
+                r"base\characters\head\player_base_heads\appearances\entity"
+                r"\head\he_000_pwa__basehead.ent"
+            ),
+            "ht_000_pwa__basehead": (
+                r"base\characters\head\player_base_heads\appearances\entity"
+                r"\head\ht_000_pwa__basehead.ent"
+            ),
+            "heb_000_pwa__basehead": (
+                r"base\characters\head\player_base_heads\appearances\entity"
+                r"\face_decals\heb_000_pwa__basehead.ent"
+            ),
+        }
+    }
+    assert extract_index_head_paths(index) == set(index["part_ents"].values())
 
 
 def test_mapping_report_composes_extract_and_diff(monkeypatch):
@@ -66,7 +125,12 @@ def test_mapping_report_composes_extract_and_diff(monkeypatch):
         "part_ents": {
             "h0_000_pwa__basehead": r"base\characters\head\player_base_heads\appearances\entity\head\h0_000_pwa__basehead.ent",
             "h0_000_pma__basehead": r"base\characters\head\player_base_heads\appearances\entity\head\h0_000_pma__basehead.ent",
-            "new_head_pwa": r"base\characters\head\player_base_heads\appearances\entity\head\new_head_pwa.ent",
+            # A new, unmapped basehead-family entry -- a genuine candidate.
+            "h0_001_pwa__basehead": r"base\characters\head\player_base_heads\appearances\entity\head\h0_001_pwa__basehead.ent",
+            # A hair .ent under the same player_base_heads tree -- structurally
+            # never covered by head_preset_parts, so must NOT surface as a
+            # candidate (this is the false-positive noise being filtered out).
+            "hh_044_pma__hairs_140_fpp": r"base\characters\head\player_base_heads\appearances\entity\hairs\fpp\hh_044_pma__hairs_140_fpp.ent",
         },
         "head_apps": {},
         "app_appearances": {},
@@ -81,7 +145,7 @@ def test_mapping_report_composes_extract_and_diff(monkeypatch):
         r"base\characters\head\player_base_heads\appearances\entity\head\gone_pwa.ent"
     ]
     assert report["unmapped_candidates"] == [
-        r"base\characters\head\player_base_heads\appearances\entity\head\new_head_pwa.ent"
+        r"base\characters\head\player_base_heads\appearances\entity\head\h0_001_pwa__basehead.ent"
     ]
     assert report["checked"] == 3  # 2 pwa head_preset_parts + 1 pma head_preset_parts
 

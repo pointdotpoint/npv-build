@@ -46,7 +46,10 @@ def main(argv: list[str] | None = None):
         "--mapping-report",
         action="store_true",
         help="Diff the vendored CC mapping against the game's live asset index "
-        "(missing/unmapped head parts), then exit.",
+        "(missing/unmapped head parts), then exit. Unmapped candidates are "
+        "scoped to head-preset basehead stems only (h0_/he_/ht_/heb_); hair, "
+        "tattoo, facial-hair, and item .ent files are resolved separately "
+        "and are not candidates here.",
     )
     parser.add_argument(
         "--mapping-patch",
