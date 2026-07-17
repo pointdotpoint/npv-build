@@ -250,38 +250,81 @@ def _restore_part_materials(
 def verify_morphtarget(
     wk: WolvenKit,
     morphtarget_path: Path,
-    expected_min_targets: int = 1,
+    expected_targets: int | None = None,
 ) -> int:
     """Verify a baked .morphtarget survived WolvenKit import with its shapekeys intact.
 
     Guards WolvenKit issue #849: the import --keep step has been observed to
     silently drop shape-key (morph target) data, producing a .morphtarget
-    that loads fine in-game but deforms nothing. We serialize the produced
-    file back to JSON and count Data.RootChunk.targets (confirmed against a
-    real WolvenKit 8.19.0 serialize() of a freshly-baked morphtarget — there
-    is no numTargets scalar; the count is len(targets)).
+    that loads fine in-game but deforms nothing or deforms only partially
+    (e.g. 105 -> 40 channels). We serialize the produced file back to JSON
+    and count Data.RootChunk.targets (confirmed against a real WolvenKit
+    8.19.0 serialize() of a freshly-baked morphtarget — there is no
+    numTargets scalar; the count is len(targets)).
 
-    Returns the found target count. Raises BakeVerificationError if fewer
-    than expected_min_targets targets are present.
+    expected_targets should be the target count read from the SOURCE
+    (uncooked) morphtarget JSON written before cooking — the stock
+    morphtarget carries the full fixed channel set (~105) and the cooked
+    result must match it exactly; any loss indicates WK#849. When the
+    caller can't determine the source count, pass None: verification falls
+    back to a bare "at least one target" floor and logs a warning, since a
+    hard equality check isn't possible without a known-good baseline.
+
+    Returns the found target count. Raises BakeVerificationError if the
+    found count is below expected_targets (or below 1, in fallback mode).
     """
     with tempfile.TemporaryDirectory() as td:
         json_path = wk.serialize(morphtarget_path, dest=Path(td))
         data = json.loads(json_path.read_text(encoding="utf-8"))
 
-    targets = data.get("Data", {}).get("RootChunk", {}).get("targets", [])
-    found = len(targets)
+    root_chunk = data.get("Data", {}).get("RootChunk", {})
+    if "targets" not in root_chunk:
+        raise BakeVerificationError(
+            f"Baked morphtarget {morphtarget_path.name} has no 'targets' key in Data.RootChunk",
+            remediation=(
+                "Unexpected morphtarget JSON shape from WolvenKit — schema "
+                "may have changed. This is not the known shape-key-loss "
+                "pattern (the JSON is missing the expected key entirely, "
+                "not merely short). Check the installed WolvenKit version "
+                "and, if it changed recently, file an npv-build issue."
+            ),
+            details=f"morphtarget={morphtarget_path}, keys={sorted(root_chunk.keys())}",
+        )
 
-    if found < expected_min_targets:
+    found = len(root_chunk["targets"])
+
+    if expected_targets is None:
+        logger.warning(
+            f"[Head] source morphtarget target count unavailable for "
+            f"{morphtarget_path.name}; falling back to minimum-1 verification"
+        )
+        floor = 1
+        if found < floor:
+            raise BakeVerificationError(
+                f"Baked morphtarget {morphtarget_path.name} has {found} shape "
+                f"target(s), expected at least {floor}",
+                remediation=(
+                    "WolvenKit's import --keep step has a known bug (WolvenKit "
+                    "issue #849) that can silently drop shape-key data during "
+                    "mesh import. Re-run the bake, or check for a WolvenKit "
+                    "update that fixes #849."
+                ),
+                details=f"morphtarget={morphtarget_path}, found={found}, expected>={floor}",
+            )
+    elif found < expected_targets:
         raise BakeVerificationError(
             f"Baked morphtarget {morphtarget_path.name} has {found} shape "
-            f"target(s), expected at least {expected_min_targets}",
+            f"target(s), expected {expected_targets} (matching the source "
+            f"morphtarget)",
             remediation=(
                 "WolvenKit's import --keep step has a known bug (WolvenKit "
                 "issue #849) that can silently drop shape-key data during "
-                "mesh import. Re-run the bake, or check for a WolvenKit "
-                "update that fixes #849."
+                "mesh import — typically some channels survive (e.g. "
+                "105 -> 40), not all, so a bare non-zero check can miss it. "
+                "Re-run the bake, or check for a WolvenKit update that fixes "
+                "#849."
             ),
-            details=f"morphtarget={morphtarget_path}, found={found}, expected>={expected_min_targets}",
+            details=f"morphtarget={morphtarget_path}, found={found}, expected={expected_targets}",
         )
 
     logger.info(f"[Head] verified morphtarget {morphtarget_path.name}: {found} shape targets")

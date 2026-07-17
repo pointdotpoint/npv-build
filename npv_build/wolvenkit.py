@@ -1015,11 +1015,29 @@ def build_project(
 
     # Verify the baked morphtarget survived the JSON->binary cook with its
     # shapekeys intact (spec PC-6, guards WolvenKit issue #849 shape-key
-    # loss). Only applies when a bake actually produced one; user-supplied
-    # mesh/GLB overrides may not.
+    # loss, which typically drops SOME channels rather than all of them —
+    # e.g. 105 -> 40). Only applies when a bake actually produced one;
+    # user-supplied mesh/GLB overrides may not. The expected count is read
+    # from the SOURCE (uncooked) morphtarget JSON that head_bake wrote
+    # before this cook step — it carries the stock/full fixed channel set,
+    # so the cooked result must match it exactly. The source JSON is still
+    # on disk here; it's deleted a few lines below.
     morphtarget_cooked = source_dir / "base" / "npv-build" / mod_id / f"{mod_id}_morphs.morphtarget"
     if morphtarget_cooked.exists():
-        verify_morphtarget(wk, morphtarget_cooked)
+        morphtarget_source_json = morphtarget_cooked.parent / f"{morphtarget_cooked.name}.json"
+        expected_targets = None
+        if morphtarget_source_json.exists():
+            try:
+                source_data = json.loads(morphtarget_source_json.read_text(encoding="utf-8"))
+                expected_targets = len(
+                    source_data.get("Data", {}).get("RootChunk", {}).get("targets", [])
+                )
+            except (OSError, json.JSONDecodeError, AttributeError, TypeError) as e:
+                logger.warning(
+                    f"[Head] could not read source morphtarget JSON for expected "
+                    f"target count ({e}); falling back to minimum-1 verification"
+                )
+        verify_morphtarget(wk, morphtarget_cooked, expected_targets=expected_targets)
 
     for p in list(source_dir.rglob("*.json")):
         p.unlink()
