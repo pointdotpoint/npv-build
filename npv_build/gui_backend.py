@@ -173,7 +173,12 @@ def check_dependencies(game_dir: Path | None) -> dict:
 
 
 def preview_save(save_path: Path) -> dict:
-    """Parse save file and return summary. Raises SaveParserError on failure."""
+    """Parse save file and return summary.
+
+    Raises:
+        SaveParserError: If save file format is invalid.
+        UnsupportedPatchError: If the game build/patch is not supported.
+    """
     cc_settings = parse_save(save_path)
     return {
         "body_rig": cc_settings.get("body_rig", "Unknown"),

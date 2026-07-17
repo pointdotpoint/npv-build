@@ -10,6 +10,7 @@ import customtkinter as ctk
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from .config import get_cache_dir, load_config, save_config
+from .core.errors import NpvError
 from .gui_backend import BuildWorker, InstallerWorker, check_dependencies, preview_save
 from .save_parser import SaveParserError
 
@@ -724,6 +725,11 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.lbl_prev_rig.configure(text="Rig: Error", text_color=STATUS_RED)
             self.lbl_prev_skin.configure(text="Skin: Error", text_color=STATUS_RED)
             self.lbl_prev_hair.configure(text=f"Err: {str(e)[:25]}", text_color=STATUS_RED)
+            self.lbl_prev_selections.configure(text="Selections: Error", text_color=STATUS_RED)
+        except NpvError as e:
+            self.lbl_prev_rig.configure(text="Rig: Error", text_color=STATUS_RED)
+            self.lbl_prev_skin.configure(text="Skin: Error", text_color=STATUS_RED)
+            self.lbl_prev_hair.configure(text=f"Err: {e.user_message[:25]}", text_color=STATUS_RED)
             self.lbl_prev_selections.configure(text="Selections: Error", text_color=STATUS_RED)
 
     def clear_preview(self):
