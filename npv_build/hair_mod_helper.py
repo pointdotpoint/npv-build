@@ -4,8 +4,9 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from .core.errors import InstallError
+from .core.errors import InstallError, SecurityError
 from .core.proc import run_tool
+from .core.safe_extract import is_safe_member, safe_extract_7z
 
 
 def derive_hair_name(archive_filename: str) -> str:
@@ -117,7 +118,7 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
 
             if targets:
                 with tempfile.TemporaryDirectory() as td:
-                    sz.extract(targets=targets, path=td)
+                    safe_extract_7z(source_path, Path(td), targets=targets)
                     for fname in targets:
                         src_extracted = Path(td) / fname
                         if src_extracted.exists():
@@ -137,8 +138,23 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
             )
 
         with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
             run_tool(["unrar", "x", "-y", str(source_path), td], tool="unrar", timeout=300)
-            for p in Path(td).rglob("*"):
+
+            # unrar can't be pre-validated via py7zr; validate post-extract that no
+            # extracted member resolved outside the temp dir (e.g. via a symlink or
+            # traversal that unrar itself resolved on disk).
+            for p in td_path.rglob("*"):
+                rel = str(p.relative_to(td_path))
+                if not is_safe_member(rel, td_path):
+                    shutil.rmtree(td_path, ignore_errors=True)
+                    raise SecurityError(
+                        f"Archive member escapes the extraction directory: {p.name!r}",
+                        remediation="The archive may be malicious or corrupt; do not extract it.",
+                        details=f"dest={td_path}",
+                    ) from None
+
+            for p in td_path.rglob("*"):
                 if p.is_file():
                     lower_name = p.name.lower()
                     if lower_name.endswith(".archive") or lower_name.endswith(".xl"):

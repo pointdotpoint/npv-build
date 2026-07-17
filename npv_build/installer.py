@@ -1,13 +1,15 @@
 import shutil
 import sys
-import tarfile
+import tempfile
+import urllib.error
 import urllib.request
-import zipfile
 from pathlib import Path
 
 from .config import get_cache_dir
-from .core.errors import InstallError, ToolError
+from .core.checksums import verify_from_sums
+from .core.errors import InstallError, SecurityError, ToolError
 from .core.proc import run_tool
+from .core.safe_extract import safe_extract_tar, safe_extract_zip
 
 
 def download_file(url: str, dest_path: Path, progress_callback=None):
@@ -165,6 +167,46 @@ def build_npv_inject(tools_dir: Path, progress_callback):
     progress_callback("npv-inject compiled successfully.", 100)
 
 
+def _extract_blender_archive(archive: Path, dest: Path) -> None:
+    """Safely extract a Blender release archive (.zip or .tar.xz) to dest.
+
+    Dispatches by suffix to the path-traversal-safe helpers (spec SEC-1).
+    Raises SecurityError if any member would escape dest.
+    """
+    suffix = archive.suffix.lower()
+    if suffix == ".zip":
+        safe_extract_zip(archive, dest)
+    else:
+        # .tar.xz / .txz and friends
+        safe_extract_tar(archive, dest)
+
+
+def _verify_blender_download(url: str, temp_archive: Path, archive_name: str) -> None:
+    """Fetch blender.org's published checksum for this release and verify it.
+
+    blender.org publishes a `<file>.sha256` alongside each download. If that
+    checksum can't be fetched (e.g. 404 for the pinned version), this is a
+    hard failure -- we never skip verification.
+    """
+    sums_url = url + ".sha256"
+    with tempfile.TemporaryDirectory() as td:
+        sums_path = Path(td) / f"{archive_name}.sha256"
+        try:
+            download_file(sums_url, sums_path)
+        except (urllib.error.URLError, InstallError, OSError) as e:
+            raise SecurityError(
+                f"Could not fetch Blender checksum from {sums_url}.",
+                remediation=(
+                    "The pinned Blender release may have been removed from blender.org. "
+                    "Refusing to install an unverified download."
+                ),
+                details=str(e),
+            ) from e
+
+        sums_text = sums_path.read_text()
+        verify_from_sums(temp_archive, sums_text, archive_name)
+
+
 def install_blender(tools_dir: Path, progress_callback):
     """Download and extract Blender 4.2.0 LTS (portable zip/tarball)."""
     progress_callback("Starting Blender 4.2.0 LTS download...", 0)
@@ -176,26 +218,24 @@ def install_blender(tools_dir: Path, progress_callback):
 
     if sys.platform == "win32":
         url = "https://download.blender.org/release/Blender4.2/blender-4.2.0-windows-x64.zip"
-        archive_name = "blender.zip"
+        archive_name = "blender-4.2.0-windows-x64.zip"
     else:
         url = "https://download.blender.org/release/Blender4.2/blender-4.2.0-linux-x64.tar.xz"
-        archive_name = "blender.tar.xz"
+        archive_name = "blender-4.2.0-linux-x64.tar.xz"
 
     temp_archive = tools_dir / archive_name
 
     def download_progress(pct):
-        progress_callback(f"Downloading Blender 4.2.0 LTS ({pct}%)...", int(pct * 0.8))
+        progress_callback(f"Downloading Blender 4.2.0 LTS ({pct}%)...", int(pct * 0.7))
 
     download_file(url, temp_archive, download_progress)
 
+    progress_callback("Verifying Blender download checksum...", 75)
+    _verify_blender_download(url, temp_archive, archive_name)
+
     progress_callback("Extracting Blender package (this may take a few seconds)...", 85)
 
-    if sys.platform == "win32":
-        with zipfile.ZipFile(temp_archive, "r") as zip_ref:
-            zip_ref.extractall(blender_dir)
-    else:
-        with tarfile.open(temp_archive, "r:xz") as tar_ref:
-            tar_ref.extractall(blender_dir)
+    _extract_blender_archive(temp_archive, blender_dir)
 
     if temp_archive.exists():
         temp_archive.unlink()

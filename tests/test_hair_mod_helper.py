@@ -5,7 +5,7 @@ from pathlib import Path
 import py7zr
 import pytest
 
-from npv_build.core.errors import InstallError, ToolError
+from npv_build.core.errors import InstallError, SecurityError, ToolError
 from npv_build.hair_mod_helper import derive_hair_name, install_hair_mod
 
 
@@ -156,6 +156,62 @@ def test_install_hair_mod_rar_missing_unrar_raises_install_error(tmp_path, monke
     monkeypatch.setattr(shutil, "which", lambda cmd: None)
 
     with pytest.raises(InstallError):
+        install_hair_mod(rar_path, game_dir)
+
+
+def test_install_hair_mod_7z_zip_slip_raises_security_error(tmp_path, monkeypatch):
+    """A 7z archive with a path-traversal member must raise SecurityError, not extract.
+
+    py7zr's own writer API refuses to author a traversal path (check_archive_path),
+    so a legitimately-built .7z can't smuggle one in via writestr(). We instead
+    patch SevenZipFile.getnames() to report a malicious member name, exercising
+    the same is_safe_member() gate that a hand-crafted malicious archive would hit.
+    """
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    game_dir = tmp_path / "game"
+
+    sevenz_path = src_dir / "evil.7z"
+    with py7zr.SevenZipFile(sevenz_path, "w") as sz:
+        sz.writestr("dummy archive content", "archive/pc/mod/fhair_zara.archive")
+
+    monkeypatch.setattr(py7zr.SevenZipFile, "getnames", lambda self: ["../../escape.archive"])
+
+    with pytest.raises(SecurityError):
+        install_hair_mod(sevenz_path, game_dir)
+
+
+def test_install_hair_mod_rar_zip_slip_raises_security_error(tmp_path, monkeypatch):
+    """If unrar extracts a member outside the temp dir, must raise SecurityError + clean up."""
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    game_dir = tmp_path / "game"
+
+    rar_path = src_dir / "evil.rar"
+    rar_path.write_text("fake rar data")
+
+    monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/unrar" if cmd == "unrar" else None)
+
+    escape_target = tmp_path / "escaped.archive"
+
+    def mock_run_tool(argv, **kwargs):
+        # Simulate unrar writing a file that escapes the extraction dir
+        # (e.g. via a symlink or absolute path trick already resolved on disk).
+        extract_path = Path(argv[-1])
+        extract_path.mkdir(parents=True, exist_ok=True)
+        escape_target.write_text("escaped content")
+        # Symlink inside the temp dir pointing outside it.
+        link = extract_path / "escape_link.archive"
+        link.symlink_to(escape_target)
+        from npv_build.core.proc import ToolResult
+
+        return ToolResult(argv=list(argv), returncode=0, stdout="success", stderr="")
+
+    import npv_build.hair_mod_helper as hair_mod_helper
+
+    monkeypatch.setattr(hair_mod_helper, "run_tool", mock_run_tool)
+
+    with pytest.raises(SecurityError):
         install_hair_mod(rar_path, game_dir)
 
 

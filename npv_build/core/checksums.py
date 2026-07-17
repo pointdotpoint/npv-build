@@ -31,7 +31,14 @@ def verify_sha256(path: Path, expected: str) -> None:
 def verify_from_sums(path: Path, sums_text: str, filename: str) -> None:
     for line in sums_text.splitlines():
         parts = line.split()
-        if len(parts) >= 2 and parts[-1].lstrip("*") == filename:
+        if len(parts) < 2:
+            continue
+        name = parts[-1]
+        # sha256sum's "binary mode" marker is a single leading '*', not an
+        # arbitrary run of them -- only strip one.
+        if name.startswith("*"):
+            name = name[1:]
+        if name == filename:
             verify_sha256(path, parts[0])
             return
     raise SecurityError(
