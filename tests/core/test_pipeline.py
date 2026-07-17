@@ -97,6 +97,62 @@ def test_failed_event_on_stage_error(fake_stages, tmp_path, monkeypatch):
     assert any(e.kind == "failed" and e.stage == "resolve_assets" for e in events)
 
 
+def test_cc_settings_and_asset_paths_json_written_before_assemble(fake_stages, tmp_path, monkeypatch):
+    # build_project (invoked inside _run_assemble) reads cc_settings.json and
+    # asset_paths.json directly from output_dir via `open(...)` — not via any
+    # in-memory argument. If the pipeline stops writing these files, build_project's
+    # modded-eye suppression and genital-component filtering silently no-op. Assert
+    # the files exist with the expected content at the moment _run_assemble runs.
+    seen = {}
+
+    def fake_assemble(req, wk, mod_id, asset_paths, cc):
+        cc_file = req.output_dir / "cc_settings.json"
+        asset_file = req.output_dir / "asset_paths.json"
+        seen["cc_exists"] = cc_file.exists()
+        seen["asset_exists"] = asset_file.exists()
+        seen["cc_content"] = json.loads(cc_file.read_text()) if cc_file.exists() else None
+        seen["asset_content"] = json.loads(asset_file.read_text()) if asset_file.exists() else None
+
+    monkeypatch.setattr(pl, "_run_assemble", fake_assemble)
+
+    PipelineService().build(_req(tmp_path))
+
+    assert seen["cc_exists"], "cc_settings.json must exist on disk before build_project runs"
+    assert seen["asset_exists"], "asset_paths.json must exist on disk before build_project runs"
+    assert seen["cc_content"] == {"patch": "2.13", "body_rig": "pwa"}
+    assert seen["asset_content"] == {"head": "x"}
+
+    # Also still present after the full build (not deleted by a later stage).
+    out = tmp_path / "out"
+    assert json.loads((out / "cc_settings.json").read_text()) == {"patch": "2.13", "body_rig": "pwa"}
+    assert json.loads((out / "asset_paths.json").read_text()) == {"head": "x"}
+
+
+def test_cc_settings_json_rewritten_on_resume_even_if_resolve_assets_skipped(fake_stages, tmp_path):
+    # Simulate the resume path: resolve_assets is skipped (cached), but
+    # build_project must still find cc_settings.json / asset_paths.json on disk
+    # for THIS process invocation, since it re-reads them fresh each run.
+    svc = PipelineService()
+    svc.build(_req(tmp_path))
+    fake_stages.clear()
+
+    out = tmp_path / "out"
+    # Simulate a fresh process: delete the diagnostic JSON files that a prior
+    # process run would have written, but keep the manifest + archive artifact
+    # so resolve_assets/assemble are eligible to be skipped on resume.
+    (out / "cc_settings.json").unlink()
+    (out / "asset_paths.json").unlink()
+    arch = out / "archive" / "pc" / "mod"
+    arch.mkdir(parents=True, exist_ok=True)
+    (arch / "fake.archive").write_bytes(b"a")
+
+    svc.build(_req(tmp_path, resume=True))
+
+    assert "resolve_assets" not in fake_stages  # confirms it really was skipped
+    assert (out / "cc_settings.json").exists()
+    assert (out / "asset_paths.json").exists()
+
+
 def test_emit_amm_lua_includes_external_dependency_warning(fake_stages, tmp_path, monkeypatch):
     from npv_build.orchestrator import write_amm_lua as real_write_amm_lua
 

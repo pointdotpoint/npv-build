@@ -188,6 +188,11 @@ def run_orchestrator(
         restore_head_materials=restore_head_materials,
     )
 
+    # NOTE: run_orchestrator does not pass a `cancel` token to PipelineService
+    # today, so PipelineCancelled cannot actually be raised here yet. If/when
+    # cancel wiring is added to this function, PipelineCancelled must NOT be
+    # caught by the blanket `except Exception` below and re-wrapped as
+    # OrchestratorError — callers need to distinguish "cancelled" from "failed".
     try:
         result = PipelineService().build(req)
     except (MappingError, SaveParserError, WolvenKitError) as e:

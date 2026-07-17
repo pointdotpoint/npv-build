@@ -234,6 +234,18 @@ class PipelineService:
             if cancel is not None:
                 cancel.raise_if_cancelled()
 
+            # build_project reads cc_settings.json / asset_paths.json from out_dir
+            # directly (wolvenkit.py: cc_selections for modded-eye suppression,
+            # genital_selection for genital component filtering). Write them
+            # unconditionally here — not gated on resolve_assets actually having
+            # run this call — so a resumed build that skipped resolve_assets (and
+            # therefore never re-wrote these files this process) still has them
+            # on disk before build_project runs.
+            with open(req.output_dir / "cc_settings.json", "w") as f:
+                json.dump(cc_settings, f, indent=2)
+            with open(req.output_dir / "asset_paths.json", "w") as f:
+                json.dump(asset_paths, f, indent=2)
+
             assemble_hash = _hash_input(
                 [
                     asset_paths,
