@@ -206,3 +206,24 @@ Both spike mods installed to the game dir 2026-07-17 (install log: `/tmp/claude-
 - **H2** `zz_axl_spike_h2`: archive `zz_axl_spike_h2.archive` + `zz_axl_spike_h2.archive.xl` (patches our appearance onto stock `judy.app`) + AMM lua pointing at stock `judy.ent`. Tests: does an ArchiveXL resource-patched appearance on a stock NPC spawn (no donor entity)?
 
 **Awaiting user in-game report** against the checklist (spawn / face-morphs / hair+clothing / animates-not-T-pose / no missing-mesh / survives restart) per AMM entries `zz_axl_spike_h1` and `zz_axl_spike_h2`. Verdicts feed T5's ADR decision matrix.
+
+## T4 — In-game results (user-reported 2026-07-17)
+
+### H1 (`zz_axl_spike_h1`, WolvenKit round-trip .app, no npv-inject): SPAWNED, with defects
+- V spawned — **not** a T-pose, not invisible. The round-trip .app produced a functioning, animated NPV. This is the load-bearing positive result for H1: WolvenKit serialize→deserialize CAN stand in for npv-inject at the "does it spawn and animate" level.
+- Defects reported:
+  1. **Overlapping/double eye colors** — stock eyes rendering under custom eyes → the modded-eye suppression (`cc_selections` read from `cc_settings.json`, wolvenkit.py ~L725) did not take effect for this spike .app.
+  2. **Wrong piercings, no body tattoos** — these correspond to the many "Unresolved selection (fallback used)" warnings in the ORIGINAL e2e build log (piercings, tattoos, makeup). They are **pre-existing mapping-resolution gaps in the e2e NPV**, present before the spike, NOT introduced by the H1 round-trip.
+- **Interpretation:** H1's spawn/animation success is real. The eye-overlap is the one defect that could be H1-specific (a component the round-trip altered vs. what npv-inject writes) OR the same cc_selections gap — needs a JSON compare of the round-trip .app's eye-suppression components vs the npv-inject .app. The piercing/tattoo issues are out of scope for H1 (mapping problem, tracked separately).
+- **H1 verdict: PROMISING, not clean.** Round-trip is viable for spawn+anim; one appearance-fidelity defect (eyes) needs root-causing before npv-inject can be retired with confidence. NOT a clean YES; NOT a NO.
+
+### H2 (`zz_axl_spike_h2`, ArchiveXL patch onto stock judy.app): FAILED — spawned stock naked Judy, not V
+- ArchiveXL log (`ArchiveXL-2026-07-17-16-33-53.log`) shows: `Loading "zz_axl_spike_h2.archive.xl"...` (loaded, twice across two game launches) — BUT **no `[ResourcePatch]` line for our patch at all** (the only ResourcePatch entries are unrelated errors from Photomode_NPCs' `femv_boobs` patches). AXL parsed our .xl but did not apply the `resource: patch:` block to `judy.app`.
+- Result in-game: AMM spawned the stock `judy.ent` with no appearance applied → **naked default Judy**, confirming the appearance was never patched in.
+- **Likely cause:** the T1-flagged untested caveat — our patch .app was custom-pathed under `base\zz_axl_spike\h2\...`, and/or the `resource: patch:` path form / key didn't match what AXL 1.14 expects for a `.app`→`.app` appearance patch. The patch file existed and loaded but produced no ResourcePatch action, which points at the patch-declaration/path, not a missing file (a missing file logs a "doesn't exist" error, which ours did NOT get — so the file resolved, but the patch was a no-op).
+- **H2 verdict: FAILED as-built.** Not proven impossible (the mechanism is real and used by other mods on this install), but this spike artifact did not apply. Would need: (a) move the patch .app out of `base\` per the wiki custom-path rule, (b) verify the exact `resource: patch:` shape against a working `.app`-patch example (`rm_acc_wrist_rolex.xl` found in T3), (c) re-test. That's a second spike iteration.
+
+### Decision-matrix inputs
+- H1 = PROMISING (spawn+anim proven; eye-fidelity defect to root-cause) → supports **retiring npv-inject** but with a fidelity caveat, not a clean green.
+- H2 = FAILED-as-built (loaded but no-op patch) → does **NOT** currently support retiring the donor entity; needs a second iteration to reach a real verdict.
+- Net: neither hypothesis is a clean YES this round. Branch decision leans **B (keep current design)** for now, with H1 as a tracked follow-up (root-cause the eye defect; if it's just cc_selections and not a round-trip loss, H1 graduates to A′) and H2 as a re-test (fix custom-path + patch syntax).
