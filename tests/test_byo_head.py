@@ -61,15 +61,18 @@ def test_cli_wrong_extension_head_glb(tmp_path):
             main()
 
 
-@patch("npv_build.cli.run_orchestrator")
+@patch("npv_build.cli.PipelineService")
 @patch("npv_build.cli.load_config")
-def test_cli_valid_glb_override(mock_load_config, mock_run_orchestrator, tmp_path):
+def test_cli_valid_glb_override(mock_load_config, mock_pipeline_service_cls, tmp_path):
     mock_load_config.return_value = {"game_dir": "/dummy/game/dir"}
     valid_glb = tmp_path / "valid.glb"
     valid_glb.write_text("dummy")
 
     cc_json = tmp_path / "cc.json"
     cc_json.write_text("{}")
+
+    mock_service = mock_pipeline_service_cls.return_value
+    mock_service.build.return_value = MagicMock(output_dir="out_dir")
 
     with patch(
         "sys.argv",
@@ -86,9 +89,9 @@ def test_cli_valid_glb_override(mock_load_config, mock_run_orchestrator, tmp_pat
     ):
         main()
 
-    mock_run_orchestrator.assert_called_once()
-    kwargs = mock_run_orchestrator.call_args[1]
-    assert kwargs["user_head_glb"] == valid_glb.resolve()
+    mock_service.build.assert_called_once()
+    req = mock_service.build.call_args[0][0]
+    assert req.user_head_glb == valid_glb.resolve()
 
 
 @patch("npv_build.head_bake._read_glb_json")

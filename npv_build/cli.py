@@ -1,13 +1,20 @@
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from .config import get_cache_dir, load_config, save_config
 from .core.errors import NpvError
+from .core.logging_setup import configure_logging
+from .core.pipeline import BuildRequest, PipelineService
 from .orchestrator import run_orchestrator
 
 
-def main():
+def _default_log_file(output_dir: Path) -> Path:
+    return output_dir / "logs" / f"build-{datetime.now():%Y%m%d-%H%M%S}.log"
+
+
+def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(
         description="NPV Automation - Build a mod package from a Cyberpunk 2077 save."
     )
@@ -92,6 +99,16 @@ def main():
         help="Export the stock head GLB for editing (then feed back via --head-glb) "
         "and exit. Requires --game-dir; needs a body rig.",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume a previous build, skipping stages whose inputs are unchanged.",
+    )
+    parser.add_argument(
+        "--log-file",
+        metavar="<path>",
+        help="Write logs to this file instead of the default output_dir/logs/build-<timestamp>.log.",
+    )
 
     verbosity_group = parser.add_mutually_exclusive_group()
     verbosity_group.add_argument("-v", action="count", default=0, help="Verbosity level 1.")
@@ -99,7 +116,7 @@ def main():
         "-vv", action="store_const", dest="v", const=2, help="Verbosity level 2."
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Shift single positional arg to npv_name if cc_json or dump_head_glb is present
     if args.save_dat and not args.npv_name:
@@ -158,25 +175,54 @@ def main():
     else:
         template_cache = get_cache_dir() / "templates"
 
+    output_dir = Path(args.output).resolve() if args.output else None
+    log_file = (
+        Path(args.log_file).resolve()
+        if args.log_file
+        else (_default_log_file(output_dir) if output_dir else None)
+    )
+    configure_logging(verbosity=args.v, log_file=log_file)
+
     try:
-        out_dir = run_orchestrator(
-            save_path=Path(args.save_dat).resolve() if args.save_dat else None,
-            cc_json_path=Path(args.cc_json).resolve() if args.cc_json else None,
-            npv_name=args.npv_name,
-            output_dir=Path(args.output).resolve() if args.output else None,
-            game_dir=Path(game_dir) if game_dir else None,
-            template_cache=template_cache,
-            clear_cache=args.clear_cache,
-            verbosity=args.v,
-            hair_override=args.hair,
-            skin_override=args.skin,
-            garments=args.garment,
-            user_head_glb=Path(args.head_glb).resolve() if args.head_glb else None,
-            user_head_mesh=Path(args.head_mesh).resolve() if args.head_mesh else None,
-            user_heb_mesh=Path(args.heb_mesh).resolve() if args.heb_mesh else None,
-            restore_head_materials=not args.no_restore_head_materials,
-            dump_head_glb=Path(args.dump_head_glb).resolve() if args.dump_head_glb else None,
-        )
+        if args.dump_head_glb:
+            out_dir = run_orchestrator(
+                save_path=Path(args.save_dat).resolve() if args.save_dat else None,
+                cc_json_path=Path(args.cc_json).resolve() if args.cc_json else None,
+                npv_name=args.npv_name,
+                output_dir=output_dir,
+                game_dir=Path(game_dir) if game_dir else None,
+                template_cache=template_cache,
+                clear_cache=args.clear_cache,
+                verbosity=args.v,
+                hair_override=args.hair,
+                skin_override=args.skin,
+                garments=args.garment,
+                user_head_glb=Path(args.head_glb).resolve() if args.head_glb else None,
+                user_head_mesh=Path(args.head_mesh).resolve() if args.head_mesh else None,
+                user_heb_mesh=Path(args.heb_mesh).resolve() if args.heb_mesh else None,
+                restore_head_materials=not args.no_restore_head_materials,
+                dump_head_glb=Path(args.dump_head_glb).resolve(),
+            )
+        else:
+            req = BuildRequest(
+                save_path=Path(args.save_dat).resolve() if args.save_dat else None,
+                npv_name=args.npv_name,
+                output_dir=output_dir,
+                game_dir=Path(game_dir) if game_dir else None,
+                template_cache=template_cache,
+                clear_cache=args.clear_cache,
+                cc_json_path=Path(args.cc_json).resolve() if args.cc_json else None,
+                hair_override=args.hair,
+                skin_override=args.skin,
+                garments=args.garment,
+                user_head_glb=Path(args.head_glb).resolve() if args.head_glb else None,
+                user_head_mesh=Path(args.head_mesh).resolve() if args.head_mesh else None,
+                user_heb_mesh=Path(args.heb_mesh).resolve() if args.heb_mesh else None,
+                restore_head_materials=not args.no_restore_head_materials,
+                resume=args.resume,
+            )
+            result = PipelineService().build(req)
+            out_dir = result.output_dir
         readme_path = Path(args.output).resolve() / "README_GUI_STEPS.md"
         if readme_path.exists():
             print("\n" + "=" * 60)
@@ -194,10 +240,9 @@ def main():
         elif args.v == 0:
             print(out_dir)
     except NpvError as e:
-        if e.module_name:
-            print(f"Error in {e.module_name}: {e}", file=sys.stderr)
-        else:
-            print(f"Error: {e}", file=sys.stderr)
+        print(e.user_message, file=sys.stderr)
+        if e.remediation:
+            print(e.remediation, file=sys.stderr)
         sys.exit(1)
 
 
