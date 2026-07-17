@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "npv-build"
-version = "2.0.0.dev0"
+version = "2.0.0"
 description = "Cyberpunk 2077 NPV Automation"
 authors = [
     {name = "Maintainer"}
