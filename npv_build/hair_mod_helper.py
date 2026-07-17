@@ -4,8 +4,10 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from .core.errors import InstallError
+from .core.errors import InstallError, SecurityError, ToolError
 from .core.proc import run_tool
+from .core.safe_extract import is_safe_member, safe_extract_7z
+from .core.toolpaths import resolve_tool
 
 
 def derive_hair_name(archive_filename: str) -> str:
@@ -80,6 +82,11 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
                 installed_files.append(dest_xl)
 
     elif suffix == ".zip":
+        # Traversal-safe by construction: every member is written to
+        # `mod_dir / Path(filename).name` — the basename only — so a malicious
+        # `../../evil` member collapses to `evil` inside mod_dir and cannot
+        # escape. This selective, basename-flattening copy is why this branch
+        # doesn't route through safe_extract_zip (which extracts whole trees).
         with zipfile.ZipFile(source_path, "r") as zf:
             for member in zf.infolist():
                 if member.is_dir():
@@ -117,7 +124,7 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
 
             if targets:
                 with tempfile.TemporaryDirectory() as td:
-                    sz.extract(targets=targets, path=td)
+                    safe_extract_7z(source_path, Path(td), targets=targets)
                     for fname in targets:
                         src_extracted = Path(td) / fname
                         if src_extracted.exists():
@@ -130,15 +137,49 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
                                 installed_files.append(dest_path)
 
     elif suffix == ".rar":
-        if not shutil.which("unrar"):
+        try:
+            unrar_bin = str(resolve_tool("unrar", []))
+        except ToolError as e:
             raise InstallError(
                 "The 'unrar' utility is not installed on the system.",
                 remediation="Install 'unrar' via your system package manager to extract .rar mods.",
-            )
+            ) from e
 
         with tempfile.TemporaryDirectory() as td:
-            run_tool(["unrar", "x", "-y", str(source_path), td], tool="unrar", timeout=300)
-            for p in Path(td).rglob("*"):
+            td_path = Path(td)
+
+            # Validate every member BEFORE extracting. rglob(td_path) after
+            # extraction can only see files that landed *inside* td_path, so it
+            # is structurally blind to the actual CVE-2022-30333 threat: unrar
+            # writing a member like "../../evil" to a path *outside* td_path.
+            # Listing the archive first (unrar lb = bare list, one member path
+            # per line, no headers/sizes) lets us catch traversal in the names
+            # themselves before anything is written to disk.
+            listing = run_tool([unrar_bin, "lb", str(source_path)], tool="unrar", timeout=300)
+            members = [line for line in listing.stdout.splitlines() if line.strip()]
+            for member in members:
+                if not is_safe_member(member, td_path):
+                    raise SecurityError(
+                        f"Archive member escapes the extraction directory: {member!r}",
+                        remediation="The archive may be malicious or corrupt; do not extract it.",
+                        details=f"dest={td_path}",
+                    ) from None
+
+            run_tool([unrar_bin, "x", "-y", str(source_path), td], tool="unrar", timeout=300)
+
+            # Defensive post-extract check too (cheap, catches anything the
+            # listing didn't reveal, e.g. symlinks resolved on disk by unrar).
+            for p in td_path.rglob("*"):
+                rel = str(p.relative_to(td_path))
+                if not is_safe_member(rel, td_path):
+                    shutil.rmtree(td_path, ignore_errors=True)
+                    raise SecurityError(
+                        f"Archive member escapes the extraction directory: {p.name!r}",
+                        remediation="The archive may be malicious or corrupt; do not extract it.",
+                        details=f"dest={td_path}",
+                    ) from None
+
+            for p in td_path.rglob("*"):
                 if p.is_file():
                     lower_name = p.name.lower()
                     if lower_name.endswith(".archive") or lower_name.endswith(".xl"):

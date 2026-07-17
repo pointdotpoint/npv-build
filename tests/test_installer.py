@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 import npv_build.installer as installer
-from npv_build.core.errors import InstallError, ToolError
+from npv_build.core.errors import InstallError, SecurityError, ToolError
 
 
 def test_auto_install_missing_all_missing(monkeypatch):
@@ -157,3 +157,80 @@ def test_build_npv_inject_failure_raises_install_error(monkeypatch, tmp_path):
 
     with pytest.raises(InstallError):
         installer.build_npv_inject(tmp_path, lambda msg, pct: None)
+
+
+def test_blender_extract_uses_safe_extract(tmp_path):
+    """A zip-slip Blender archive must raise SecurityError, not extract."""
+    import zipfile
+
+    arc = tmp_path / "blender.zip"
+    with zipfile.ZipFile(arc, "w") as z:
+        z.writestr("../escape.txt", "x")
+    with pytest.raises(SecurityError):
+        installer._extract_blender_archive(arc, tmp_path / "dest")
+
+
+def test_blender_extract_tar_uses_safe_extract(tmp_path):
+    """A zip-slip Blender tarball must raise SecurityError, not extract."""
+    import io
+    import tarfile
+
+    arc = tmp_path / "blender.tar.xz"
+    with tarfile.open(arc, "w:xz") as t:
+        data = b"x"
+        info = tarfile.TarInfo(name="../escape.txt")
+        info.size = len(data)
+        t.addfile(info, io.BytesIO(data))
+    with pytest.raises(SecurityError):
+        installer._extract_blender_archive(arc, tmp_path / "dest")
+
+
+def test_install_blender_verifies_checksum_before_extract(monkeypatch, tmp_path):
+    """install_blender must fetch and verify the published checksum before extracting."""
+    calls = []
+
+    def fake_download_file(url, dest, cb=None):
+        calls.append(url)
+        if url.endswith(".sha256"):
+            # Correct sha256 of b"archive-bytes"
+            import hashlib
+
+            digest = hashlib.sha256(b"archive-bytes").hexdigest()
+            dest.write_text(f"{digest}  {Path(url).stem}\n")
+        else:
+            dest.write_bytes(b"archive-bytes")
+
+    def fake_extract(archive, dest):
+        calls.append(("extract", archive, dest))
+        dest.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(installer, "download_file", fake_download_file)
+    monkeypatch.setattr(installer, "_extract_blender_archive", fake_extract)
+    monkeypatch.setattr(installer, "get_cache_dir", lambda: tmp_path / "cache")
+
+    installer.install_blender(tmp_path, lambda msg, pct: None)
+
+    assert any(str(c).endswith(".sha256") for c in calls if isinstance(c, str))
+    assert any(isinstance(c, tuple) and c[0] == "extract" for c in calls)
+
+
+def test_install_blender_missing_checksum_raises_security_error(monkeypatch, tmp_path):
+    """If blender.org's checksum URL 404s, install_blender must hard-fail, never skip."""
+
+    def fake_download_file(url, dest, cb=None):
+        if url.endswith(".sha256"):
+            raise InstallError("404 not found")
+        dest.write_bytes(b"archive-bytes")
+
+    extract_calls = []
+
+    def fake_extract(archive, dest):
+        extract_calls.append(archive)
+
+    monkeypatch.setattr(installer, "download_file", fake_download_file)
+    monkeypatch.setattr(installer, "_extract_blender_archive", fake_extract)
+
+    with pytest.raises(SecurityError):
+        installer.install_blender(tmp_path, lambda msg, pct: None)
+
+    assert not extract_calls

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import shutil
 import tempfile
@@ -19,6 +20,8 @@ from pathlib import Path
 
 from .clothing import resolve_clothing
 from .config_editor import _MESH_COMPONENT_TYPES
+from .core.app_inject import InjectError
+from .core.app_inject import inject_components as _py_inject_components
 from .core.errors import NpvError, ToolError
 from .core.proc import run_tool
 from .head_bake import find_stock_head_part, prepare_head, verify_morphtarget
@@ -92,6 +95,65 @@ def _inject_components(
             logger.debug(result.stdout)
         if result.stderr:
             logger.debug(result.stderr)
+
+
+def _use_py_inject() -> bool:
+    """Opt-in flag for the pure-Python WolvenKit round-trip injector.
+
+    Default stays the .NET npv-inject tool until the in-game gate passes
+    (M5 Task 7 / Task 8). Set NPV_PY_INJECT=1 to route through
+    core.app_inject.inject_components instead.
+    """
+    return os.environ.get("NPV_PY_INJECT") == "1"
+
+
+def _do_inject_components(
+    wk: WolvenKit,
+    app_path: Path,
+    components_json: Path,
+    verbosity: int,
+    donor_app: Path | None = None,
+    face_rig: str | None = None,
+    facial_setup: str | None = None,
+    face_graph: str | None = None,
+    hair_dangle_graph: str | None = None,
+) -> None:
+    """Route to the Python or .NET component injector.
+
+    NPV_PY_INJECT=1 selects the pure-Python WolvenKit round-trip
+    (core.app_inject.inject_components). Default is the .NET npv-inject
+    tool (_inject_components below) — unchanged until Task 7's in-game
+    gate passes.
+    """
+    if _use_py_inject():
+        try:
+            _py_inject_components(
+                wk,
+                app_path,
+                components_json,
+                donor_app=donor_app,
+                face_rig=face_rig,
+                facial_setup=facial_setup,
+                face_graph=face_graph,
+                hair_dangle_graph=hair_dangle_graph,
+            )
+        except InjectError as e:
+            raise WolvenKitError(
+                f"Python component injection failed: {e.user_message}",
+                operation="inject",
+            ) from e
+        return
+
+    _inject_components(
+        app_path,
+        components_json,
+        verbosity,
+        donor_app=donor_app,
+        face_rig=face_rig,
+        facial_setup=facial_setup,
+        face_graph=face_graph,
+        hair_dangle_graph=hair_dangle_graph,
+    )
 
 
 def _resolve_morphtarget_to_mesh(wk: WolvenKit, morphtarget_depot: str) -> str:
@@ -1080,7 +1142,8 @@ def build_project(
     )
 
     logger.info(f"[npv-inject] Injecting {len(component_specs)} component(s)...")
-    _inject_components(
+    _do_inject_components(
+        wk,
         app_cooked,
         components_json,
         verbosity,

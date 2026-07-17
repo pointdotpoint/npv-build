@@ -40,6 +40,9 @@ packages = ["npv_build"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "e2e: end-to-end build tests requiring a real game install (excluded from CI; run with -m e2e)",
+]
 
 [tool.ruff]
 line-length = 100
