@@ -147,6 +147,9 @@ class BuildView(ctk.CTkFrame):
 
     def _sync_widgets(self) -> None:
         self._cancel_button.configure(state="normal" if self.vm.can_cancel else "disabled")
+        # Reflect the VM's progress (0.0 after a start/retry reset) so the bar
+        # doesn't stay frozen at its pre-failure value until the first new event.
+        self._progress_bar.set(self.vm.stage_progress)
 
         if self.vm.can_retry:
             self._retry_button.grid(row=3, column=1, sticky="ew", padx=(4, 8), pady=8)
