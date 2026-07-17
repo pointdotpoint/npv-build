@@ -211,9 +211,8 @@ uv run npv-build /path/to/sav.dat "My V" \
   --resume
 ```
 
-Every build writes detailed logs to `<output>/logs/`. Logs are timestamped and named by stage
-(e.g., `save_parser.log`, `head_bake.log`, `wolvenkit.log`). For more control over logging,
-pass `--log-file <path>` to write a single combined log instead.
+Every build writes one combined, timestamped log to `<output>/logs/build-<timestamp>.log`.
+Pass `--log-file <path>` to write the log to a different location instead.
 
 ### Custom Head Mesh ("Bring Your Own") Workflow
 

@@ -31,22 +31,22 @@ dotnet build tools/npv-inject -c Release
 ## Architecture
 
 The pipeline is orchestrated by `orchestrator.py` via `PipelineService`. It supports resumable builds:
-the `--resume` flag skips stages that have already completed (tracked by checkpoint manifest at `<output>/.npv/manifest.json`).
+the `--resume` flag skips stages that have already completed (tracked by checkpoint manifest at `<output>/.npv_manifest.json`).
 
 ### Core layer (`npv_build/core/`)
 
 Foundation modules used by the pipeline:
 
-- **`errors.py`** — Error types: `NPVError`, `MissingDependencyError`, `SaveFormatError`, etc.
+- **`errors.py`** — Error types: `NpvError` base, plus `SaveFormatError`, `UnsupportedPatchError`, `MappingResolutionError`, `ToolError`, `ToolTimeoutError`, `BakeVerificationError`, `InstallError`, `SecurityError`, `PipelineCancelled`, etc.
 - **`cancel.py`** — `CancelToken` for cooperative process cancellation; signals in-flight tool processes.
-- **`proc.py`** — `run_tool()` subprocess wrapper: enforces timeouts, streaming output, cancelability.
-- **`logging_setup.py`** — Logging initialization; supports per-stage and combined log files (written to `<output>/logs/`).
-- **`platform.py`** — Platform detection and tool location (Blender, WolvenKit, .NET SDK).
+- **`proc.py`** — `run_tool()` subprocess wrapper: runs via `Popen`+`communicate()` and captures output, enforces a timeout, supports cooperative cancellation via `CancelToken`, and raises a structured `ToolError`/`ToolTimeoutError` on failure.
+- **`logging_setup.py`** — Logging initialization; writes one combined log per build (see `cli.py`'s `_default_log_file`, at `<output>/logs/build-<timestamp>.log`); `--log-file` overrides the path.
+- **`platform.py`** — Cross-platform discovery of save directories and game installs: `steam_root_candidates()`, `steam_libraries()`, `candidate_save_dirs()` (native path plus Proton `compatdata` prefixes), `is_valid_game_dir()`, `find_game_dirs()`.
 - **`pipeline.py`** — `PipelineService`: checkpoint tracking, resumable stage execution, error recovery.
 
 ### Module pipeline (in execution order)
 
-1. **`cli.py`** — Argument parsing, config load/save, invokes `run_orchestrator()`
+1. **`cli.py`** — Argument parsing, config load/save; drives `PipelineService().build()` for normal builds, and calls `run_orchestrator()` only for the `--dump-head-glb` branch
 2. **`config.py`** — User config (`~/.config/npv/config.toml`) and cache dir (`~/.cache/npv/`) management. Uses `tomli`/`tomllib` for reading, `tomli_w` for writing.
 3. **`wk_cli.py`** — WolvenKit CLI adapter. All WolvenKit subprocess calls go through this module. `WolvenKitConfig` (frozen dataclass: game_dir, cli_binary, verbosity) and `WolvenKit` class with typed methods: `uncook_json()` (hero — returns parsed dict), `list_archive()`, `uncook_many()`, `serialize()`, `deserialize()`, `extract()`, `unbundle()`, `export()`, `import_mesh(allow_exit_codes)`, `pack()`, `check_version()`. Single `_run()` internally.
 4. **`save_format.py`** — Low-level sav.dat container parser. Ported from PixelRick/CyberpunkSaveEditor. Handles CSAV header, LZ4-compressed chunks (XLZ4), NODE descriptors. Produces decompressed node data blob.
