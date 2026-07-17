@@ -63,11 +63,14 @@ def _build_cc_node() -> bytes:
     return bytes(cc_node)
 
 
-def _build_synth_save_bytes(build: int = 2310, v1: int = 269, v3: int = 195) -> bytes:
-    """Build a valid minimal CSAV container as real bytes (round-trips through
-    SaveContainer), containing a CC node plus one filler node.
+def _wrap_cc_node_in_container(
+    cc_bytes: bytes, build: int = 2310, v1: int = 269, v3: int = 195
+) -> bytes:
+    """Wrap arbitrary CC node bytes (synthetic or real, extracted via
+    SaveContainer.node_bytes) into a valid on-disk CSAV container that
+    round-trips through SaveContainer / parse_save, containing the CC node
+    plus one filler node.
     """
-    cc_bytes = _build_cc_node()
     other_bytes = b"hello world node data"
     nodedata = cc_bytes + other_bytes
 
@@ -94,16 +97,22 @@ def _build_synth_save_bytes(build: int = 2310, v1: int = 269, v3: int = 195) -> 
     out.extend(_on_disk("NODE"))
     out.extend(_packed_int(2))
 
+    # NodeDesc.data_offset is an absolute index into the *decompressed blob*,
+    # which SaveContainer._parse() sizes/addresses starting at chunk_offset
+    # (the file offset of the first XLZ4 chunk) rather than 0 - confirmed
+    # against a real save's node descriptors (e.g. GameSessionDesc at offset
+    # ~6177, matching its chunk's file offset, not 0). Node offsets must be
+    # chunk_offset-relative to round-trip correctly.
     out.extend(_lpfxd_str("CharacetrCustomization_Appearances"))
     out.extend(struct.pack("<i", -1))
     out.extend(struct.pack("<i", -1))
-    out.extend(struct.pack("<I", 0))
+    out.extend(struct.pack("<I", chunk_offset))
     out.extend(struct.pack("<I", len(cc_bytes)))
 
     out.extend(_lpfxd_str("otherNode"))
     out.extend(struct.pack("<i", -1))
     out.extend(struct.pack("<i", -1))
-    out.extend(struct.pack("<I", len(cc_bytes)))
+    out.extend(struct.pack("<I", chunk_offset + len(cc_bytes)))
     out.extend(struct.pack("<I", len(other_bytes)))
 
     out.extend(b"FZLC")  # searched for literally in SaveContainer._parse
@@ -115,6 +124,13 @@ def _build_synth_save_bytes(build: int = 2310, v1: int = 269, v3: int = 195) -> 
     out.extend(struct.pack("<I", nodedescs_start))
     out.extend(_on_disk("DONE"))
     return bytes(out)
+
+
+def _build_synth_save_bytes(build: int = 2310, v1: int = 269, v3: int = 195) -> bytes:
+    """Build a valid minimal CSAV container as real bytes (round-trips through
+    SaveContainer), containing a synthetic CC node plus one filler node.
+    """
+    return _wrap_cc_node_in_container(_build_cc_node(), build=build, v1=v1, v3=v3)
 
 
 @pytest.fixture
@@ -135,3 +151,13 @@ def make_synth_save(tmp_path):
         return path
 
     return _make
+
+
+def synth_save_from_cc_node(cc_node_bytes: bytes, build: int = 2310, v1: int = 269, v3: int = 195):
+    """Wrap arbitrary (e.g. real, extracted-from-a-user-save) CC node bytes into
+    valid on-disk CSAV container bytes. Callers write the result to a tmp_path
+    and pass it to parse_save(). Not a pytest fixture itself (needs a bytes
+    argument), just a helper importable from tests via `from conftest import
+    synth_save_from_cc_node` / package-relative import.
+    """
+    return _wrap_cc_node_in_container(cc_node_bytes, build=build, v1=v1, v3=v3)
