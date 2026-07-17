@@ -80,23 +80,20 @@ You point the tool at a save and a name; it hands you an installable mod. The
 
 ```bash
 cd npv_project
-python -m venv venv
-source venv/bin/activate     # Linux/macOS
-# venv\Scripts\activate      # Windows
-pip install -e .
+uv sync --extra gui
 
 # Build the component injector (one-time)
 dotnet build tools/npv-inject -c Release
 ```
 
-After this, the `npv-build` command is on your `PATH`. The injector is located
-automatically in this order: `PATH` → `tools/npv-inject/bin/Release/net8.0/` →
+After this, the `npv-build` command is available via `uv run`. The injector is
+located automatically in this order: `PATH` → `tools/npv-inject/bin/Release/net8.0/` →
 `tools/npv-inject/bin/Debug/net8.0/`.
 
 Verify the install:
 
 ```bash
-npv-build --help
+uv run npv-build --help
 ```
 
 ---
@@ -108,7 +105,7 @@ npv-build --help
 The smallest useful command:
 
 ```bash
-npv-build /path/to/sav.dat "My V" \
+uv run npv-build /path/to/sav.dat "My V" \
   --output ./my_v_mod \
   --game-dir "/path/to/Cyberpunk 2077"
 ```
@@ -116,7 +113,7 @@ npv-build /path/to/sav.dat "My V" \
 A fuller example with overrides:
 
 ```bash
-npv-build /path/to/sav.dat "My V" \
+uv run npv-build /path/to/sav.dat "My V" \
   --output ./my_v_mod \
   --game-dir "/path/to/Cyberpunk 2077" \
   --hair zara \
@@ -202,6 +199,22 @@ npv-build [<sav.dat>] <NPV name> --output <dir> [options]
 | `--clear-cache` | — | Wipe the template cache before running. |
 | `-v` / `-vv` | — | Verbose / very-verbose output. |
 
+### Resumable builds & logging
+
+Long builds can be interrupted and resumed. After a failure or cancellation, re-run the same
+command with `--resume` to skip stages that already completed:
+
+```bash
+uv run npv-build /path/to/sav.dat "My V" \
+  --output ./my_v_mod \
+  --game-dir "/path/to/Cyberpunk 2077" \
+  --resume
+```
+
+Every build writes detailed logs to `<output>/logs/`. Logs are timestamped and named by stage
+(e.g., `save_parser.log`, `head_bake.log`, `wolvenkit.log`). For more control over logging,
+pass `--log-file <path>` to write a single combined log instead.
+
 ### Custom Head Mesh ("Bring Your Own") Workflow
 
 If you want to edit V's head geometry in Blender yourself or use a custom-sculpted head, `npv-build` supports bypass options:
@@ -209,19 +222,19 @@ If you want to edit V's head geometry in Blender yourself or use a custom-sculpt
 #### Option A: Blender GLB Workflow (Recommended)
 1. Export the base head:
    ```bash
-   npv-build --dump-head-glb ./my_base_head.glb
+   uv run npv-build --dump-head-glb ./my_base_head.glb --game-dir "/path/to/Cyberpunk 2077"
    ```
 2. Edit `./my_base_head.glb` in Blender (sculpt, modify, etc.). Do not change vertex count / topology if you want perfect skinning, though warnings about count mismatches will only warn rather than fail.
 3. Build your NPV using the edited GLB:
    ```bash
-   npv-build /path/to/sav.dat "My V" --output ./my_v_mod --head-glb ./my_base_head.glb
+   uv run npv-build /path/to/sav.dat "My V" --output ./my_v_mod --head-glb ./my_base_head.glb
    ```
 This automatically restores game materials/skinning onto your model using WolvenKit's `import --keep`.
 
 #### Option B: Verbatim Mesh Workflow (Power Users)
 If you already have a finished `.mesh` file (with custom skinning, materials, etc.):
 ```bash
-npv-build /path/to/sav.dat "My V" --output ./my_v_mod --head-mesh ./custom_head.mesh
+uv run npv-build /path/to/sav.dat "My V" --output ./my_v_mod --head-mesh ./custom_head.mesh
 ```
 - By default, materials are restored from the stock head. Pass `--no-restore-head-materials` to keep the custom materials already baked into your `.mesh`.
 - **Note:** Skips WolvenKit import entirely. The rig and skinning must already be fully intact and compatible.
@@ -363,5 +376,11 @@ the build.
 Entry point is `npv_build/cli.py` (`main`). Run the test suite with:
 
 ```bash
-pytest
+uv run pytest
+```
+
+Lint the codebase:
+
+```bash
+uv run ruff check .
 ```

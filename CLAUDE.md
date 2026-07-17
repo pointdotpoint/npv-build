@@ -9,17 +9,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Install (editable)
-pip install -e .
+# Install dependencies
+uv sync --extra gui
 
 # Run tests
-pytest
+uv run pytest
 
 # Run a single test
-pytest tests/test_save_parser.py::test_parse_save_binary
+uv run pytest tests/test_save_parser.py::test_parse_save_binary
 
 # Run the CLI
-npv-build <sav.dat> "My V" --output ./my_v_mod --game-dir "/path/to/Cyberpunk 2077" -v
+uv run npv-build <sav.dat> "My V" --output ./my_v_mod --game-dir "/path/to/Cyberpunk 2077" -v
+
+# Lint the codebase
+uv run ruff check .
 
 # Build the .NET component injector
 dotnet build tools/npv-inject -c Release
@@ -27,7 +30,19 @@ dotnet build tools/npv-inject -c Release
 
 ## Architecture
 
-The pipeline is a single-shot linear flow orchestrated by `orchestrator.py`. No subcommands, no resumability.
+The pipeline is orchestrated by `orchestrator.py` via `PipelineService`. It supports resumable builds:
+the `--resume` flag skips stages that have already completed (tracked by checkpoint manifest at `<output>/.npv/manifest.json`).
+
+### Core layer (`npv_build/core/`)
+
+Foundation modules used by the pipeline:
+
+- **`errors.py`** — Error types: `NPVError`, `MissingDependencyError`, `SaveFormatError`, etc.
+- **`cancel.py`** — `CancelToken` for cooperative process cancellation; signals in-flight tool processes.
+- **`proc.py`** — `run_tool()` subprocess wrapper: enforces timeouts, streaming output, cancelability.
+- **`logging_setup.py`** — Logging initialization; supports per-stage and combined log files (written to `<output>/logs/`).
+- **`platform.py`** — Platform detection and tool location (Blender, WolvenKit, .NET SDK).
+- **`pipeline.py`** — `PipelineService`: checkpoint tracking, resumable stage execution, error recovery.
 
 ### Module pipeline (in execution order)
 
