@@ -82,6 +82,11 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
                 installed_files.append(dest_xl)
 
     elif suffix == ".zip":
+        # Traversal-safe by construction: every member is written to
+        # `mod_dir / Path(filename).name` — the basename only — so a malicious
+        # `../../evil` member collapses to `evil` inside mod_dir and cannot
+        # escape. This selective, basename-flattening copy is why this branch
+        # doesn't route through safe_extract_zip (which extracts whole trees).
         with zipfile.ZipFile(source_path, "r") as zf:
             for member in zf.infolist():
                 if member.is_dir():
