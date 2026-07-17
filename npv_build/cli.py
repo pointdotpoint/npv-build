@@ -269,6 +269,8 @@ def main(argv: list[str] | None = None):
             )
             result = PipelineService().build(req)
             out_dir = result.output_dir
+            if result.zip_path:
+                print(f"Mod zip: {result.zip_path}")
         readme_path = Path(args.output).resolve() / "README_GUI_STEPS.md"
         if readme_path.exists():
             print("\n" + "=" * 60)

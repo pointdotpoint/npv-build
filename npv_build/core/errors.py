@@ -71,6 +71,10 @@ class InstallError(NpvError):
     pass
 
 
+class PackagingError(NpvError):
+    pass
+
+
 class SecurityError(NpvError):
     pass
 

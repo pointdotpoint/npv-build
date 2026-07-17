@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -24,9 +25,16 @@ def fake_stages(monkeypatch, tmp_path):
             calls.append("resolve_assets") or {"head": "x"}
         ),
     )
-    monkeypatch.setattr(
-        pl, "_run_assemble", lambda req, wk, mod_id, asset_paths, cc: calls.append("assemble")
-    )
+
+    def fake_assemble(req, wk, mod_id, asset_paths, cc):
+        calls.append("assemble")
+        # Real build_project produces the installable archive; packaging
+        # (which runs after emit_amm_lua) requires it to exist.
+        arch_dir = req.output_dir / "archive" / "pc" / "mod"
+        arch_dir.mkdir(parents=True, exist_ok=True)
+        (arch_dir / f"{mod_id}.archive").write_bytes(b"fake-archive")
+
+    monkeypatch.setattr(pl, "_run_assemble", fake_assemble)
     monkeypatch.setattr(
         pl,
         "write_amm_lua",
@@ -57,6 +65,12 @@ def test_runs_all_stages_in_order(fake_stages, tmp_path):
     result = PipelineService().build(_req(tmp_path))
     assert fake_stages == ["parse_save", "resolve_assets", "assemble", "emit_amm_lua"]
     assert result.stages_run == list(PipelineService.STAGES)
+
+
+def test_build_result_zip_path_populated(fake_stages, tmp_path):
+    result = PipelineService().build(_req(tmp_path))
+    assert result.zip_path == str(tmp_path / "out" / result.mod_id) + ".zip"
+    assert Path(result.zip_path).exists()
     manifest = json.loads((tmp_path / "out" / ".npv_manifest.json").read_text(encoding="utf-8"))
     assert set(manifest) == set(PipelineService.STAGES)
 
@@ -65,8 +79,9 @@ def test_events_emitted(fake_stages, tmp_path):
     events = []
     PipelineService().build(_req(tmp_path), on_event=events.append)
     kinds = [e.kind for e in events]
-    assert kinds.count("stage_started") == 4
-    assert kinds.count("stage_completed") == 4
+    # 4 checkpointed stages + the post-stage packaging step.
+    assert kinds.count("stage_started") == 5
+    assert kinds.count("stage_completed") == 5
     assert kinds[-1] == "finished"
 
 
@@ -129,6 +144,9 @@ def test_cc_settings_and_asset_paths_json_written_before_assemble(
         seen["asset_exists"] = asset_file.exists()
         seen["cc_content"] = json.loads(cc_file.read_text()) if cc_file.exists() else None
         seen["asset_content"] = json.loads(asset_file.read_text()) if asset_file.exists() else None
+        arch_dir = req.output_dir / "archive" / "pc" / "mod"
+        arch_dir.mkdir(parents=True, exist_ok=True)
+        (arch_dir / f"{mod_id}.archive").write_bytes(b"fake-archive")
 
     monkeypatch.setattr(pl, "_run_assemble", fake_assemble)
 
