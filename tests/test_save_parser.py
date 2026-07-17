@@ -71,7 +71,7 @@ def test_parse_save_binary(monkeypatch):
 
     res = save_parser.parse_save(MockPath("dummy.sav.dat"))
 
-    assert res["patch"] == "2.13"
+    assert res["patch"] == "2.31"
     assert res["body_rig"] == "pwa"
     assert res["head"]["preset_id"] == 0
     assert res["head"]["raw"] == "h0_000_pwa__basehead__01_ca_pale"

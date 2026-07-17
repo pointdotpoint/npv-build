@@ -976,9 +976,10 @@ def build_project(
     app_out.write_text(json.dumps(app_json, indent=2))
 
     # --- Uncook donor .ent and .app ---
-    donors_file = (
-        Path(__file__).parent / "data" / "donors" / f"{asset_paths.get('patch', '2.13')}.json"
-    )
+    from .mapping import resolve_table_key
+
+    donor_key = resolve_table_key(asset_paths.get("patch", "2.13"))
+    donors_file = Path(__file__).parent / "data" / "donors" / f"{donor_key}.json"
     if not donors_file.exists():
         donors_file = Path(__file__).parent / "data" / "donors" / "2.13.json"
     donor_cfg = json.loads(donors_file.read_text()).get(body_rig, {})

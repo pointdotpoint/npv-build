@@ -32,7 +32,7 @@ def test_v195_still_parses(synth_save_2310):
 
 
 def test_detect_patch_known():
-    assert sp.detect_patch((269, 2310, 195)) == "2.13"
+    assert sp.detect_patch((269, 2310, 195)) == "2.31"
 
 
 def test_detect_patch_unknown_build_raises():
