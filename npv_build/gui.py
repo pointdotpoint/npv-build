@@ -12,6 +12,12 @@ from .config import get_cache_dir, load_config, save_config
 from .core.errors import NpvError
 from .core.platform import open_folder
 from .gui_backend import BuildWorker, InstallerWorker, check_dependencies, preview_save
+from .gui_logic.wizard import WizardModel
+from .gui_views.build_view import BuildView
+from .gui_views.modmanager_view import ModManagerView
+from .gui_views.save_browser_view import SaveBrowserView
+from .gui_views.settings_view import SettingsView
+from .gui_views.wizard_view import WizardView
 from .save_parser import SaveParserError
 
 logger = logging.getLogger(__name__)
@@ -50,28 +56,155 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Load persisted configuration
         self.config = load_config()
 
-        # Build Queue & Worker
-        self.queue = queue.Queue()
-        self.worker = BuildWorker(self.queue)
-        self.installer_worker = InstallerWorker(self.queue)
+        # Build Queue & Worker. Separate queues: BuildView (Task 3) polls its
+        # own dedicated build_queue, and the auto-install banner polls its own
+        # install_queue -- kept apart so "done"/"error" tuples from one worker
+        # can never be misread as the other's.
+        self.build_queue = queue.Queue()
+        self.install_queue = queue.Queue()
+        self.worker = BuildWorker(self.build_queue)
+        self.installer_worker = InstallerWorker(self.install_queue)
 
-        # Build GUI Components
+        # Build GUI Components (tab shell + nav)
         self.create_widgets()
 
         # Run initial dependency checks
         self.run_checks()
 
+        # First-run wizard: shown on top when no valid game_dir is on record.
+        if WizardModel.needs_wizard(self.config):
+            self.show_wizard()
+
+    # --- Navigation helpers -------------------------------------------------
+    def _output_root(self) -> Path:
+        """Best-effort root directory under which built mods live, for the Mod
+        Manager tab. Falls back to the current Build tab's output entry, then
+        to the default `~/npv_builds` used by update_default_output().
+        """
+        out_str = self.entry_output.get().strip()
+        if out_str:
+            # The Build tab's output entry points at a single mod's own output
+            # dir (e.g. ~/npv_builds/my_v_mod); the Mod Manager scans one level
+            # up for all built mods.
+            return Path(out_str).parent
+        return Path.home() / "npv_builds"
+
+    def _game_dir_path(self) -> Path:
+        game_dir_str = self.entry_game_dir.get().strip()
+        return Path(game_dir_str) if game_dir_str else Path("")
+
+    def show_save_browser_tab(self) -> None:
+        self.tabview.set("Save Browser")
+
+    def show_build_tab(self) -> None:
+        self.tabview.set("Build")
+
+    def show_mod_manager_tab(self) -> None:
+        # game_dir/output_root may have changed (wizard, settings, manual edit)
+        # since the view was built, so rebuild it fresh rather than just
+        # calling refresh() against stale roots.
+        self._modmanager_view.destroy()
+        self._modmanager_view = ModManagerView(
+            self._tab_mods, output_root=self._output_root(), game_dir=self._game_dir_path()
+        )
+        self._modmanager_view.pack(fill="both", expand=True)
+        self.tabview.set("Mod Manager")
+
+    def show_settings_tab(self) -> None:
+        self.tabview.set("Settings")
+
+    def _on_save_selected(self, path: Path) -> None:
+        """Save Browser callback: feed the chosen save into the Build tab."""
+        self.entry_save.delete(0, "end")
+        self.entry_save.insert(0, str(path))
+        self.update_save_preview()
+        self.show_build_tab()
+
+    def _on_settings_saved(self) -> None:
+        self.config = load_config()
+        self.entry_game_dir.delete(0, "end")
+        self.entry_game_dir.insert(0, self.config.get("game_dir", "") or "")
+        self.run_checks()
+        self.show_build_tab()
+
+    def _on_settings_cancelled(self) -> None:
+        self.show_build_tab()
+
+    def show_wizard(self):
+        self._wizard_overlay = ctk.CTkFrame(self, fg_color=BG_DARK)
+        self._wizard_overlay.grid(row=0, column=0, sticky="nsew")
+        self._wizard_overlay.grid_rowconfigure(0, weight=1)
+        self._wizard_overlay.grid_columnconfigure(0, weight=1)
+
+        self._wizard_view = WizardView(
+            self._wizard_overlay,
+            on_complete=self._on_wizard_complete,
+            start_install=self.installer_worker.start,
+            install_queue=self.install_queue,
+            is_installer_alive=lambda: self.installer_worker.is_alive,
+        )
+        self._wizard_view.grid(row=0, column=0, sticky="nsew", padx=40, pady=40)
+
+    def _on_wizard_complete(self):
+        self.config = load_config()
+        self._wizard_overlay.destroy()
+        self.entry_game_dir.delete(0, "end")
+        self.entry_game_dir.insert(0, self.config.get("game_dir", ""))
+        self.run_checks()
+
     def create_widgets(self):
-        # Configure Grid Layout (1 row, 2 columns)
+        """Build the app shell: a CTkTabview navigating the five M4 screens.
+
+        The "Build" tab hosts the original single-pane build form (config +
+        console) essentially unchanged, preserving full GUI-1 field parity.
+        The other tabs mount the thin views built in Tasks 2-3, 5, 7.
+        """
         self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=4, minsize=450)  # Config pane
-        self.grid_columnconfigure(1, weight=5, minsize=500)  # Console pane
+        self.grid_columnconfigure(0, weight=1)
+
+        self.tabview = ctk.CTkTabview(
+            self,
+            fg_color=BG_DARK,
+            segmented_button_selected_color=ACCENT_CYAN,
+            segmented_button_selected_hover_color=ACCENT_CYAN,
+            segmented_button_unselected_color=BG_CARD,
+            text_color=BG_DARK,
+        )
+        self.tabview.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+
+        tab_build = self.tabview.add("Build")
+        tab_saves = self.tabview.add("Save Browser")
+        self._tab_mods = self.tabview.add("Mod Manager")
+        tab_settings = self.tabview.add("Settings")
+
+        self._build_build_tab(tab_build)
+
+        self._save_browser_view = SaveBrowserView(tab_saves, on_select=self._on_save_selected)
+        self._save_browser_view.pack(fill="both", expand=True)
+
+        self._modmanager_view = ModManagerView(
+            self._tab_mods, output_root=self._output_root(), game_dir=self._game_dir_path()
+        )
+        self._modmanager_view.pack(fill="both", expand=True)
+
+        self._settings_view = SettingsView(
+            tab_settings,
+            on_saved=self._on_settings_saved,
+            on_cancelled=self._on_settings_cancelled,
+        )
+        self._settings_view.pack(fill="both", expand=True)
+
+    def _build_build_tab(self, parent):
+        # Configure Grid Layout (1 row, 2 columns)
+        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=4, minsize=450)  # Config pane
+        parent.grid_columnconfigure(1, weight=5, minsize=500)  # Console pane
 
         # ==========================================
         # LEFT COLUMN: Configurations & Setup
         # ==========================================
         self.scroll_config = ctk.CTkScrollableFrame(
-            self,
+            parent,
             label_text="Configuration Panel",
             label_text_color=ACCENT_CYAN,
             label_font=("Arial", 16, "bold"),
@@ -134,9 +267,13 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         btn_game_browse.grid(row=2, column=1, sticky="w", padx=(5, 15), pady=5)
 
         # Status Lamps
+        # Note: no .NET/npv-inject lamp here. Per ADR 0001 (Branch A'),
+        # npv-inject is being retired (WolvenKit round-trip replaces it), so
+        # the Build button must not gate on it and it is not user-relevant
+        # to surface. See run_checks() below.
         self.frame_lamps = ctk.CTkFrame(self.frame_system, fg_color="transparent")
         self.frame_lamps.grid(row=3, column=0, columnspan=2, sticky="ew", padx=15, pady=(5, 5))
-        self.frame_lamps.grid_columnconfigure((0, 1, 2), weight=1)
+        self.frame_lamps.grid_columnconfigure((0, 1), weight=1)
 
         self.lamp_wkit = ctk.CTkLabel(
             self.frame_lamps, text="● WolvenKit CLI", font=("Arial", 11, "bold")
@@ -147,11 +284,6 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.frame_lamps, text="● Blender", font=("Arial", 11, "bold")
         )
         self.lamp_blender.grid(row=0, column=1, padx=5, pady=2, sticky="w")
-
-        self.lamp_dotnet = ctk.CTkLabel(
-            self.frame_lamps, text="● .NET/Injector", font=("Arial", 11, "bold")
-        )
-        self.lamp_dotnet.grid(row=0, column=2, padx=5, pady=2, sticky="w")
 
         # Auto-install Button
         self.btn_auto_install = ctk.CTkButton(
@@ -315,9 +447,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # ==========================================
         # RIGHT COLUMN: Build Status & Console Log
         # ==========================================
-        self.frame_console = ctk.CTkFrame(self, fg_color=BG_CARD)
+        self.frame_console = ctk.CTkFrame(parent, fg_color=BG_CARD)
         self.frame_console.grid(row=0, column=1, sticky="nsew", padx=15, pady=15)
-        self.frame_console.grid_rowconfigure(1, weight=1)
+        self.frame_console.grid_rowconfigure(2, weight=1)
         self.frame_console.grid_columnconfigure(0, weight=1)
 
         # Console Header
@@ -329,37 +461,11 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         lbl_console_title.grid(row=0, column=0, sticky="w", padx=15, pady=15)
 
-        # Console Log Monospace Box
-        self.textbox_log = ctk.CTkTextbox(
-            self.frame_console,
-            font=("Courier New", 12),
-            fg_color="#0a0a0d",
-            text_color="#c8c8c8",
-            border_color="#333",
-            border_width=1,
-        )
-        self.textbox_log.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
-        self.append_log("NPV Build GUI initialized. Ready.\n")
-
-        # Action panel at the bottom right
-        self.frame_actions = ctk.CTkFrame(self.frame_console, fg_color="transparent")
-        self.frame_actions.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 15))
-        self.frame_actions.grid_columnconfigure(0, weight=1)
-
-        # Progress Indicator
-        self.progress_bar = ctk.CTkProgressBar(
-            self.frame_actions, fg_color="#121212", progress_color=ACCENT_CYAN
-        )
-        # Hidden initially
-
-        # Build + Cancel Buttons (share row 1 in a sub-frame)
-        self.frame_build_row = ctk.CTkFrame(self.frame_actions, fg_color="transparent")
-        self.frame_build_row.grid(row=1, column=0, sticky="ew", pady=5)
-        self.frame_build_row.grid_columnconfigure(0, weight=1)
-        self.frame_build_row.grid_columnconfigure(1, weight=0)
-
+        # BUILD trigger button (BuildView itself only owns Cancel/Retry, not
+        # the initial trigger -- that stays here since it needs the Build
+        # tab's input widgets to gather + validate kwargs first).
         self.btn_build = ctk.CTkButton(
-            self.frame_build_row,
+            self.frame_console,
             text="BUILD NPV MOD",
             font=("Arial", 16, "bold"),
             fg_color=BG_DARK,
@@ -370,25 +476,35 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             height=45,
             command=self.start_build,
         )
-        self.btn_build.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        self.btn_build.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 10))
 
-        self.btn_cancel = ctk.CTkButton(
-            self.frame_build_row,
-            text="CANCEL",
-            font=("Arial", 14, "bold"),
-            width=120,
-            fg_color=BG_DARK,
-            text_color=STATUS_RED,
-            border_color=STATUS_RED,
-            border_width=2,
-            hover_color="#1f2833",
-            height=45,
-            state="disabled",
-            command=self.cancel_build,
+        # Stage progress, live log, Cancel + Retry-from-failed-stage (GUI-4,
+        # CORE-3/4) -- delegates entirely to the Task 3 BuildView widget.
+        self._build_view = BuildView(
+            self.frame_console,
+            start_build=self.worker.start,
+            cancel_build=self.worker.cancel,
+            build_queue=self.build_queue,
+            is_worker_alive=lambda: self.worker.is_alive,
+            on_done=self._on_build_done,
         )
-        self.btn_cancel.grid(row=0, column=1, sticky="ew")
+        self._build_view.grid(row=2, column=0, sticky="nsew", padx=15, pady=(0, 15))
 
-        # Success/Failure Alert Banner
+        # Auto-install banner: separate from BuildView, drives InstallerWorker
+        # via its own queue (see start_auto_install/install_finished below).
+        self.frame_actions = ctk.CTkFrame(self.frame_console, fg_color="transparent")
+        self.frame_actions.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 15))
+        self.frame_actions.grid_columnconfigure(0, weight=1)
+
+        # Progress Indicator (auto-install only)
+        self.progress_bar = ctk.CTkProgressBar(
+            self.frame_actions, fg_color="#121212", progress_color=ACCENT_CYAN
+        )
+        # Hidden initially
+
+        # Success/Failure Alert Banner (auto-install only; build success/failure
+        # is surfaced by BuildView's own error label + the Open Output Folder
+        # button appended below it via _on_build_done).
         self.lbl_banner = ctk.CTkLabel(
             self.frame_actions,
             text="",
@@ -638,10 +754,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     # --- Logs ---
     def append_log(self, text: str):
-        self.textbox_log.configure(state="normal")
-        self.textbox_log.insert("end", text)
-        self.textbox_log.see("end")
-        self.textbox_log.configure(state="disabled")
+        # BuildView (Task 3) owns the build log box; route non-worker log
+        # lines (validation errors, hair-mod install progress, etc.) into it
+        # so they remain visible in the same place build output shows up.
+        self._build_view.log(text)
 
     # --- Actions / Commands ---
     def run_checks(self):
@@ -658,7 +774,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         update_lamp(self.lamp_wkit, status["wolvenkit"])
         update_lamp(self.lamp_blender, status["blender"])
-        update_lamp(self.lamp_dotnet, status["npv_inject"])
+        # No .NET/npv-inject lamp: ADR 0001 (Branch A') retires npv-inject, so
+        # its presence/absence is no longer user-relevant or gating.
 
         # Game Dir validation feedback
         if game_path_str:
@@ -672,13 +789,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         else:
             self.entry_game_dir.configure(border_color=TEXT_MUTED)
 
-        # Disable/Enable Build button based on checks
-        ready = (
-            status["wolvenkit"]
-            and status["blender"]
-            and status["npv_inject"]
-            and status["game_dir_valid"]
-        )
+        # Disable/Enable Build button based on checks. Deliberately does not
+        # gate on status["npv_inject"] -- ADR 0001 (Branch A') retires
+        # npv-inject, so its absence must not block the Build button.
+        ready = status["wolvenkit"] and status["blender"] and status["game_dir_valid"]
         if ready:
             self.btn_build.configure(
                 state="normal", border_color=ACCENT_CYAN, text_color=ACCENT_CYAN
@@ -933,15 +1047,12 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         output_dir = Path(output_dir_str)
         game_dir = Path(game_dir_str)
 
-        # Clear logs and alert banner
-        self.textbox_log.configure(state="normal")
-        self.textbox_log.delete("1.0", "end")
-        self.textbox_log.configure(state="disabled")
         self.lbl_banner.grid_forget()
+        if hasattr(self, "btn_open_out"):
+            self.btn_open_out.grid_forget()
 
-        self.append_log(f"Starting NPV Build mod generation for V '{npv_name}'...\n")
-
-        # Set up build kwargs
+        # Set up build kwargs (1:1 with BuildRequest fields; resume is not
+        # user-facing here -- BuildView's own Retry button passes resume=True).
         kwargs = {
             "save_path": save_path,
             "npv_name": npv_name,
@@ -965,76 +1076,40 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             "restore_head_materials": self.switch_restore_head.get() == 1,
         }
 
-        # 2. Update UI states
-        self.btn_build.configure(state="disabled", text="BUILDING...")
-        self.btn_cancel.configure(state="normal", text="CANCEL")
-        self.progress_bar.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        self.progress_bar.start()
+        self._build_view.log(f"Starting NPV Build mod generation for V '{npv_name}'...\n")
+        self._build_view.start(**kwargs)
 
-        # 3. Spawn background thread
-        self.worker.start(**kwargs)
-
-        # 4. Schedule Queue Poller
-        self.after(50, self.poll_queue)
-
-    def cancel_build(self):
-        # Signals the worker to terminate in-flight tools. The terminal
-        # ("error", "Build cancelled.") tuple flows through poll_queue ->
-        # build_finished, which resets both buttons.
-        if not self.worker.is_alive:
-            return
-        self.worker.cancel()
-        self.btn_cancel.configure(state="disabled", text="Cancelling...")
-        self.append_log("\nCancellation requested. Waiting for build to stop...\n")
-
-    def poll_queue(self):
-        try:
-            while True:
-                msg_type, msg_val = self.queue.get_nowait()
-                if msg_type == "log":
-                    self.append_log(msg_val)
-                elif msg_type == "progress":
-                    self.progress_bar.set(msg_val)
-                elif msg_type == "done":
-                    self.build_finished(success=True, payload=msg_val)
-                elif msg_type == "error":
-                    self.build_finished(success=False, payload=msg_val)
-                elif msg_type == "install_done":
-                    self.install_finished(success=True)
-                elif msg_type == "install_error":
-                    self.install_finished(success=False, error_msg=msg_val)
-                self.queue.task_done()
-        except queue.Empty:
-            pass
-
-        if self.worker.is_alive or self.installer_worker.is_alive:
-            self.after(50, self.poll_queue)
+    def _on_build_done(self, output_dir: str) -> None:
+        """BuildView's on_done hook: append the Open Output Folder button."""
+        self.last_output_dir = Path(output_dir)
+        self.btn_open_out = ctk.CTkButton(
+            self.frame_console,
+            text="Open Output Folder",
+            fg_color="#333",
+            hover_color="#444",
+            text_color=ACCENT_CYAN,
+            command=self.open_output_folder,
+        )
+        self.btn_open_out.grid(row=4, column=0, sticky="ew", padx=15, pady=(0, 10))
 
     def start_auto_install(self):
         # Ask for confirmation before downloading
         confirm = tk.messagebox.askyesno(
             "Download Dependencies?",
             "This will download and locally install missing tools into your application cache:\n"
-            "- .NET 8.0 SDK (approx. 120MB)\n"
             "- WolvenKit.CLI (approx. 40MB)\n"
             "- Blender 4.2.0 LTS (approx. 150MB)\n\n"
-            "This requires about 350MB of downloads and up to 1GB of disk space. "
+            "This requires about 190MB of downloads and up to 1GB of disk space. "
             "Proceed?",
         )
         if not confirm:
             return
 
-        # Clear logs and alert banner
-        self.textbox_log.configure(state="normal")
-        self.textbox_log.delete("1.0", "end")
-        self.textbox_log.configure(state="disabled")
         self.lbl_banner.grid_forget()
-
-        self.append_log("Starting dependency auto-installer...\n")
+        self._build_view.log("Starting dependency auto-installer...\n")
 
         # Update UI states
         self.btn_auto_install.configure(state="disabled", text="INSTALLING...")
-        self.btn_build.configure(state="disabled")
 
         self.progress_bar.configure(mode="determinate")
         self.progress_bar.set(0)
@@ -1043,8 +1118,28 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Spawn background thread
         self.installer_worker.start()
 
-        # Schedule Queue Poller
-        self.after(50, self.poll_queue)
+        # Schedule this banner's own queue poller (separate from BuildView's
+        # internal polling of self.build_queue).
+        self.after(50, self.poll_install_queue)
+
+    def poll_install_queue(self):
+        try:
+            while True:
+                msg_type, msg_val = self.install_queue.get_nowait()
+                if msg_type == "log":
+                    self._build_view.log(msg_val)
+                elif msg_type == "progress":
+                    self.progress_bar.set(msg_val)
+                elif msg_type == "install_done":
+                    self.install_finished(success=True)
+                elif msg_type == "install_error":
+                    self.install_finished(success=False, error_msg=msg_val)
+                self.install_queue.task_done()
+        except queue.Empty:
+            pass
+
+        if self.installer_worker.is_alive:
+            self.after(50, self.poll_install_queue)
 
     def install_finished(self, success: bool, error_msg: str = ""):
         self.progress_bar.grid_forget()
@@ -1052,7 +1147,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.progress_bar.configure(mode="indeterminate")
 
         if success:
-            self.append_log(
+            self._build_view.log(
                 "\n[Success] All dependencies installed successfully! Ready to build.\n"
             )
             self.lbl_banner.configure(
@@ -1061,60 +1156,24 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 text_color=BG_DARK,
             )
         else:
-            self.append_log(f"\n[Error] Dependency installation failed: {error_msg}\n")
+            self._build_view.log(f"\n[Error] Dependency installation failed: {error_msg}\n")
             self.lbl_banner.configure(
                 text="✗ Installation Failed. Check logs above.",
                 fg_color=STATUS_RED,
                 text_color=TEXT_WHITE,
             )
 
-        self.lbl_banner.grid(row=2, column=0, sticky="ew", pady=5)
+        self.lbl_banner.grid(row=1, column=0, sticky="ew", pady=5)
 
         # Re-run checks to update lamps
         self.run_checks()
 
-    def build_finished(self, success: bool, payload: str):
-        self.progress_bar.stop()
-        self.progress_bar.grid_forget()
-        self.btn_build.configure(state="normal", text="BUILD NPV MOD")
-        self.btn_cancel.configure(state="disabled", text="CANCEL")
-
-        if success:
-            self.append_log(f"\n[Success] NPV Mod built successfully! Saved at: {payload}\n")
-            self.lbl_banner.configure(
-                text="✓ Build Successful! Mod Ready.",
-                fg_color=STATUS_GREEN,
-                text_color=BG_DARK,
-            )
-            # Add helper button to open output dir
-            self.last_output_dir = Path(payload)
-            self.btn_open_out = ctk.CTkButton(
-                self.frame_actions,
-                text="Open Output Folder",
-                fg_color="#333",
-                hover_color="#444",
-                text_color=ACCENT_CYAN,
-                command=self.open_output_folder,
-            )
-            self.btn_open_out.grid(row=3, column=0, sticky="ew", pady=5)
-        else:
-            self.append_log(f"\n[Error] Build failed: {payload}\n")
-            self.lbl_banner.configure(
-                text="✗ Build Failed. Check logs above.",
-                fg_color=STATUS_RED,
-                text_color=TEXT_WHITE,
-            )
-            if hasattr(self, "btn_open_out"):
-                self.btn_open_out.grid_forget()
-
-        self.lbl_banner.grid(row=2, column=0, sticky="ew", pady=5)
-
     def open_output_folder(self):
-        target = getattr(self, "last_output_dir", None)
-        if target is None:
-            out = self.entry_output.get().strip()
-            target = Path(out) if out else None
-        if target is None or not target.exists():
+        # The "Open Output Folder" button is only ever created in
+        # _on_build_done() (BuildView's on_done hook), right after
+        # self.last_output_dir is set, so it is always present here.
+        target = self.last_output_dir
+        if not target.exists():
             self.show_error(
                 "Folder Not Found",
                 "The output folder does not exist yet. Build the mod first.",
