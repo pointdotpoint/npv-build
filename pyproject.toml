@@ -1,22 +1,21 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "npv-build"
-version = "1.0.0"
+version = "2.0.0.dev0"
 description = "Cyberpunk 2077 NPV Automation"
 authors = [
     {name = "Maintainer"}
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
-    "tomli; python_version < '3.11'",
-    "tomli-w"
+    "tomli-w",
+    "lz4"
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
 gui = [
     "customtkinter>=6.0.0",
     "tkinterdnd2>=0.5.0",
@@ -29,8 +28,14 @@ npv-build = "npv_build.cli:main"
 [project.gui-scripts]
 npv-build-gui = "npv_build.gui:main"
 
-[tool.setuptools.packages.find]
-include = ["npv_build*"]
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
 
-[tool.setuptools.package-data]
-"npv_build" = ["data/**/*"]
+[tool.hatch.build.targets.wheel]
+packages = ["npv_build"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
