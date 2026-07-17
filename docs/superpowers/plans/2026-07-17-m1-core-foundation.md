@@ -899,7 +899,9 @@ git add npv_build/wolvenkit.py npv_build/blender_module.py tests/core/test_adapt
 git commit -m "refactor(wolvenkit,blender): migrate subprocess sites to run_tool; close unchecked-failure hole"
 ```
 
----### Task 7: Migrate `installer.py` + `hair_mod_helper.py` subprocess sites
+---
+
+### Task 7: Migrate `installer.py` + `hair_mod_helper.py` subprocess sites
 
 **Files:**
 - Modify: `npv_build/installer.py`
