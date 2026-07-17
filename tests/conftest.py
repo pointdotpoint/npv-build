@@ -1,7 +1,15 @@
 import struct
+from pathlib import Path
 
 import lz4.block
 import pytest
+
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+
+
+def fixture_path(name: str) -> Path:
+    """Resolve a path under tests/fixtures/ by filename."""
+    return FIXTURES_DIR / name
 
 
 @pytest.fixture(autouse=True)
