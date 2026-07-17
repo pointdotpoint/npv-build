@@ -40,7 +40,7 @@ def test_components_json_structure(tmp_path):
 def test_readme_contains_key_sections(tmp_path):
     out = tmp_path / "README_GUI_STEPS.md"
     write_readme("my_npv_abc", "my_npv_abc_appearance", out)
-    text = out.read_text()
+    text = out.read_text(encoding="utf-8")
     assert "WolvenKit" in text
     assert "my_npv_abc.app" in text
     assert "my_npv_abc_appearance" in text
@@ -53,5 +53,6 @@ def test_readme_contains_key_sections(tmp_path):
 def test_readme_mentions_component_json(tmp_path):
     out = tmp_path / "README_GUI_STEPS.md"
     write_readme("x", "x_appearance", out)
-    text = out.read_text()
+    text = out.read_text(encoding="utf-8")
+    assert "—" in text  # Verify non-ASCII (em dash) survives round-trip
     assert "npv_components.json" in text
