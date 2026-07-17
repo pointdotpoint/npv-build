@@ -275,7 +275,7 @@ class PipelineService:
                 cancel.raise_if_cancelled()
 
             body_rig = asset_paths.get("body_rig", "pwa")
-            lua_hash = _hash_input([mod_id, req.npv_name, body_rig])
+            lua_hash = _hash_input([mod_id, req.npv_name, body_rig, asset_paths])
             prior = manifest.get(current_stage)
             lua_path_str = prior.get("output") if prior else None
             lua_exists = bool(lua_path_str) and Path(lua_path_str).exists()
@@ -288,7 +288,9 @@ class PipelineService:
                 stages_resumed.append(current_stage)
                 emit("stage_skipped", current_stage, "Unchanged, skipping.")
             else:
-                lua_path = write_amm_lua(mod_id, req.npv_name, body_rig, req.output_dir)
+                lua_path = write_amm_lua(
+                    mod_id, req.npv_name, body_rig, req.output_dir, asset_paths=asset_paths
+                )
                 manifest[current_stage] = {
                     "input_hash": lua_hash,
                     "completed_at": datetime.now(UTC).isoformat(),

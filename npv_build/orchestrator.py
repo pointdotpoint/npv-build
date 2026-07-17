@@ -30,10 +30,46 @@ def compute_mod_id(npv_name: str, cc_settings: dict) -> str:
     return f"{slug}_{hash_digest}"
 
 
-def write_amm_lua(mod_id: str, npv_name: str, body_rig: str, output_dir: Path) -> Path:
-    """Generate the AppearanceMenuMod Lua entry for this mod and write it to disk."""
+def write_amm_lua(
+    mod_id: str,
+    npv_name: str,
+    body_rig: str,
+    output_dir: Path,
+    asset_paths: dict | None = None,
+) -> Path:
+    """Generate the AppearanceMenuMod Lua entry for this mod and write it to disk.
+
+    When `asset_paths` is provided, restores the original orchestrator behavior:
+    a leading `-- WARNING` comment block (and matching `logger.warning` calls) for
+    any external mod dependencies or unresolved base-game selections recorded in
+    `asset_paths["external_dependencies"]` / `asset_paths["unresolved"]`.
+    """
     appearance_name = f"{mod_id}_appearance"
     ent_depot_path = f"base\\\\npv-build\\\\{mod_id}\\\\{mod_id}.ent"
+
+    ext_deps = (asset_paths or {}).get("external_dependencies", [])
+    unresolved = (asset_paths or {}).get("unresolved", [])
+
+    lua_comments = []
+    if ext_deps:
+        logger.warning(
+            "\n[Orchestrator] External mod dependencies detected! These assets are not in the base game:"
+        )
+        for dep in ext_deps:
+            sel = dep.get("selection")
+            reason = dep.get("reason")
+            logger.warning(f"  - {sel}: {reason}")
+            lua_comments.append(f"-- WARNING: External mod dependency: {sel} ({reason})")
+
+    if unresolved:
+        logger.warning(
+            "\n[Orchestrator] Unresolved base-game selections (using sensible fallbacks):"
+        )
+        for unr in unresolved:
+            logger.warning(f"  - {unr}")
+            lua_comments.append(f"-- WARNING: Unresolved selection (fallback used): {unr}")
+
+    lua_comments_str = "\n".join(lua_comments) + "\n" if lua_comments else ""
 
     safe_display = npv_name.replace('"', '\\"')
     unique_id = mod_id.upper().replace("-", "_")
@@ -43,7 +79,7 @@ def write_amm_lua(mod_id: str, npv_name: str, body_rig: str, output_dir: Path) -
     # use our .ent as the entity template and the record for puppet setup.
     record = '"Character.Judy"' if body_rig == "pwa" else '"Character.Viktor"'
 
-    lua_code = f"""return {{
+    lua_code = f"""{lua_comments_str}return {{
   modder = "npv-build",
   unique_identifier = "{unique_id}",
   rig = "{body_rig}",

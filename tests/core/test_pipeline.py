@@ -18,7 +18,10 @@ def fake_stages(monkeypatch, tmp_path):
         lambda cc, game_dir, hair_override, garments, wk: calls.append("resolve_assets") or {"head": "x"},
     )
     monkeypatch.setattr(pl, "_run_assemble", lambda req, wk, mod_id, asset_paths, cc: calls.append("assemble"))
-    monkeypatch.setattr(pl, "write_amm_lua", lambda mod_id, npv_name, body_rig, output_dir: calls.append("emit_amm_lua") or output_dir / "x.lua")
+    monkeypatch.setattr(
+        pl, "write_amm_lua",
+        lambda mod_id, npv_name, body_rig, output_dir, **kw: calls.append("emit_amm_lua") or output_dir / "x.lua",
+    )
     return calls
 
 
@@ -92,3 +95,33 @@ def test_failed_event_on_stage_error(fake_stages, tmp_path, monkeypatch):
     with pytest.raises(RuntimeError):
         PipelineService().build(_req(tmp_path), on_event=events.append)
     assert any(e.kind == "failed" and e.stage == "resolve_assets" for e in events)
+
+
+def test_emit_amm_lua_includes_external_dependency_warning(fake_stages, tmp_path, monkeypatch):
+    from npv_build.orchestrator import write_amm_lua as real_write_amm_lua
+
+    monkeypatch.setattr(pl, "write_amm_lua", real_write_amm_lua)
+    asset_paths_with_dep = {
+        "head": "x",
+        "body_rig": "pwa",
+        "external_dependencies": [
+            {"selection": "fhair_02", "reason": "modded hair not in base game"},
+        ],
+        "unresolved": [],
+    }
+    monkeypatch.setattr(
+        pl, "resolve_assets",
+        lambda cc, game_dir, hair_override, garments, wk: asset_paths_with_dep,
+    )
+
+    result = PipelineService().build(_req(tmp_path))
+
+    lua_dir = (
+        tmp_path / "out" / "bin" / "x64" / "plugins" / "cyber_engine_tweaks"
+        / "mods" / "AppearanceMenuMod" / "Collabs" / "Custom Entities"
+    )
+    lua_files = list(lua_dir.glob("*.lua"))
+    assert len(lua_files) == 1
+    lua_text = lua_files[0].read_text(encoding="utf-8")
+    assert "-- WARNING: External mod dependency: fhair_02 (modded hair not in base game)" in lua_text
+    assert result.mod_id
