@@ -1,6 +1,7 @@
 """Tests for the WolvenKit CLI adapter module."""
 
 import json
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -44,10 +45,10 @@ class TestCheckVersion:
     @patch("npv_build.wk_cli.run_tool")
     def test_check_version_ok(self, mock_run_tool, wk):
         mock_run_tool.return_value = ToolResult(
-            argv=["WolvenKit.CLI", "--version"], returncode=0, stdout="8.18.1\n", stderr=""
+            argv=["WolvenKit.CLI", "--version"], returncode=0, stdout="8.19.0\n", stderr=""
         )
         version = wk.check_version()
-        assert version == "8.18.1"
+        assert version == "8.19.0"
 
     @patch("npv_build.wk_cli.run_tool")
     def test_check_version_mismatch_warns(self, mock_run_tool, wk, caplog):
@@ -60,6 +61,25 @@ class TestCheckVersion:
         assert any(
             record.levelname == "WARNING" and "9.0.0" in record.message for record in caplog.records
         )
+
+    @patch("npv_build.wk_cli.run_tool")
+    def test_check_version_below_minimum_raises(self, mock_run_tool, wk):
+        mock_run_tool.return_value = ToolResult(
+            argv=["WolvenKit.CLI", "--version"], returncode=0, stdout="8.18.1\n", stderr=""
+        )
+        with pytest.raises(WolvenKitError) as ei:
+            wk.check_version()
+        assert "8.18.1" in str(ei.value)
+        assert "8.19" in str(ei.value)
+
+    @patch("npv_build.wk_cli.run_tool")
+    def test_check_version_newer_warns_not_raises(self, mock_run_tool, wk, caplog):
+        mock_run_tool.return_value = ToolResult(
+            argv=["WolvenKit.CLI", "--version"], returncode=0, stdout="8.20.2\n", stderr=""
+        )
+        with caplog.at_level(logging.WARNING, logger="npv_build.wk_cli"):
+            assert wk.check_version() == "8.20.2"
+        assert any("8.20.2" in r.message for r in caplog.records)
 
     @patch("npv_build.wk_cli.run_tool")
     def test_check_version_not_found(self, mock_run_tool, wk):

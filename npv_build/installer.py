@@ -118,10 +118,10 @@ def install_wolvenkit(tools_dir: Path, progress_callback):
         str(tools_dir / "wolvenkit"),
         "WolvenKit.CLI",
         "--version",
-        "8.18.1",
+        "8.19.0",
     ]
 
-    progress_callback("Downloading WolvenKit.CLI 8.18.1 via NuGet...", 30)
+    progress_callback("Downloading WolvenKit.CLI 8.19.0 via NuGet...", 30)
     try:
         run_tool(cmd, tool="dotnet", timeout=900)
     except ToolError as e:

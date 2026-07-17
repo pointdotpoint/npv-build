@@ -26,12 +26,25 @@ logger = logging.getLogger(__name__)
 
 
 class WolvenKitError(ToolError):
-    def __init__(self, message: str, *, operation: str = "", exit_code: int = -1):
-        super().__init__(message, exit_code=exit_code, module_name="WolvenKit Automation")
+    def __init__(
+        self,
+        message: str,
+        *,
+        operation: str = "",
+        exit_code: int = -1,
+        remediation: str = "",
+    ):
+        super().__init__(
+            message,
+            exit_code=exit_code,
+            module_name="WolvenKit Automation",
+            remediation=remediation,
+        )
         self.operation = operation
 
 
-SUPPORTED_VERSION_PREFIX = "8.18."
+MIN_WK_VERSION = (8, 19, 0)
+TESTED_WK_PREFIX = "8.19."
 
 
 @dataclass(frozen=True)
@@ -257,13 +270,40 @@ class WolvenKit:
     # -- version check -----------------------------------------------------
 
     def check_version(self) -> str:
-        """Check CLI version. Warns on mismatch, raises only if binary missing."""
+        """Check CLI version.
+
+        Raises WolvenKitError if the reported version is below MIN_WK_VERSION.
+        Logs a warning if it's newer than the tested TESTED_WK_PREFIX line.
+        Unparseable version strings are logged and returned as-is (does not
+        brick the pipeline on exotic version output).
+        """
         result = self._run(["--version"], operation="version")
         version = (result.stdout or "").strip()
-        if not version.startswith(SUPPORTED_VERSION_PREFIX):
+
+        match = _re.match(r"(\d+)\.(\d+)\.(\d+)", version)
+        if not match:
+            logger.warning(
+                f"[WolvenKit] could not parse version string '{version}'; proceeding anyway."
+            )
+            return version
+
+        parsed = tuple(int(x) for x in match.groups())
+        if parsed < MIN_WK_VERSION:
+            min_str = ".".join(str(x) for x in MIN_WK_VERSION)
+            raise WolvenKitError(
+                f"[WolvenKit] detected version '{version}', which is below the "
+                f"minimum required version {min_str}.",
+                operation="version",
+                remediation=(
+                    f"Install WolvenKit.CLI >= {min_str} "
+                    "(e.g. `dotnet tool install --global WolvenKit.CLI "
+                    f"--version {min_str}`) and re-run."
+                ),
+            )
+        if not version.startswith(TESTED_WK_PREFIX):
             logger.warning(
                 f"[WolvenKit] detected version '{version}', "
-                f"tool was developed against {SUPPORTED_VERSION_PREFIX}x. "
+                f"tool was tested against {TESTED_WK_PREFIX}x. "
                 "Proceeding anyway."
             )
         return version
