@@ -8,6 +8,7 @@ from .core.errors import NpvError
 from .core.logging_setup import configure_logging
 from .core.pipeline import BuildRequest, PipelineService
 from .orchestrator import run_orchestrator
+from .save_probe import format_probe, probe_save
 
 
 def _default_log_file(output_dir: Path) -> Path:
@@ -34,6 +35,11 @@ def main(argv: list[str] | None = None):
     )
     parser.add_argument(
         "--output", metavar="<dir>", help="Root of the produced Mod package install tree."
+    )
+    parser.add_argument(
+        "--probe-save",
+        metavar="<sav.dat>",
+        help="Print header version, patch mapping, and CC node facts for a save file, then exit.",
     )
     parser.add_argument(
         "--cc-json",
@@ -117,6 +123,17 @@ def main(argv: list[str] | None = None):
     )
 
     args = parser.parse_args(argv)
+
+    if args.probe_save:
+        try:
+            info = probe_save(Path(args.probe_save))
+            print(format_probe(info))
+            return
+        except NpvError as e:
+            print(e.user_message, file=sys.stderr)
+            if e.remediation:
+                print(e.remediation, file=sys.stderr)
+            sys.exit(1)
 
     # Shift single positional arg to npv_name if cc_json or dump_head_glb is present
     if args.save_dat and not args.npv_name:
