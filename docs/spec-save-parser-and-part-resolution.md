@@ -412,5 +412,5 @@ the head part’s `.app` appearance variant is the tone-specific one.
   deltas distinct from named appearances, that is a separate ADR.
 - Shipping modded assets. The NPV references them; the user must have them.
 - Cyberware/clothing transfer beyond face/head/body/hair (already out of v1
-  scope per SPEC.md §2.2).
+  scope per docs/legacy/SPEC.md §2.2).
 - Non-2.x save formats.

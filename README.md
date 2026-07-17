@@ -260,7 +260,7 @@ The CLI is the recommended path and handles everything above. If you'd rather
 sculpt morphs by hand in Blender, resolve assets manually, or understand the
 underlying file formats, see the in-depth walkthrough:
 
-➡️ **[NPV_Creation_Guide.md](NPV_Creation_Guide.md)** — manual save parsing,
+➡️ **[NPV_Creation_Guide.md](docs/NPV_Creation_Guide.md)** — manual save parsing,
 asset mapping, Blender morph baking, and fixing common visual glitches.
 
 One detail worth knowing either way: the NPC is built on a **rig-appropriate
@@ -357,8 +357,8 @@ the build.
 - **Architecture overview** — [CLAUDE.md](CLAUDE.md) (module pipeline & design decisions).
 - **Glossary / terminology** — [CONTEXT.md](CONTEXT.md).
 - **Decision records** — [docs/adr/](docs/adr/).
-- **Internal specs** — `SPEC.md`, `SPEC-app-v2.md`, `SPEC-clothing.md`,
-  `SPEC-inject.md` (design references; may lag the code).
+- **Internal specs** — `docs/legacy/SPEC.md`, `docs/legacy/SPEC-app-v2.md`, `docs/legacy/SPEC-clothing.md`,
+  `docs/legacy/SPEC-inject.md` (design references; may lag the code).
 
 Entry point is `npv_build/cli.py` (`main`). Run the test suite with:
 
