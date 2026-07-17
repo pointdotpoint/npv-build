@@ -16,16 +16,20 @@ once at setup).
 """
 
 import json
+import logging
 import os
 import shutil
-import subprocess
 from pathlib import Path
 
+from .core.errors import ToolError
+from .core.proc import run_tool
 
-class BlenderError(Exception):
+logger = logging.getLogger(__name__)
+
+
+class BlenderError(ToolError):
     def __init__(self, message):
-        super().__init__(message)
-        self.module_name = "Blender Bake"
+        super().__init__(message, module_name="Blender Bake")
 
 
 CLI_BINARY = "WolvenKit.CLI"
@@ -91,27 +95,21 @@ def _depot_to_rel(depot: str) -> str:
 
 def _run(cmd, verbosity, error_prefix):
     stream = verbosity >= 2
+    if stream:
+        print(f"[Blender] $ {' '.join(str(c) for c in cmd)}")
     try:
+        result = run_tool(cmd, tool="blender", timeout=900.0, logger=logger)
+    except ToolError as e:
+        raise BlenderError(f"{error_prefix}: {e}") from e
+
+    if stream:
         import sys
 
-        res = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-        )
-        if stream:
-            if res.stdout:
-                sys.stdout.write(res.stdout)
-            if res.stderr:
-                sys.stderr.write(res.stderr)
-    except FileNotFoundError as e:
-        raise BlenderError(f"{error_prefix}: command not found: {e}") from e
-    if res.returncode != 0:
-        tail = ""
-        if not stream:
-            tail = "\n" + ((res.stderr or "") + (res.stdout or ""))[-1500:]
-        raise BlenderError(f"{error_prefix}: exit {res.returncode}.{tail}")
-    return res
+        if result.stdout:
+            sys.stdout.write(result.stdout)
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+    return result
 
 
 def bake_face_mesh(

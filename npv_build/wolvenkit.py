@@ -11,16 +11,20 @@ Depends on:
 from __future__ import annotations
 
 import json
+import logging
 import re
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 
 from .clothing import resolve_clothing
 from .config_editor import _MESH_COMPONENT_TYPES
+from .core.errors import ToolError
+from .core.proc import run_tool
 from .head_bake import find_stock_head_part, prepare_head
 from .wk_cli import WolvenKit, WolvenKitError
+
+logger = logging.getLogger(__name__)
 
 INJECT_BINARY = "npv-inject"
 
@@ -67,34 +71,29 @@ def _inject_components(
 
     stream = verbosity >= 2
     try:
-        import sys
-
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-        )
-        if stream:
-            if result.stdout:
-                sys.stdout.write(result.stdout)
-            if result.stderr:
-                sys.stderr.write(result.stderr)
-    except FileNotFoundError as e:
-        raise WolvenKitError(
-            f"{INJECT_BINARY} not found. Build it with: dotnet build tools/npv-inject",
-            operation="inject",
-        ) from e
-
-    if result.returncode != 0:
+        result = run_tool(cmd, tool="npv-inject", timeout=120.0, logger=logger)
+    except ToolError as e:
+        if e.exit_code is None:
+            raise WolvenKitError(
+                f"{INJECT_BINARY} not found. Build it with: dotnet build tools/npv-inject",
+                operation="inject",
+            ) from e
         tail = ""
         if not stream:
-            err = (result.stderr or "") + (result.stdout or "")
-            tail = "\n" + err[-1500:]
+            tail = "\n" + (e.details or "")
         raise WolvenKitError(
-            f"npv-inject failed (exit {result.returncode}).{tail}",
+            f"npv-inject failed (exit {e.exit_code}).{tail}",
             operation="inject",
-            exit_code=result.returncode,
-        )
+            exit_code=e.exit_code,
+        ) from e
+
+    if stream:
+        import sys
+
+        if result.stdout:
+            sys.stdout.write(result.stdout)
+        if result.stderr:
+            sys.stderr.write(result.stderr)
 
 
 def _resolve_morphtarget_to_mesh(wk: WolvenKit, morphtarget_depot: str) -> str:
@@ -342,27 +341,28 @@ def _extract_ccxl_eye_components(
         alt = "|".join(re.escape(a) for a in app_names)
         regex = f"({alt})$"
 
+        cmd = [
+            "WolvenKit.CLI",
+            "uncook",
+            "-p",
+            str(target_archive),
+            "-r",
+            regex,
+            "-o",
+            str(td_path),
+            "-s",
+        ]
         try:
-            subprocess.run(
-                [
-                    "WolvenKit.CLI",
-                    "uncook",
-                    "-p",
-                    str(target_archive),
-                    "-r",
-                    regex,
-                    "-o",
-                    str(td_path),
-                    "-s",
-                ],
-                capture_output=True,
-                text=True,
-            )
-        except Exception:
-            return []
+            run_tool(cmd, tool="WolvenKit.CLI", timeout=600.0, logger=logger)
+        except ToolError as e:
+            raise WolvenKitError(
+                f"Failed to uncook garment meshes from {target_archive.name}: {e.user_message}",
+                operation="uncook",
+                exit_code=e.exit_code if e.exit_code is not None else -1,
+            ) from e
 
         # Also uncook morphtargets to resolve meshes
-        subprocess.run(
+        run_tool(
             [
                 "WolvenKit.CLI",
                 "uncook",
@@ -374,8 +374,9 @@ def _extract_ccxl_eye_components(
                 str(td_path),
                 "-s",
             ],
-            capture_output=True,
-            text=True,
+            tool="WolvenKit.CLI",
+            timeout=600.0,
+            logger=logger,
         )
 
         mt_cache = {}
