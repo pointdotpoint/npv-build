@@ -81,15 +81,23 @@ def install_mod(entry: ModEntry, game_dir: Path) -> None:
 
     mod_dir = game_mod_dir(game_dir)
     lua_dir = _game_lua_dir(game_dir)
-    mod_dir.mkdir(parents=True, exist_ok=True)
-    lua_dir.mkdir(parents=True, exist_ok=True)
 
-    shutil.copy2(entry.archive_path, mod_dir / entry.archive_path.name)
-    shutil.copy2(entry.lua_path, lua_dir / entry.lua_path.name)
+    try:
+        mod_dir.mkdir(parents=True, exist_ok=True)
+        lua_dir.mkdir(parents=True, exist_ok=True)
 
-    xl_src = _xl_path(entry.archive_path)
-    if xl_src.is_file():
-        shutil.copy2(xl_src, mod_dir / xl_src.name)
+        shutil.copy2(entry.archive_path, mod_dir / entry.archive_path.name)
+        shutil.copy2(entry.lua_path, lua_dir / entry.lua_path.name)
+
+        xl_src = _xl_path(entry.archive_path)
+        if xl_src.is_file():
+            shutil.copy2(xl_src, mod_dir / xl_src.name)
+    except OSError as e:
+        raise InstallError(
+            f"Could not write to the game directory: {game_dir}",
+            remediation="Check permissions on the game/mod directory, or that the game isn't running.",
+            details=str(e),
+        ) from e
 
 
 def uninstall_mod(entry: ModEntry, game_dir: Path) -> None:
@@ -97,6 +105,13 @@ def uninstall_mod(entry: ModEntry, game_dir: Path) -> None:
     mod_dir = game_mod_dir(game_dir)
     lua_dir = _game_lua_dir(game_dir)
 
-    (mod_dir / entry.archive_path.name).unlink(missing_ok=True)
-    (lua_dir / entry.lua_path.name).unlink(missing_ok=True)
-    (mod_dir / _xl_path(entry.archive_path).name).unlink(missing_ok=True)
+    try:
+        (mod_dir / entry.archive_path.name).unlink(missing_ok=True)
+        (lua_dir / entry.lua_path.name).unlink(missing_ok=True)
+        (mod_dir / _xl_path(entry.archive_path).name).unlink(missing_ok=True)
+    except OSError as e:
+        raise InstallError(
+            f"Could not remove files from the game directory: {game_dir}",
+            remediation="Check permissions on the game/mod directory, or that the game isn't running.",
+            details=str(e),
+        ) from e

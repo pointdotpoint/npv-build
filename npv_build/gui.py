@@ -1097,10 +1097,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         confirm = tk.messagebox.askyesno(
             "Download Dependencies?",
             "This will download and locally install missing tools into your application cache:\n"
-            "- .NET 8.0 SDK (approx. 120MB)\n"
             "- WolvenKit.CLI (approx. 40MB)\n"
             "- Blender 4.2.0 LTS (approx. 150MB)\n\n"
-            "This requires about 350MB of downloads and up to 1GB of disk space. "
+            "This requires about 190MB of downloads and up to 1GB of disk space. "
             "Proceed?",
         )
         if not confirm:

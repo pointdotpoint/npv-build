@@ -69,6 +69,46 @@ def test_install_missing_source_raises(tmp_path):
         install_mod(ghost, game)
 
 
+def test_install_permission_denied_raises_install_error(tmp_path, monkeypatch):
+    """A read-only/permission-denied game dir must surface as InstallError, not
+    a bare OSError/PermissionError (GUI-8: no raw tracebacks in the UI)."""
+    import shutil as shutil_mod
+
+    out = tmp_path / "out"
+    out.mkdir()
+    _built_mod(out, "my_v_abc")
+    game = _game(tmp_path / "game")
+    entry = list_mods(out, game)[0]
+
+    def _raise(*args, **kwargs):
+        raise PermissionError("Permission denied")
+
+    monkeypatch.setattr(shutil_mod, "copy2", _raise)
+
+    with pytest.raises(InstallError):
+        install_mod(entry, game)
+
+
+def test_uninstall_permission_denied_raises_install_error(tmp_path, monkeypatch):
+    """Same guarantee for uninstall_mod: OSError during unlink becomes InstallError."""
+    out = tmp_path / "out"
+    out.mkdir()
+    _built_mod(out, "my_v_abc")
+    game = _game(tmp_path / "game")
+    entry = list_mods(out, game)[0]
+    install_mod(entry, game)
+    entry = list_mods(out, game)[0]
+    assert entry.installed is True
+
+    def _raise(self, *args, **kwargs):
+        raise PermissionError("Permission denied")
+
+    monkeypatch.setattr(Path, "unlink", _raise)
+
+    with pytest.raises(InstallError):
+        uninstall_mod(entry, game)
+
+
 @pytest.mark.skipif(not _HAS_DISPLAY, reason="requires a display (headless environment)")
 def test_modmanager_view_instantiates(tmp_path):
     import customtkinter as ctk
