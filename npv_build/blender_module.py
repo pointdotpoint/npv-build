@@ -23,6 +23,7 @@ from pathlib import Path
 
 from .core.errors import ToolError
 from .core.proc import run_tool
+from .core.toolpaths import resolve_tool
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +71,19 @@ ANIM_ARCHIVE = "basegame_4_animation.archive"
 
 
 def _blender_cmd():
-    """Return the argv prefix to invoke Blender headless."""
-    if shutil.which("blender"):
-        return ["blender"]
-    # Check local cache
+    """Return the argv prefix to invoke Blender headless.
+
+    Resolves to an absolute, existing path via resolve_tool() (spec SEC-3):
+    PATH-resolved blender first, then any cached blender binary. Falls back
+    to invoking flatpak (itself resolved via PATH by the OS, same as any
+    other trusted system launcher) only if no blender binary is found.
+    """
     import sys
 
     from .config import get_cache_dir
+
+    path_hit = shutil.which("blender")
+    candidates = [Path(path_hit)] if path_hit else []
 
     tools_dir = get_cache_dir() / "tools" / "blender"
     if tools_dir.exists():
@@ -84,9 +91,13 @@ def _blender_cmd():
         binary_name = f"blender{ext}"
         for path in tools_dir.rglob(binary_name):
             if path.is_file() and not path.is_symlink():
-                return [str(path)]
-    # flatpak fallback
-    return ["flatpak", "run", "org.blender.Blender"]
+                candidates.append(path)
+
+    try:
+        return [str(resolve_tool("blender", candidates))]
+    except ToolError:
+        # flatpak fallback
+        return ["flatpak", "run", "org.blender.Blender"]
 
 
 def _depot_to_rel(depot: str) -> str:

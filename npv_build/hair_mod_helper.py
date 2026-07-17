@@ -4,9 +4,10 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from .core.errors import InstallError, SecurityError
+from .core.errors import InstallError, SecurityError, ToolError
 from .core.proc import run_tool
 from .core.safe_extract import is_safe_member, safe_extract_7z
+from .core.toolpaths import resolve_tool
 
 
 def derive_hair_name(archive_filename: str) -> str:
@@ -131,11 +132,13 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
                                 installed_files.append(dest_path)
 
     elif suffix == ".rar":
-        if not shutil.which("unrar"):
+        try:
+            unrar_bin = str(resolve_tool("unrar", []))
+        except ToolError as e:
             raise InstallError(
                 "The 'unrar' utility is not installed on the system.",
                 remediation="Install 'unrar' via your system package manager to extract .rar mods.",
-            )
+            ) from e
 
         with tempfile.TemporaryDirectory() as td:
             td_path = Path(td)
@@ -147,7 +150,7 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
             # Listing the archive first (unrar lb = bare list, one member path
             # per line, no headers/sizes) lets us catch traversal in the names
             # themselves before anything is written to disk.
-            listing = run_tool(["unrar", "lb", str(source_path)], tool="unrar", timeout=300)
+            listing = run_tool([unrar_bin, "lb", str(source_path)], tool="unrar", timeout=300)
             members = [line for line in listing.stdout.splitlines() if line.strip()]
             for member in members:
                 if not is_safe_member(member, td_path):
@@ -157,7 +160,7 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
                         details=f"dest={td_path}",
                     ) from None
 
-            run_tool(["unrar", "x", "-y", str(source_path), td], tool="unrar", timeout=300)
+            run_tool([unrar_bin, "x", "-y", str(source_path), td], tool="unrar", timeout=300)
 
             # Defensive post-extract check too (cheap, catches anything the
             # listing didn't reveal, e.g. symlinks resolved on disk by unrar).

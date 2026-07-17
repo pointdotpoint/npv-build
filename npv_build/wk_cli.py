@@ -21,6 +21,7 @@ from typing import Any
 from .core.cancel import CancelToken
 from .core.errors import ToolError
 from .core.proc import run_tool
+from .core.toolpaths import resolve_tool
 
 logger = logging.getLogger(__name__)
 
@@ -315,18 +316,23 @@ class WolvenKit:
         operation: str = "",
         allow_exit_codes: tuple[int, ...] = (),
     ) -> subprocess.CompletedProcess[str]:
-        binary = self._cfg.cli_binary
-        if not shutil.which(binary):
-            from .config import get_cache_dir
+        from .config import get_cache_dir
 
-            ext = ".exe" if sys.platform == "win32" else ""
-            cache_tools_dir = get_cache_dir() / "tools" / "wolvenkit"
-            # Check candidate names in order: WolvenKit.CLI (explicit install), cp77tools (dotnet tool install shim)
-            for candidate_name in [f"WolvenKit.CLI{ext}", f"cp77tools{ext}"]:
-                local_path = cache_tools_dir / candidate_name
-                if local_path.exists():
-                    binary = str(local_path)
-                    break
+        binary_name = self._cfg.cli_binary
+        ext = ".exe" if sys.platform == "win32" else ""
+        cache_tools_dir = get_cache_dir() / "tools" / "wolvenkit"
+        # Candidates in order: PATH-resolved binary, cache/WolvenKit.CLI (explicit
+        # install), cache/cp77tools (dotnet tool install shim). resolve_tool()
+        # itself also falls back to a PATH search by name, so this preserves the
+        # original PATH-then-cache-fallback behaviour while always returning an
+        # absolute, existing path.
+        path_hit = shutil.which(binary_name)
+        candidates = [
+            Path(path_hit) if path_hit else None,
+            cache_tools_dir / f"WolvenKit.CLI{ext}",
+            cache_tools_dir / f"cp77tools{ext}",
+        ]
+        binary = str(resolve_tool(binary_name, [c for c in candidates if c is not None]))
         cmd = [binary, *args]
         stream = self._cfg.verbosity >= 2
 
