@@ -7,7 +7,9 @@ from .config import get_cache_dir, load_config, save_config
 from .core.errors import NpvError
 from .core.logging_setup import configure_logging
 from .core.pipeline import BuildRequest, PipelineService
+from .gen_mapping import format_report, mapping_report
 from .orchestrator import run_orchestrator
+from .save_probe import format_probe, probe_save
 
 
 def _default_log_file(output_dir: Path) -> Path:
@@ -34,6 +36,27 @@ def main(argv: list[str] | None = None):
     )
     parser.add_argument(
         "--output", metavar="<dir>", help="Root of the produced Mod package install tree."
+    )
+    parser.add_argument(
+        "--probe-save",
+        metavar="<sav.dat>",
+        help="Print header version, patch mapping, and CC node facts for a save file, then exit.",
+    )
+    parser.add_argument(
+        "--mapping-report",
+        action="store_true",
+        help="Diff the vendored CC mapping against the game's live asset index "
+        "(missing/unmapped head parts), then exit. Unmapped candidates are "
+        "scoped to head-preset basehead stems only (h0_/he_/ht_/heb_); hair, "
+        "tattoo, facial-hair, and item .ent files are resolved separately "
+        "and are not candidates here. A wholly new prefix family in a future "
+        "patch requires updating HEAD_PRESET_STEM_PREFIXES by hand.",
+    )
+    parser.add_argument(
+        "--mapping-patch",
+        metavar="<patch>",
+        default="2.13",
+        help="Mapping patch version to check with --mapping-report (default: 2.13).",
     )
     parser.add_argument(
         "--cc-json",
@@ -118,6 +141,17 @@ def main(argv: list[str] | None = None):
 
     args = parser.parse_args(argv)
 
+    if args.probe_save:
+        try:
+            info = probe_save(Path(args.probe_save))
+            print(format_probe(info))
+            return
+        except NpvError as e:
+            print(e.user_message, file=sys.stderr)
+            if e.remediation:
+                print(e.remediation, file=sys.stderr)
+            sys.exit(1)
+
     # Shift single positional arg to npv_name if cc_json or dump_head_glb is present
     if args.save_dat and not args.npv_name:
         if args.cc_json or args.dump_head_glb:
@@ -131,6 +165,19 @@ def main(argv: list[str] | None = None):
         save_config(config)
 
     game_dir = config.get("game_dir")
+
+    if args.mapping_report:
+        if not game_dir:
+            parser.error("--mapping-report requires --game-dir (or a configured game_dir).")
+        try:
+            report = mapping_report(Path(game_dir), mapping_patch=args.mapping_patch)
+            print(format_report(report))
+            return
+        except NpvError as e:
+            print(e.user_message, file=sys.stderr)
+            if e.remediation:
+                print(e.remediation, file=sys.stderr)
+            sys.exit(1)
 
     # Validate BYO head flags combinations
     if args.no_restore_head_materials and not args.head_mesh:
@@ -223,6 +270,8 @@ def main(argv: list[str] | None = None):
             )
             result = PipelineService().build(req)
             out_dir = result.output_dir
+            if result.zip_path:
+                print(f"Mod zip: {result.zip_path}")
         readme_path = Path(args.output).resolve() / "README_GUI_STEPS.md"
         if readme_path.exists():
             print("\n" + "=" * 60)

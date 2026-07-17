@@ -26,9 +26,12 @@ class NpvError(Exception):
         super().__init__(user_message)
 
     def __str__(self) -> str:
+        parts = [self.user_message]
         if self.details:
-            return f"{self.user_message}\n{self.details}"
-        return self.user_message
+            parts.append(self.details)
+        if self.remediation:
+            parts.append(self.remediation)
+        return "\n".join(parts)
 
 
 class SaveFormatError(NpvError):
@@ -68,6 +71,10 @@ class BakeVerificationError(NpvError):
 
 
 class InstallError(NpvError):
+    pass
+
+
+class PackagingError(NpvError):
     pass
 
 

@@ -66,7 +66,9 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
         try:
             res = run_tool(cmd, tool="WolvenKit.CLI", timeout=600.0, logger=logger)
         except ToolError as e:
-            raise ResolverError(f"WolvenKit archive list failed: {e.user_message}") from e
+            raise ResolverError(
+                f"WolvenKit archive list failed: {e.user_message}", details=e.details
+            ) from e
         raw_lines = [line.strip() for line in res.stdout.splitlines() if line.strip()]
 
     depot_paths = [
@@ -282,7 +284,9 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
                 wk.uncook_many(regex, archive=archive_path, dest=temp_dir)
             except ToolError as e:
                 raise ResolverError(
-                    f"Failed to uncook required base-game archive {archive_path.name}: {e}"
+                    f"Failed to uncook required base-game archive "
+                    f"{archive_path.name}: {e.user_message}",
+                    details=e.details,
                 ) from e
         else:
             cmd = [
@@ -300,7 +304,9 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
                 run_tool(cmd, tool="WolvenKit.CLI", timeout=600.0, logger=logger)
             except ToolError as e:
                 raise ResolverError(
-                    f"Failed to uncook required base-game archive {archive_path.name}: {e}"
+                    f"Failed to uncook required base-game archive "
+                    f"{archive_path.name}: {e.user_message}",
+                    details=e.details,
                 ) from e
 
         for app_depot, want_name in feature_apps.items():
@@ -374,7 +380,8 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
                 wk.uncook_many(regex, archive=archive, dest=temp_dir)
             except ToolError as e:
                 raise ResolverError(
-                    f"Failed to uncook required base-game archive {archive.name}: {e}"
+                    f"Failed to uncook required base-game archive {archive.name}: {e.user_message}",
+                    details=e.details,
                 ) from e
         else:
             try:
@@ -396,7 +403,8 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
                 )
             except ToolError as e:
                 raise ResolverError(
-                    f"Failed to uncook required base-game archive {archive.name}: {e}"
+                    f"Failed to uncook required base-game archive {archive.name}: {e.user_message}",
+                    details=e.details,
                 ) from e
         for p in part_paths:
             jf = temp_dir / (p.replace("\\", "/") + ".json")

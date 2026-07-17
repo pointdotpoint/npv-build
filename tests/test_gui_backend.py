@@ -1,8 +1,10 @@
 import queue as queue_mod
 from pathlib import Path
 
+import pytest
+
 import npv_build.gui_backend as gui_backend
-from npv_build.core.errors import NpvError
+from npv_build.core.errors import NpvError, UnsupportedPatchError
 from npv_build.core.pipeline import PipelineEvent
 
 
@@ -63,6 +65,24 @@ def test_preview_save(monkeypatch):
     assert res["hair_style"] == "hh_001"
     assert res["hair_color"] == "black"
     assert res["selections_count"] == 3
+
+
+def test_preview_save_unsupported_patch_error(monkeypatch):
+    # Regression test: UnsupportedPatchError should propagate from preview_save
+    # and be handleable by the GUI without crashing the callback
+    def mock_parse_save(save_path):
+        raise UnsupportedPatchError(
+            user_message="Game build 3000 is not supported (supports 1.6 only)",
+            remediation="Update your game to patch 1.6",
+        )
+
+    monkeypatch.setattr(gui_backend, "parse_save", mock_parse_save)
+
+    with pytest.raises(UnsupportedPatchError) as exc_info:
+        gui_backend.preview_save(Path("dummy.sav.dat"))
+
+    assert exc_info.value.user_message == "Game build 3000 is not supported (supports 1.6 only)"
+    assert exc_info.value.remediation == "Update your game to patch 1.6"
 
 
 def _drain(q):

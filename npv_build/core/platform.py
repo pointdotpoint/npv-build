@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -75,3 +77,20 @@ def find_game_dirs(steam_roots: list[Path] | None = None) -> list[Path]:
         if is_valid_game_dir(candidate) and candidate not in found:
             found.append(candidate)
     return found
+
+
+def open_folder(path: Path) -> None:
+    """Open a directory in the platform's file manager.
+
+    Raises:
+        FileNotFoundError: If the path does not exist.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Path does not exist: {path}")
+    if sys.platform == "win32":
+        os.startfile(str(path))  # type: ignore[attr-defined]  # noqa: S606
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(path)])  # noqa: S603, S607
+    else:
+        subprocess.Popen(["xdg-open", str(path)])  # noqa: S603, S607

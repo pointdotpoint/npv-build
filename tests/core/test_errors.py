@@ -22,11 +22,25 @@ def test_npv_error_fields_and_str():
     assert e.user_message == "Save file unreadable"
     assert e.remediation == "Re-copy the save"
     assert e.module_name == "Save Parser"
-    assert str(e) == "Save file unreadable\nbad header"
+    assert str(e) == "Save file unreadable\nbad header\nRe-copy the save"
 
 
 def test_str_without_details():
     assert str(NpvError("boom")) == "boom"
+
+
+def test_str_includes_remediation_when_present():
+    e = NpvError("Save file unreadable", remediation="Re-copy the save")
+    assert str(e) == "Save file unreadable\nRe-copy the save"
+
+
+def test_str_includes_details_and_remediation_when_both_present():
+    e = NpvError(
+        "Save file unreadable",
+        details="bad header",
+        remediation="Re-copy the save",
+    )
+    assert str(e) == "Save file unreadable\nbad header\nRe-copy the save"
 
 
 def test_tool_error_fields():

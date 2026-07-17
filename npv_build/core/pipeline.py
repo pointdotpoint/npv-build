@@ -16,6 +16,8 @@ from ..save_parser import parse_save
 from ..wk_cli import WolvenKit, WolvenKitConfig
 from ..wolvenkit import build_project
 from .cancel import CancelToken
+from .errors import NpvError
+from .packaging import package_mod
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,7 @@ class BuildRequest:
     save_path: Path | None
     npv_name: str
     output_dir: Path
-    game_dir: Path
+    game_dir: Path | None
     template_cache: Path
     clear_cache: bool = False
     cc_json_path: Path | None = None
@@ -54,6 +56,7 @@ class BuildResult:
     mod_id: str
     stages_run: list[str]
     stages_resumed: list[str]
+    zip_path: str | None = None
 
 
 def _make_wolvenkit(req: BuildRequest, cancel: CancelToken | None) -> WolvenKit:
@@ -148,6 +151,12 @@ class PipelineService:
         def emit(kind: str, stage: str | None, message: str) -> None:
             if on_event is not None:
                 on_event(PipelineEvent(kind=kind, stage=stage, message=message))
+
+        if req.game_dir is None:
+            raise NpvError(
+                "No game directory configured",
+                remediation="Set --game-dir or configure it in the GUI settings.",
+            )
 
         req.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -310,6 +319,19 @@ class PipelineService:
                 stages_run.append(current_stage)
                 emit("stage_completed", current_stage, "Wrote AMM lua script.")
 
+            # --- package (post-stage, not checkpointed) ---
+            # Packaging just re-zips the already-checkpointed archive/ + bin/
+            # output of assemble/emit_amm_lua. It's cheap and deterministic, so
+            # there's no resume benefit to tracking it in the manifest — always
+            # re-run it after a successful build instead.
+            current_stage = "package"
+            emit("stage_started", current_stage, "Packaging mod zip...")
+            if cancel is not None:
+                cancel.raise_if_cancelled()
+
+            zip_path = package_mod(req.output_dir, mod_id)
+            emit("stage_completed", current_stage, f"Wrote mod zip to {zip_path}.")
+
         except Exception as e:
             emit("failed", current_stage, str(e))
             raise
@@ -321,6 +343,7 @@ class PipelineService:
             mod_id=mod_id or "",
             stages_run=stages_run,
             stages_resumed=stages_resumed,
+            zip_path=str(zip_path),
         )
 
 
