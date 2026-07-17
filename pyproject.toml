@@ -33,6 +33,7 @@ npv-build-gui = "npv_build.gui:main"
 dev = [
     "pytest",
     "ruff",
+    "pyinstaller",
 ]
 
 [tool.hatch.build.targets.wheel]
