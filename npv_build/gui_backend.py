@@ -1,3 +1,4 @@
+import logging
 import queue
 import shutil
 import sys
@@ -7,6 +8,8 @@ from pathlib import Path
 from .config import get_cache_dir
 from .orchestrator import OrchestratorError, run_orchestrator
 from .save_parser import parse_save
+
+logger = logging.getLogger(__name__)
 
 
 class LogRedirector:
@@ -49,9 +52,10 @@ class BuildWorker:
             self.log_queue.put(("done", out_dir))
         except OrchestratorError as e:
             self.log_queue.put(("error", f"[{e.module_name}] {str(e)}"))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - worker thread must survive to report to GUI queue
             import traceback
 
+            logger.exception("Unhandled error in build worker thread")
             tb = traceback.format_exc()
             self.log_queue.put(("log", f"Traceback:\n{tb}"))
             self.log_queue.put(("error", str(e)))
@@ -92,9 +96,10 @@ class InstallerWorker:
 
             auto_install_missing(progress_cb)
             self.log_queue.put(("install_done", None))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - worker thread must survive to report to GUI queue
             import traceback
 
+            logger.exception("Unhandled error in installer worker thread")
             tb = traceback.format_exc()
             self.log_queue.put(("log", f"Traceback:\n{tb}"))
             self.log_queue.put(("install_error", str(e)))
@@ -138,7 +143,7 @@ def check_dependencies(game_dir: Path | None) -> dict:
         inject_path = _resolve_inject_binary()
         if inject_path and (shutil.which(inject_path) or Path(inject_path).exists()):
             npv_inject_found = True
-    except Exception:
+    except OSError:
         pass
 
     # Game Directory Verification

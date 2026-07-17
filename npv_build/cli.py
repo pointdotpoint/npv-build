@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 from .config import get_cache_dir, load_config, save_config
+from .core.errors import NpvError
 from .orchestrator import run_orchestrator
 
 
@@ -192,9 +193,8 @@ def main():
             print("  6. Copy archive/ + bin/ to game dir")
         elif args.v == 0:
             print(out_dir)
-    except Exception as e:
-        # Assuming run_orchestrator raises a structured error with a tag
-        if hasattr(e, "module_name"):
+    except NpvError as e:
+        if e.module_name:
             print(f"Error in {e.module_name}: {e}", file=sys.stderr)
         else:
             print(f"Error: {e}", file=sys.stderr)

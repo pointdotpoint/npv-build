@@ -2,6 +2,8 @@ import json
 import logging
 from pathlib import Path
 
+from .core.errors import NpvError
+
 logger = logging.getLogger(__name__)
 
 
@@ -230,10 +232,7 @@ def resolve_assets(
 
     recipe = {"parts": [], "overrides": []}
     if feature_apps and game_dir:
-        try:
-            recipe = extract_recipe(game_dir, feature_apps, verbosity=1, wk=wk)
-        except Exception as e:
-            logger.warning(f"recipe extraction failed ({e}); falling back to plain part list.")
+        recipe = extract_recipe(game_dir, feature_apps, verbosity=1, wk=wk)
 
     asset_paths["recipe_parts"] = recipe.get("parts", [])
     asset_paths["recipe_overrides"] = recipe.get("overrides", [])
@@ -322,7 +321,7 @@ def resolve_assets(
                 else:
                     logger.info(f"[Mapping] Hair override '{ov}': no matching mod archive found.")
                     asset_paths["unresolved"].append(f"hair_override:{ov}")
-            except Exception as e:
+            except (NpvError, OSError, TypeError) as e:
                 logger.warning(f"hair override extraction failed ({e}); NPV will be bald.")
     elif (
         hair_raw.startswith("fhair_") or (hair_raw.endswith("_hair") and hair_style)
@@ -343,7 +342,7 @@ def resolve_assets(
                 for dep in asset_paths["external_dependencies"]:
                     if dep["selection"] == hair_raw and src:
                         dep["reason"] = f"modded hair from {src} (must stay installed)"
-        except Exception as e:
+        except (NpvError, OSError, TypeError) as e:
             logger.warning(f"hair extraction failed ({e}); NPV will be bald.")
 
     # Garment overrides: add explicit garment .ent depot paths as parts.

@@ -1,3 +1,4 @@
+import logging
 import queue
 import sys
 import tkinter as tk
@@ -10,6 +11,9 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from .config import get_cache_dir, load_config, save_config
 from .gui_backend import BuildWorker, InstallerWorker, check_dependencies, preview_save
+from .save_parser import SaveParserError
+
+logger = logging.getLogger(__name__)
 
 # Styling Constants
 BG_DARK = "#0b0c10"
@@ -29,7 +33,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # TkinterDnD initialization for drag-and-drop support
         try:
             self.TkdndVersion = TkinterDnD._to_path(self)
-        except Exception:
+        except (AttributeError, RuntimeError, tk.TclError):
             self.TkdndVersion = None
 
         # Window configuration
@@ -730,7 +734,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 text=f"Selections: {prev['selections_count']}", text_color=TEXT_WHITE
             )
             self.update_default_output()
-        except Exception as e:
+        except SaveParserError as e:
             self.lbl_prev_rig.configure(text="Rig: Error", text_color=STATUS_RED)
             self.lbl_prev_skin.configure(text="Skin: Error", text_color=STATUS_RED)
             self.lbl_prev_hair.configure(text=f"Err: {str(e)[:25]}", text_color=STATUS_RED)
@@ -807,7 +811,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 self.append_log(f"Installed to game: {f.relative_to(Path(game_dir_str))}\n")
             self.append_log("\n")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - GUI event loop must survive
+            logger.exception("Hair mod installation failed")
             self.show_error("Hair Mod Error", f"Failed to install hair mod:\n{str(e)}")
 
     def clear_hair_mod(self):
@@ -839,7 +844,8 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 self.append_log(f"Installed to game: {f.relative_to(Path(game_dir_str))}\n")
             self.append_log("\n")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - GUI event loop must survive
+            logger.exception("Hair mod installation failed")
             self.show_error("Hair Mod Error", f"Failed to install hair mod:\n{str(e)}")
 
     def browse_head_glb(self):

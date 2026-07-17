@@ -19,7 +19,7 @@ from pathlib import Path
 
 from .clothing import resolve_clothing
 from .config_editor import _MESH_COMPONENT_TYPES
-from .core.errors import ToolError
+from .core.errors import NpvError, ToolError
 from .core.proc import run_tool
 from .head_bake import find_stock_head_part, prepare_head
 from .wk_cli import WolvenKit, WolvenKitError
@@ -193,7 +193,7 @@ def _resolve_garment_mesh(wk: WolvenKit, game_dir, name: str, verbosity: int) ->
                     continue
                 try:
                     matches = wk.list_archive(regex, archive=arch)
-                except Exception:
+                except WolvenKitError:
                     matches = []
                 if matches:
                     if len(matches) > 1:
@@ -206,7 +206,7 @@ def _resolve_garment_mesh(wk: WolvenKit, game_dir, name: str, verbosity: int) ->
     # 2. base-game appearance archive (vanilla garments).
     try:
         matches = wk.list_archive(regex)  # defaults to appearance_archive
-    except Exception:
+    except WolvenKitError:
         matches = []
     if matches:
         return matches[0]
@@ -319,7 +319,7 @@ def _extract_ccxl_eye_components(
                 if archive_candidate.exists():
                     target_archive = archive_candidate
                     break
-        except Exception:
+        except OSError:
             continue
 
     if not target_archive:
@@ -626,7 +626,7 @@ def build_project(
             )
             if result:
                 baked_mesh_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_head.mesh"
-        except Exception as e:
+        except (NpvError, OSError) as e:
             logger.info(f"[Head] head preparation failed ({e}); using stock head.")
 
     if baked_mesh_depot:

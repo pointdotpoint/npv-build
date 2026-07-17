@@ -145,7 +145,7 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
                         if p not in appearance_to_app[name_val]:
                             appearance_to_app[name_val].append(p)
                 app_appearances[p] = names
-            except Exception as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.warning(f"[Indexer] failed to parse uncooked head app {p}: {e}")
     finally:
         shutil.rmtree(temp_dir_path, ignore_errors=True)
@@ -280,9 +280,10 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
         if wk:
             try:
                 wk.uncook_many(regex, archive=archive_path, dest=temp_dir)
-            except Exception as e:
-                logger.info(f"[Recipe] uncook failed: {e}")
-                return {"parts": [], "overrides": []}
+            except ToolError as e:
+                raise ResolverError(
+                    f"Failed to uncook required base-game archive {archive_path.name}: {e}"
+                ) from e
         else:
             cmd = [
                 cli_binary,
@@ -298,8 +299,9 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
             try:
                 run_tool(cmd, tool="WolvenKit.CLI", timeout=600.0, logger=logger)
             except ToolError as e:
-                logger.warning("Skipping mod archive %s: %s", archive_path.name, e.user_message)
-                return {"parts": [], "overrides": []}
+                raise ResolverError(
+                    f"Failed to uncook required base-game archive {archive_path.name}: {e}"
+                ) from e
 
         for app_depot, want_name in feature_apps.items():
             jf = _depot_to_fs(temp_dir, app_depot)
@@ -308,7 +310,7 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
                 continue
             try:
                 data = json.load(open(jf))
-            except Exception:
+            except (OSError, json.JSONDecodeError):
                 continue
             apps = data.get("Data", {}).get("RootChunk", {}).get("appearances", [])
             target = None
@@ -370,9 +372,10 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
         if wk:
             try:
                 wk.uncook_many(regex, archive=archive, dest=temp_dir)
-            except Exception as e:
-                logger.info(f"[Recipe] remap uncook failed: {e}")
-                return
+            except ToolError as e:
+                raise ResolverError(
+                    f"Failed to uncook required base-game archive {archive.name}: {e}"
+                ) from e
         else:
             try:
                 run_tool(
@@ -392,8 +395,9 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
                     logger=logger,
                 )
             except ToolError as e:
-                logger.warning("Skipping mod archive %s: %s", archive.name, e.user_message)
-                return
+                raise ResolverError(
+                    f"Failed to uncook required base-game archive {archive.name}: {e}"
+                ) from e
         for p in part_paths:
             jf = temp_dir / (p.replace("\\", "/") + ".json")
             if not jf.exists():
@@ -404,7 +408,7 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
                     continue
             try:
                 d = json.load(open(jf))
-            except Exception:
+            except (OSError, json.JSONDecodeError):
                 continue
             names = []
             chunks = (
@@ -493,7 +497,7 @@ def extract_hair_components(
                     arch = xl.with_suffix(".archive")
                     if arch.exists() and arch not in candidates:
                         candidates.append(arch)
-            except Exception:
+            except OSError:
                 pass
 
     if not candidates:
@@ -568,7 +572,7 @@ def extract_hair_components(
             jf = cands[0]
         try:
             data = json.load(open(jf))
-        except Exception:
+        except (OSError, json.JSONDecodeError):
             return [], None, None, None
         apps = data.get("Data", {}).get("RootChunk", {}).get("appearances", [])
         if not apps:
@@ -596,11 +600,11 @@ def get_or_create_index(
         try:
             with open(index_path) as f:
                 return json.load(f)
-        except Exception:
+        except (OSError, json.JSONDecodeError):
             pass
 
     try:
         return generate_index(game_dir, index_path, verbosity, wk=wk)
-    except Exception as e:
+    except ResolverError as e:
         logger.info(f"[Indexer] Scan failed: {e}. Falling back to mock/embedded index.")
         return get_mock_index()

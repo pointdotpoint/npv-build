@@ -107,7 +107,7 @@ def detect_patch(version: tuple) -> str:
             v2_str = str(v2)
             if v2_str in versions:
                 return versions[v2_str]
-        except Exception:
+        except (OSError, json.JSONDecodeError):
             pass
     logger.warning(f"game build {v2} not found in save_versions.json. Defaulting to patch 2.13.")
     return "2.13"

@@ -71,13 +71,13 @@ def run_orchestrator(
                 with open(cc_json_path) as f:
                     dump_data_for_rig = json.load(f)
                 body_rig = dump_data_for_rig.get("body_rig", "pwa")
-            except Exception:
+            except (OSError, json.JSONDecodeError):
                 pass
         elif save_path:
             try:
                 cc_tmp = parse_save(save_path)
                 body_rig = cc_tmp.get("body_rig", "pwa")
-            except Exception:
+            except SaveParserError:
                 pass
         if body_rig == "pwa" and not (cc_json_path or save_path):
             logger.info("[Head] using default body rig 'pwa' for head dump")

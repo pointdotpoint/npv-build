@@ -170,7 +170,7 @@ def _restore_part_materials(
                             f"[Head] Found custom head mesh override in mod archive: {arch.name}"
                         )
                         break
-                except Exception:
+                except WolvenKitError:
                     pass
 
     # Use the custom skin mod archive if found, otherwise fall back to base-game
@@ -392,7 +392,7 @@ def _read_glb_json(glb_path: Path) -> dict | None:
                 return None
             chunk_data = f.read(chunk_length)
             return json.loads(chunk_data.decode("utf-8"))
-    except Exception:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
 
 
@@ -498,7 +498,7 @@ def _import_user_glb(
                 logger.warning(
                     f"[Head] head GLB vertex count ({user_v_count}) differs from stock head ({stock_v_count}); skinning may be imperfect"
                 )
-        except Exception as e:
+        except (OSError, WolvenKitError) as e:
             logger.warning(f"[Head] could not compare vertex counts ({e})")
 
         # Import

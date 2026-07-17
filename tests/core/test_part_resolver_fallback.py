@@ -1,5 +1,7 @@
 import logging
 
+import pytest
+
 import npv_build.part_resolver as pr
 from npv_build.core.errors import NpvError, ToolError
 
@@ -8,12 +10,11 @@ def test_resolver_error_is_npv_error():
     assert issubclass(pr.ResolverError, NpvError)
 
 
-def test_extract_recipe_skips_on_tool_error_with_warning(monkeypatch, tmp_path, caplog):
-    """Recipe extraction (base-game archive, best-effort enhancement layer) is a
-    sanctioned skip: ToolError -> warn + empty result. The caller (mapping.py)
-    already treats a missing recipe as a graceful degrade to a plain part list,
-    so this matches existing pipeline behavior rather than masking a required
-    dependency failure.
+def test_extract_recipe_hard_fails_on_tool_error(monkeypatch, tmp_path):
+    """Recipe extraction reads the REQUIRED base-game archive
+    (basegame_4_appearance.archive). Per spec ERR-2 (no degraded output), a
+    ToolError here must propagate as ResolverError rather than being
+    swallowed into a silent plain-part-list fallback.
     """
 
     def exploding_run_tool(argv, **kwargs):
@@ -26,11 +27,8 @@ def test_extract_recipe_skips_on_tool_error_with_warning(monkeypatch, tmp_path, 
     archive_dir.mkdir(parents=True)
     (archive_dir / "basegame_4_appearance.archive").write_bytes(b"not an archive")
 
-    with caplog.at_level(logging.WARNING, logger="npv_build.part_resolver"):
-        result = pr.extract_recipe(game_dir, {"some/app/path.app": "some_appearance"}, verbosity=0)
-
-    assert result == {"parts": [], "overrides": []}
-    assert any("basegame_4_appearance.archive" in rec.message for rec in caplog.records)
+    with pytest.raises(pr.ResolverError, match="basegame_4_appearance.archive"):
+        pr.extract_recipe(game_dir, {"some/app/path.app": "some_appearance"}, verbosity=0)
 
 
 def test_extract_hair_components_skips_broken_mod_archive_with_warning(
