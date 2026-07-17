@@ -320,9 +320,13 @@ class WolvenKit:
             from .config import get_cache_dir
 
             ext = ".exe" if sys.platform == "win32" else ""
-            local_path = get_cache_dir() / "tools" / "wolvenkit" / f"WolvenKit.CLI{ext}"
-            if local_path.exists():
-                binary = str(local_path)
+            cache_tools_dir = get_cache_dir() / "tools" / "wolvenkit"
+            # Check candidate names in order: WolvenKit.CLI (explicit install), cp77tools (dotnet tool install shim)
+            for candidate_name in [f"WolvenKit.CLI{ext}", f"cp77tools{ext}"]:
+                local_path = cache_tools_dir / candidate_name
+                if local_path.exists():
+                    binary = str(local_path)
+                    break
         cmd = [binary, *args]
         stream = self._cfg.verbosity >= 2
 

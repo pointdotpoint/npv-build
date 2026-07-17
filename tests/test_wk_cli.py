@@ -2,6 +2,7 @@
 
 import json
 import logging
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -218,3 +219,36 @@ def test_list_archive_routes_through_run_tool(monkeypatch, tmp_path):
     names = wk.list_archive(r".*\.(ent|app)", archive=archive)
     assert seen, "list_archive must go through run_tool"
     assert names == ["a.ent", "b.app"] or all(isinstance(n, str) for n in names)
+
+
+def test_run_resolves_cp77tools_shim_in_cache(monkeypatch, tmp_path):
+    """Regression test: cache fallback should check cp77tools shim (dotnet tool install)."""
+    cache_dir = tmp_path / "cache"
+    tools_dir = cache_dir / "tools" / "wolvenkit"
+    tools_dir.mkdir(parents=True, exist_ok=True)
+
+    # Simulate cp77tools shim from dotnet tool install
+    ext = ".exe" if sys.platform == "win32" else ""
+    cp77_binary = tools_dir / f"cp77tools{ext}"
+    cp77_binary.write_text("#!/bin/sh\necho 8.19.0")
+    cp77_binary.chmod(0o755)
+
+    calls = {}
+
+    def fake_run_tool(
+        argv, *, tool, timeout, cancel=None, allow_exit_codes=(), logger=None, cwd=None
+    ):
+        calls["argv"] = list(argv)
+        return ToolResult(argv=list(argv), returncode=0, stdout="8.19.0\n", stderr="")
+
+    monkeypatch.setattr("npv_build.wk_cli.run_tool", fake_run_tool)
+    monkeypatch.setattr("npv_build.wk_cli.shutil.which", lambda x: None)  # Simulate PATH miss
+    monkeypatch.setattr("npv_build.config.get_cache_dir", lambda: cache_dir)
+
+    wk = WolvenKit(WolvenKitConfig(game_dir=tmp_path, cli_binary="WolvenKit.CLI"))
+    wk._run(["--version"], operation="version")
+
+    # Assert that the resolved binary is the cp77tools shim
+    assert calls["argv"][0].endswith(f"cp77tools{ext}"), (
+        f"Expected cp77tools, got {calls['argv'][0]}"
+    )
