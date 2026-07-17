@@ -98,6 +98,35 @@ uv run npv-build --help
 
 ---
 
+## Using the bundled app
+
+When you [package this as a frozen exe](packaging/) (Windows `.exe`, Linux AppImage, or macOS bundle), a **single executable serves both the GUI and CLI**:
+
+- **Double-click** (or run with no args) → launches the **GUI** for interactive mode
+- **From a terminal with arguments** → runs the **CLI**: `./npv-build /path/to/sav.dat "My V" --output ./my_v_mod --game-dir "..."`
+- **`--gui` flag** → forces the GUI even if other arguments look CLI-ish: `./npv-build --gui`
+
+Example (Linux/macOS):
+```bash
+# Launch GUI
+./npv-build
+
+# Run CLI
+./npv-build /path/to/sav.dat "My V" --output ./my_v_mod --game-dir "/path/to/Cyberpunk 2077"
+
+# Force GUI (if you need to)
+./npv-build --gui
+```
+
+Windows (`.exe`):
+```bash
+npv-build.exe
+npv-build.exe C:\path\to\sav.dat "My V" --output my_v_mod --game-dir "C:\path\to\Cyberpunk 2077"
+npv-build.exe --gui
+```
+
+---
+
 ## Quick Start
 
 ### 1. Build the mod

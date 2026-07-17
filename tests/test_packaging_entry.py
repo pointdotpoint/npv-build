@@ -28,3 +28,12 @@ def test_dispatches_to_gui_when_no_args(monkeypatch):
     monkeypatch.setattr("npv_build.gui.main", lambda: called.setdefault("gui", True))
     entry.run()
     assert called == {"gui": True}
+
+
+def test_gui_forced_with_flag(monkeypatch):
+    called = {}
+    monkeypatch.setattr(sys, "argv", ["npv-build", "--gui"])
+    monkeypatch.setattr("npv_build.cli.main", lambda: called.setdefault("cli", True) or 0)
+    monkeypatch.setattr("npv_build.gui.main", lambda: called.setdefault("gui", True))
+    entry.run()
+    assert called == {"gui": True}

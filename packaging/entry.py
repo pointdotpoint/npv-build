@@ -10,7 +10,13 @@ import sys
 
 def run() -> None:
     # argv[0] is the exe; real args start at [1]
-    if len(sys.argv) > 1:
+    args = sys.argv[1:]
+    if args == ["--gui"]:
+        from npv_build.gui import main as gui_main
+
+        gui_main()
+        return
+    if args:
         from npv_build.cli import main as cli_main
 
         sys.exit(cli_main())
