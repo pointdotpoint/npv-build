@@ -1138,11 +1138,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.lbl_banner.grid(row=2, column=0, sticky="ew", pady=5)
 
     def open_output_folder(self):
-        target = getattr(self, "last_output_dir", None)
-        if target is None:
-            out = self.entry_output.get().strip()
-            target = Path(out) if out else None
-        if target is None or not target.exists():
+        # The "Open Output Folder" button is only ever created in build_finished(),
+        # right after self.last_output_dir is set, so it is always present here.
+        target = self.last_output_dir
+        if not target.exists():
             self.show_error(
                 "Folder Not Found",
                 "The output folder does not exist yet. Build the mod first.",
