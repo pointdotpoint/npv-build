@@ -7,6 +7,7 @@ from .config import get_cache_dir, load_config, save_config
 from .core.errors import NpvError
 from .core.logging_setup import configure_logging
 from .core.pipeline import BuildRequest, PipelineService
+from .gen_mapping import format_report, mapping_report
 from .orchestrator import run_orchestrator
 from .save_probe import format_probe, probe_save
 
@@ -40,6 +41,18 @@ def main(argv: list[str] | None = None):
         "--probe-save",
         metavar="<sav.dat>",
         help="Print header version, patch mapping, and CC node facts for a save file, then exit.",
+    )
+    parser.add_argument(
+        "--mapping-report",
+        action="store_true",
+        help="Diff the vendored CC mapping against the game's live asset index "
+        "(missing/unmapped head parts), then exit.",
+    )
+    parser.add_argument(
+        "--mapping-patch",
+        metavar="<patch>",
+        default="2.13",
+        help="Mapping patch version to check with --mapping-report (default: 2.13).",
     )
     parser.add_argument(
         "--cc-json",
@@ -148,6 +161,19 @@ def main(argv: list[str] | None = None):
         save_config(config)
 
     game_dir = config.get("game_dir")
+
+    if args.mapping_report:
+        if not game_dir:
+            parser.error("--mapping-report requires --game-dir (or a configured game_dir).")
+        try:
+            report = mapping_report(Path(game_dir), mapping_patch=args.mapping_patch)
+            print(format_report(report))
+            return
+        except NpvError as e:
+            print(e.user_message, file=sys.stderr)
+            if e.remediation:
+                print(e.remediation, file=sys.stderr)
+            sys.exit(1)
 
     # Validate BYO head flags combinations
     if args.no_restore_head_materials and not args.head_mesh:
