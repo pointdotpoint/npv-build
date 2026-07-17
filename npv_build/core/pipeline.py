@@ -176,9 +176,7 @@ class PipelineService:
             if req.save_path is not None and req.save_path.exists():
                 st = req.save_path.stat()
                 save_stat = [st.st_size, st.st_mtime]
-            parse_hash = _hash_input(
-                [str(req.save_path), save_stat, str(req.cc_json_path)]
-            )
+            parse_hash = _hash_input([str(req.save_path), save_stat, str(req.cc_json_path)])
             prior = manifest.get(current_stage)
             if req.resume and prior is not None and prior.get("input_hash") == parse_hash:
                 cc_settings = prior["output"]

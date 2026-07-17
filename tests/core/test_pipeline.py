@@ -12,15 +12,27 @@ from npv_build.core.pipeline import BuildRequest, PipelineService
 def fake_stages(monkeypatch, tmp_path):
     calls: list[str] = []
     monkeypatch.setattr(pl, "_make_wolvenkit", lambda req, cancel: object())
-    monkeypatch.setattr(pl, "parse_save", lambda p: calls.append("parse_save") or {"patch": "2.13", "body_rig": "pwa"})
     monkeypatch.setattr(
-        pl, "resolve_assets",
-        lambda cc, game_dir, hair_override, garments, wk: calls.append("resolve_assets") or {"head": "x"},
+        pl,
+        "parse_save",
+        lambda p: calls.append("parse_save") or {"patch": "2.13", "body_rig": "pwa"},
     )
-    monkeypatch.setattr(pl, "_run_assemble", lambda req, wk, mod_id, asset_paths, cc: calls.append("assemble"))
     monkeypatch.setattr(
-        pl, "write_amm_lua",
-        lambda mod_id, npv_name, body_rig, output_dir, **kw: calls.append("emit_amm_lua") or output_dir / "x.lua",
+        pl,
+        "resolve_assets",
+        lambda cc, game_dir, hair_override, garments, wk: (
+            calls.append("resolve_assets") or {"head": "x"}
+        ),
+    )
+    monkeypatch.setattr(
+        pl, "_run_assemble", lambda req, wk, mod_id, asset_paths, cc: calls.append("assemble")
+    )
+    monkeypatch.setattr(
+        pl,
+        "write_amm_lua",
+        lambda mod_id, npv_name, body_rig, output_dir, **kw: (
+            calls.append("emit_amm_lua") or output_dir / "x.lua"
+        ),
     )
     return calls
 
@@ -31,7 +43,10 @@ def _req(tmp_path, **kw) -> BuildRequest:
         save.write_bytes(b"fake")
     out = tmp_path / "out"
     defaults = dict(
-        save_path=save, npv_name="My V", output_dir=out, game_dir=tmp_path,
+        save_path=save,
+        npv_name="My V",
+        output_dir=out,
+        game_dir=tmp_path,
         template_cache=tmp_path / "cache",
     )
     defaults.update(kw)
@@ -97,7 +112,9 @@ def test_failed_event_on_stage_error(fake_stages, tmp_path, monkeypatch):
     assert any(e.kind == "failed" and e.stage == "resolve_assets" for e in events)
 
 
-def test_cc_settings_and_asset_paths_json_written_before_assemble(fake_stages, tmp_path, monkeypatch):
+def test_cc_settings_and_asset_paths_json_written_before_assemble(
+    fake_stages, tmp_path, monkeypatch
+):
     # build_project (invoked inside _run_assemble) reads cc_settings.json and
     # asset_paths.json directly from output_dir via `open(...)` — not via any
     # in-memory argument. If the pipeline stops writing these files, build_project's
@@ -124,7 +141,10 @@ def test_cc_settings_and_asset_paths_json_written_before_assemble(fake_stages, t
 
     # Also still present after the full build (not deleted by a later stage).
     out = tmp_path / "out"
-    assert json.loads((out / "cc_settings.json").read_text()) == {"patch": "2.13", "body_rig": "pwa"}
+    assert json.loads((out / "cc_settings.json").read_text()) == {
+        "patch": "2.13",
+        "body_rig": "pwa",
+    }
     assert json.loads((out / "asset_paths.json").read_text()) == {"head": "x"}
 
 
@@ -166,18 +186,29 @@ def test_emit_amm_lua_includes_external_dependency_warning(fake_stages, tmp_path
         "unresolved": [],
     }
     monkeypatch.setattr(
-        pl, "resolve_assets",
+        pl,
+        "resolve_assets",
         lambda cc, game_dir, hair_override, garments, wk: asset_paths_with_dep,
     )
 
     result = PipelineService().build(_req(tmp_path))
 
     lua_dir = (
-        tmp_path / "out" / "bin" / "x64" / "plugins" / "cyber_engine_tweaks"
-        / "mods" / "AppearanceMenuMod" / "Collabs" / "Custom Entities"
+        tmp_path
+        / "out"
+        / "bin"
+        / "x64"
+        / "plugins"
+        / "cyber_engine_tweaks"
+        / "mods"
+        / "AppearanceMenuMod"
+        / "Collabs"
+        / "Custom Entities"
     )
     lua_files = list(lua_dir.glob("*.lua"))
     assert len(lua_files) == 1
     lua_text = lua_files[0].read_text(encoding="utf-8")
-    assert "-- WARNING: External mod dependency: fhair_02 (modded hair not in base game)" in lua_text
+    assert (
+        "-- WARNING: External mod dependency: fhair_02 (modded hair not in base game)" in lua_text
+    )
     assert result.mod_id

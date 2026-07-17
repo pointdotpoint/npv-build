@@ -49,8 +49,15 @@ def candidate_save_dirs(
         found.append(native)
     for lib in steam_libraries(steam_roots):
         proton = (
-            lib / "steamapps" / "compatdata" / GAME_STEAM_APPID / "pfx" / "drive_c"
-            / "users" / "steamuser" / _SAVE_SUFFIX
+            lib
+            / "steamapps"
+            / "compatdata"
+            / GAME_STEAM_APPID
+            / "pfx"
+            / "drive_c"
+            / "users"
+            / "steamuser"
+            / _SAVE_SUFFIX
         )
         if proton.is_dir() and proton not in found:
             found.append(proton)

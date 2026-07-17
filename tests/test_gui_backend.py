@@ -77,7 +77,9 @@ def _drain(q):
 def test_build_worker_success_posts_done(monkeypatch, tmp_path):
     class FakeService:
         def build(self, req, on_event=None, cancel=None):
-            on_event(PipelineEvent(kind="stage_started", stage="parse_save", message="Parsing save"))
+            on_event(
+                PipelineEvent(kind="stage_started", stage="parse_save", message="Parsing save")
+            )
             on_event(PipelineEvent(kind="stage_completed", stage="parse_save", message="ok"))
 
             class R:
@@ -90,11 +92,20 @@ def test_build_worker_success_posts_done(monkeypatch, tmp_path):
     w = gui_backend.BuildWorker(q)
     save = tmp_path / "s.dat"
     save.write_bytes(b"x")
-    w.start(save_path=save, npv_name="V", output_dir=tmp_path, game_dir=tmp_path, template_cache=tmp_path, clear_cache=False)
+    w.start(
+        save_path=save,
+        npv_name="V",
+        output_dir=tmp_path,
+        game_dir=tmp_path,
+        template_cache=tmp_path,
+        clear_cache=False,
+    )
     w._thread.join(timeout=10)
     items = _drain(q)
     assert ("done", str(tmp_path)) in items
-    assert any(kind == "log" and "parse_save" in str(val) or "Parsing" in str(val) for kind, val in items)
+    assert any(
+        kind == "log" and "parse_save" in str(val) or "Parsing" in str(val) for kind, val in items
+    )
 
 
 def test_build_worker_error_posts_error(monkeypatch, tmp_path):
@@ -107,7 +118,14 @@ def test_build_worker_error_posts_error(monkeypatch, tmp_path):
     w = gui_backend.BuildWorker(q)
     save = tmp_path / "s.dat"
     save.write_bytes(b"x")
-    w.start(save_path=save, npv_name="V", output_dir=tmp_path, game_dir=tmp_path, template_cache=tmp_path, clear_cache=False)
+    w.start(
+        save_path=save,
+        npv_name="V",
+        output_dir=tmp_path,
+        game_dir=tmp_path,
+        template_cache=tmp_path,
+        clear_cache=False,
+    )
     w._thread.join(timeout=10)
     items = _drain(q)
     errs = [val for kind, val in items if kind == "error"]

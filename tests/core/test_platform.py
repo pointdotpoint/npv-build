@@ -23,8 +23,17 @@ def _make_steam_tree(tmp_path: Path) -> tuple[Path, Path, Path]:
         encoding="utf-8",
     )
     save = (
-        lib2 / "steamapps" / "compatdata" / plat.GAME_STEAM_APPID / "pfx" / "drive_c"
-        / "users" / "steamuser" / "Saved Games" / "CD Projekt Red" / "Cyberpunk 2077"
+        lib2
+        / "steamapps"
+        / "compatdata"
+        / plat.GAME_STEAM_APPID
+        / "pfx"
+        / "drive_c"
+        / "users"
+        / "steamuser"
+        / "Saved Games"
+        / "CD Projekt Red"
+        / "Cyberpunk 2077"
     )
     save.mkdir(parents=True)
     game = lib2 / "steamapps" / "common" / "Cyberpunk 2077"
