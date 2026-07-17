@@ -12,6 +12,8 @@ from .config import get_cache_dir, load_config, save_config
 from .core.errors import NpvError
 from .core.platform import open_folder
 from .gui_backend import BuildWorker, InstallerWorker, check_dependencies, preview_save
+from .gui_logic.wizard import WizardModel
+from .gui_views.wizard_view import WizardView
 from .save_parser import SaveParserError
 
 logger = logging.getLogger(__name__)
@@ -59,6 +61,32 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.create_widgets()
 
         # Run initial dependency checks
+        self.run_checks()
+
+        # First-run wizard: shown on top when no valid game_dir is on record.
+        if WizardModel.needs_wizard(self.config):
+            self.show_wizard()
+
+    def show_wizard(self):
+        self._wizard_overlay = ctk.CTkFrame(self, fg_color=BG_DARK)
+        self._wizard_overlay.grid(row=0, column=0, columnspan=2, sticky="nsew")
+        self._wizard_overlay.grid_rowconfigure(0, weight=1)
+        self._wizard_overlay.grid_columnconfigure(0, weight=1)
+
+        self._wizard_view = WizardView(
+            self._wizard_overlay,
+            on_complete=self._on_wizard_complete,
+            start_install=self.installer_worker.start,
+            install_queue=self.queue,
+            is_installer_alive=lambda: self.installer_worker.is_alive,
+        )
+        self._wizard_view.grid(row=0, column=0, sticky="nsew", padx=40, pady=40)
+
+    def _on_wizard_complete(self):
+        self.config = load_config()
+        self._wizard_overlay.destroy()
+        self.entry_game_dir.delete(0, "end")
+        self.entry_game_dir.insert(0, self.config.get("game_dir", ""))
         self.run_checks()
 
     def create_widgets(self):
