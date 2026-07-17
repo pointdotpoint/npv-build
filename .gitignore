@@ -29,3 +29,16 @@ npv_build.egg-info/
 test.sav.dat
 *.log
 *.tmp
+
+# Local mod-build outputs (never tracked)
+my_v_mod/
+external_v_01_mod/
+test_v_mod/
+release_test/
+app_verify/
+*_v_mod/
+
+# Packaging / tooling
+dist/
+build/
+.ruff_cache/
