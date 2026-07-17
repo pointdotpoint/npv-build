@@ -102,9 +102,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         lbl_game_dir.grid(row=1, column=0, columnspan=2, sticky="w", padx=15, pady=2)
 
+        _gd_placeholder = (
+            "e.g. C:\\Steam\\steamapps\\common\\Cyberpunk 2077"
+            if sys.platform == "win32"
+            else "e.g. ~/.steam/steam/steamapps/common/Cyberpunk 2077"
+        )
         self.entry_game_dir = ctk.CTkEntry(
             self.frame_system,
-            placeholder_text="e.g. C:\\Steam\\steamapps\\common\\Cyberpunk 2077",
+            placeholder_text=_gd_placeholder,
             fg_color="#121212",
             border_color=TEXT_MUTED,
             text_color=TEXT_WHITE,
@@ -669,29 +674,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def browse_save_file(self):
         # Look for standard save folders if not specified
-        init_dir = Path.home()
-        if sys.platform == "win32":
-            saved_games = Path.home() / "Saved Games" / "CD Projekt Red" / "Cyberpunk 2077"
-            if saved_games.exists():
-                init_dir = saved_games
-        else:
-            steam_proton = (
-                Path.home()
-                / ".steam"
-                / "steam"
-                / "steamapps"
-                / "compatdata"
-                / "1091500"
-                / "pfx"
-                / "drive_c"
-                / "users"
-                / "steamuser"
-                / "Saved Games"
-                / "CD Projekt Red"
-                / "Cyberpunk 2077"
-            )
-            if steam_proton.exists():
-                init_dir = steam_proton
+        from .core.platform import candidate_save_dirs
+
+        candidates = candidate_save_dirs()
+        init_dir = candidates[0] if candidates else Path.home()
 
         path = filedialog.askopenfilename(
             initialdir=str(init_dir),
