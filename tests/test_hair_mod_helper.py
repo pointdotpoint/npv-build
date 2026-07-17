@@ -1,11 +1,11 @@
 import shutil
-import subprocess
 import zipfile
 from pathlib import Path
 
 import py7zr
 import pytest
 
+from npv_build.core.errors import InstallError, ToolError
 from npv_build.hair_mod_helper import derive_hair_name, install_hair_mod
 
 
@@ -98,19 +98,23 @@ def test_install_hair_mod_rar(tmp_path, monkeypatch):
     # Mock shutil.which to ensure 'unrar' is found
     monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/unrar" if cmd == "unrar" else None)
 
-    # Mock subprocess.run to simulate unrar writing files to the extraction dir
-    def mock_run(args, **kwargs):
+    # Mock run_tool to simulate unrar writing files to the extraction dir
+    def mock_run_tool(argv, **kwargs):
         # The last argument is the extraction path
-        extract_path = Path(args[-1])
+        extract_path = Path(argv[-1])
         # Create mock extracted structure
         arch_dir = extract_path / "archive" / "pc" / "mod"
         arch_dir.mkdir(parents=True, exist_ok=True)
         (arch_dir / "fhair_zara.archive").write_text("mock rar archive")
         (arch_dir / "fhair_zara.xl").write_text("mock rar xl")
         (extract_path / "readme.txt").write_text("should be ignored")
-        return subprocess.CompletedProcess(args, 0, stdout="success", stderr="")
+        from npv_build.core.proc import ToolResult
 
-    monkeypatch.setattr(subprocess, "run", mock_run)
+        return ToolResult(argv=list(argv), returncode=0, stdout="success", stderr="")
+
+    import npv_build.hair_mod_helper as hair_mod_helper
+
+    monkeypatch.setattr(hair_mod_helper, "run_tool", mock_run_tool)
 
     hair_name, installed = install_hair_mod(rar_path, game_dir)
 
@@ -139,3 +143,38 @@ def test_install_hair_no_archive_in_zip(tmp_path):
 
     with pytest.raises(ValueError, match="No .archive file found inside the mod package"):
         install_hair_mod(zip_path, game_dir)
+
+
+def test_install_hair_mod_rar_missing_unrar_raises_install_error(tmp_path, monkeypatch):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    game_dir = tmp_path / "game"
+
+    rar_path = src_dir / "hair_mod.rar"
+    rar_path.write_text("fake rar data")
+
+    monkeypatch.setattr(shutil, "which", lambda cmd: None)
+
+    with pytest.raises(InstallError):
+        install_hair_mod(rar_path, game_dir)
+
+
+def test_install_hair_mod_rar_extraction_failure_propagates_tool_error(tmp_path, monkeypatch):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    game_dir = tmp_path / "game"
+
+    rar_path = src_dir / "hair_mod.rar"
+    rar_path.write_text("fake rar data")
+
+    monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/unrar" if cmd == "unrar" else None)
+
+    def exploding(argv, **kwargs):
+        raise ToolError("unrar failed", tool="unrar", exit_code=1)
+
+    import npv_build.hair_mod_helper as hair_mod_helper
+
+    monkeypatch.setattr(hair_mod_helper, "run_tool", exploding)
+
+    with pytest.raises(ToolError):
+        install_hair_mod(rar_path, game_dir)

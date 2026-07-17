@@ -1,9 +1,11 @@
 import re
 import shutil
-import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
+
+from .core.errors import InstallError
+from .core.proc import run_tool
 
 
 def derive_hair_name(archive_filename: str) -> str:
@@ -129,14 +131,13 @@ def install_hair_mod(source_path: Path, game_dir: Path) -> tuple[str, list[Path]
 
     elif suffix == ".rar":
         if not shutil.which("unrar"):
-            raise RuntimeError(
-                "The 'unrar' utility is not installed on the system. Please install it to extract .rar mods."
+            raise InstallError(
+                "The 'unrar' utility is not installed on the system.",
+                remediation="Install 'unrar' via your system package manager to extract .rar mods.",
             )
 
         with tempfile.TemporaryDirectory() as td:
-            subprocess.run(
-                ["unrar", "x", "-y", str(source_path), td], capture_output=True, check=True
-            )
+            run_tool(["unrar", "x", "-y", str(source_path), td], tool="unrar", timeout=300)
             for p in Path(td).rglob("*"):
                 if p.is_file():
                     lower_name = p.name.lower()

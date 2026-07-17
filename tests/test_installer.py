@@ -1,6 +1,9 @@
 from pathlib import Path
 
+import pytest
+
 import npv_build.installer as installer
+from npv_build.core.errors import InstallError, ToolError
 
 
 def test_auto_install_missing_all_missing(monkeypatch):
@@ -88,3 +91,69 @@ def test_auto_install_missing_some_present(monkeypatch):
     assert "wolvenkit" not in calls
     assert "npv-inject" in calls
     assert "blender" in calls
+
+
+def test_install_dotnet_linux_failure_raises_install_error(monkeypatch, tmp_path):
+    def exploding(argv, **kwargs):
+        raise ToolError("script failed", tool="dotnet-install", exit_code=1)
+
+    monkeypatch.setattr(installer, "run_tool", exploding)
+    monkeypatch.setattr(installer, "download_file", lambda url, dest, cb=None: dest.write_text(""))
+
+    with pytest.raises(InstallError):
+        installer.install_dotnet_linux(tmp_path, lambda msg, pct: None)
+
+
+def test_install_dotnet_windows_failure_raises_install_error(monkeypatch, tmp_path):
+    def exploding(argv, **kwargs):
+        raise ToolError("script failed", tool="dotnet-install", exit_code=1)
+
+    monkeypatch.setattr(installer, "run_tool", exploding)
+    monkeypatch.setattr(installer, "download_file", lambda url, dest, cb=None: dest.write_text(""))
+
+    with pytest.raises(InstallError):
+        installer.install_dotnet_windows(tmp_path, lambda msg, pct: None)
+
+
+def test_install_wolvenkit_failure_raises_install_error(monkeypatch, tmp_path):
+    def exploding(argv, **kwargs):
+        raise ToolError("nuget failed", tool="dotnet", exit_code=1, details="network unreachable")
+
+    monkeypatch.setattr(installer, "run_tool", exploding)
+    monkeypatch.setattr(installer.shutil, "which", lambda cmd: "/usr/bin/dotnet")
+
+    with pytest.raises(InstallError):
+        installer.install_wolvenkit(tmp_path, lambda msg, pct: None)
+
+
+def test_install_wolvenkit_already_installed_is_not_an_error(monkeypatch, tmp_path):
+    calls = []
+
+    def exploding(argv, **kwargs):
+        raise ToolError(
+            "dotnet tool install failed",
+            tool="dotnet",
+            exit_code=1,
+            details="Tool 'wolvenkit.cli' is already installed.",
+        )
+
+    def progress(msg, pct):
+        calls.append((msg, pct))
+
+    monkeypatch.setattr(installer, "run_tool", exploding)
+    monkeypatch.setattr(installer.shutil, "which", lambda cmd: "/usr/bin/dotnet")
+
+    installer.install_wolvenkit(tmp_path, progress)
+
+    assert any("already installed" in msg for msg, _pct in calls)
+
+
+def test_build_npv_inject_failure_raises_install_error(monkeypatch, tmp_path):
+    def exploding(argv, **kwargs):
+        raise ToolError("build failed", tool="dotnet", exit_code=1)
+
+    monkeypatch.setattr(installer, "run_tool", exploding)
+    monkeypatch.setattr(installer.shutil, "which", lambda cmd: "/usr/bin/dotnet")
+
+    with pytest.raises(InstallError):
+        installer.build_npv_inject(tmp_path, lambda msg, pct: None)

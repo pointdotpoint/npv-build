@@ -1,5 +1,4 @@
 import shutil
-import subprocess
 import sys
 import tarfile
 import urllib.request
@@ -7,6 +6,8 @@ import zipfile
 from pathlib import Path
 
 from .config import get_cache_dir
+from .core.errors import InstallError, ToolError
+from .core.proc import run_tool
 
 
 def download_file(url: str, dest_path: Path, progress_callback=None):
@@ -53,9 +54,14 @@ def install_dotnet_windows(tools_dir: Path, progress_callback):
         "-InstallDir",
         str(tools_dir / "dotnet"),
     ]
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode != 0:
-        raise RuntimeError(f".NET installation failed: {res.stderr}\n{res.stdout}")
+    try:
+        run_tool(cmd, tool="dotnet-install", timeout=900)
+    except ToolError as e:
+        raise InstallError(
+            f".NET installation failed: {e.user_message}",
+            details=e.details,
+            remediation="Check your network connection and re-run the installer.",
+        ) from e
 
     if script_path.exists():
         script_path.unlink()
@@ -77,9 +83,14 @@ def install_dotnet_linux(tools_dir: Path, progress_callback):
     progress_callback("Running .NET 8.0 SDK installer (this can take a minute)...", 10)
 
     cmd = ["bash", str(script_path), "--channel", "8.0", "--install-dir", str(tools_dir / "dotnet")]
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode != 0:
-        raise RuntimeError(f".NET installation failed: {res.stderr}\n{res.stdout}")
+    try:
+        run_tool(cmd, tool="dotnet-install", timeout=900)
+    except ToolError as e:
+        raise InstallError(
+            f".NET installation failed: {e.user_message}",
+            details=e.details,
+            remediation="Check your network connection and re-run the installer.",
+        ) from e
 
     if script_path.exists():
         script_path.unlink()
@@ -111,12 +122,17 @@ def install_wolvenkit(tools_dir: Path, progress_callback):
     ]
 
     progress_callback("Downloading WolvenKit.CLI 8.18.1 via NuGet...", 30)
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode != 0:
-        if "already installed" in res.stderr or "already installed" in res.stdout:
+    try:
+        run_tool(cmd, tool="dotnet", timeout=900)
+    except ToolError as e:
+        if "already installed" in e.details:
             progress_callback("WolvenKit.CLI is already installed.", 100)
             return
-        raise RuntimeError(f"WolvenKit.CLI installation failed: {res.stderr}\n{res.stdout}")
+        raise InstallError(
+            f"WolvenKit.CLI installation failed: {e.user_message}",
+            details=e.details,
+            remediation="Check your network connection and re-run the installer.",
+        ) from e
 
     progress_callback("WolvenKit.CLI installed successfully.", 100)
 
@@ -137,9 +153,14 @@ def build_npv_inject(tools_dir: Path, progress_callback):
     cmd = [str(dotnet_bin), "build", str(project_dir), "-c", "Release"]
 
     progress_callback("Compiling C# component injector...", 40)
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode != 0:
-        raise RuntimeError(f"npv-inject compilation failed: {res.stderr}\n{res.stdout}")
+    try:
+        run_tool(cmd, tool="dotnet", timeout=900)
+    except ToolError as e:
+        raise InstallError(
+            f"npv-inject compilation failed: {e.user_message}",
+            details=e.details,
+            remediation="Ensure the .NET 8.0 SDK is installed and re-run the installer.",
+        ) from e
 
     progress_callback("npv-inject compiled successfully.", 100)
 
