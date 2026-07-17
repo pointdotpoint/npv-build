@@ -1,14 +1,20 @@
 import json
+import logging
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 
 from .config import get_cache_dir
+from .core.errors import NpvError, ToolError
+from .core.proc import run_tool
+
+logger = logging.getLogger(__name__)
 
 
-class ResolverError(Exception):
-    pass
+class ResolverError(NpvError):
+    def __init__(self, user_message: str, **kwargs) -> None:
+        kwargs.setdefault("module_name", "Part Resolver")
+        super().__init__(user_message, **kwargs)
 
 
 def get_index_path(patch: str) -> Path:
@@ -59,9 +65,9 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
         cli_binary = shutil.which("WolvenKit.CLI") or "WolvenKit.CLI"
         cmd = [cli_binary, "archive", str(archive_path), "-l", "--regex", r".*\.(ent|app)"]
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        except Exception as e:
-            raise ResolverError(f"WolvenKit archive list failed: {e}") from e
+            res = run_tool(cmd, tool="WolvenKit.CLI", timeout=600.0, logger=logger)
+        except ToolError as e:
+            raise ResolverError(f"WolvenKit archive list failed: {e.user_message}") from e
         raw_lines = [line.strip() for line in res.stdout.splitlines() if line.strip()]
 
     depot_paths = [
@@ -100,7 +106,7 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
         cli_binary = shutil.which("WolvenKit.CLI") or "WolvenKit.CLI"
         temp_dir_path = Path(tempfile.mkdtemp(prefix="wk_index_"))
         try:
-            subprocess.run(
+            run_tool(
                 [
                     cli_binary,
                     "uncook",
@@ -112,12 +118,13 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
                     str(temp_dir_path),
                     "-s",
                 ],
-                capture_output=True,
-                check=True,
+                tool="WolvenKit.CLI",
+                timeout=600.0,
+                logger=logger,
             )
-        except Exception as e:
+        except BaseException:
             shutil.rmtree(temp_dir_path, ignore_errors=True)
-            raise ResolverError(f"WolvenKit uncook failed: {e}") from e
+            raise
 
     try:
         if verbosity > 0:
@@ -293,10 +300,9 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
                 "-s",
             ]
             try:
-                subprocess.run(cmd, capture_output=True, check=True)
-            except Exception as e:
-                if verbosity > 0:
-                    print(f"[Recipe] uncook failed: {e}")
+                run_tool(cmd, tool="WolvenKit.CLI", timeout=600.0, logger=logger)
+            except ToolError as e:
+                logger.warning("Skipping mod archive %s: %s", archive_path.name, e.user_message)
                 return {"parts": [], "overrides": []}
 
         for app_depot, want_name in feature_apps.items():
@@ -377,7 +383,7 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
                 return
         else:
             try:
-                subprocess.run(
+                run_tool(
                     [
                         cli_binary,
                         "uncook",
@@ -389,12 +395,12 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
                         str(temp_dir),
                         "-s",
                     ],
-                    capture_output=True,
-                    check=True,
+                    tool="WolvenKit.CLI",
+                    timeout=600.0,
+                    logger=logger,
                 )
-            except Exception as e:
-                if verbosity > 0:
-                    print(f"[Recipe] remap uncook failed: {e}")
+            except ToolError as e:
+                logger.warning("Skipping mod archive %s: %s", archive.name, e.user_message)
                 return
         for p in part_paths:
             jf = temp_dir / (p.replace("\\", "/") + ".json")
@@ -510,14 +516,15 @@ def extract_hair_components(
             if wk:
                 lines = wk.list_archive(r".*\.app$", archive=arch)
             else:
-                res = subprocess.run(
+                res = run_tool(
                     [cli_binary, "archive", str(arch), "-l", "--regex", r".*\.app$"],
-                    capture_output=True,
-                    text=True,
-                    check=True,
+                    tool="WolvenKit.CLI",
+                    timeout=600.0,
+                    logger=logger,
                 )
                 lines = [line.strip() for line in res.stdout.splitlines() if line.strip()]
-        except Exception:
+        except ToolError as e:
+            logger.warning("Skipping mod archive %s: %s", arch.name, e.user_message)
             continue
         for p in lines:
             if not p.endswith(".app") or "\\fpp\\" in p:
@@ -554,14 +561,14 @@ def extract_hair_components(
             if wk:
                 wk.uncook_many(rgx, archive=arch, dest=Path(td))
             else:
-                subprocess.run(
+                run_tool(
                     [cli_binary, "uncook", "-p", str(arch), "-r", rgx, "-o", str(temp_dir), "-s"],
-                    capture_output=True,
-                    check=True,
+                    tool="WolvenKit.CLI",
+                    timeout=600.0,
+                    logger=logger,
                 )
-        except Exception as e:
-            if verbosity > 0:
-                print(f"[Hair] uncook failed: {e}")
+        except ToolError as e:
+            logger.warning("Skipping mod archive %s: %s", arch.name, e.user_message)
             return [], None, None, None
         jf = temp_dir / (app_depot.replace("\\", "/") + ".json")
         if not jf.exists():
