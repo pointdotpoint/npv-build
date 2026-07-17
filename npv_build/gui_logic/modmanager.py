@@ -50,6 +50,8 @@ def list_mods(output_root: Path, game_dir: Path) -> list[ModEntry]:
     entries: list[ModEntry] = []
     for archive_path in sorted(output_root.glob("*/archive/pc/mod/*.archive")):
         mod_id = archive_path.stem
+        # glob pattern is "<mod_root>/archive/pc/mod/<file>.archive" -- 3 parents
+        # up from the .archive file lands back on <mod_root> (mod/ -> pc/ -> archive/).
         mod_root = archive_path.parents[3]
         lua_path = mod_root / _LUA_SUBPATH / f"{mod_id}.lua"
         installed = (mod_dir / archive_path.name).is_file()

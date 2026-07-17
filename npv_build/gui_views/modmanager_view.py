@@ -99,6 +99,9 @@ class ModManagerView(ctk.CTkFrame):
     def _on_open_folder_clicked(self, entry: ModEntry) -> None:
         self._clear_error()
         try:
+            # archive_path is "<mod_root>/archive/pc/mod/<file>.archive"; 3 parents
+            # up lands back on <mod_root> (mod/ -> pc/ -> archive/). Matches
+            # gui_logic.modmanager.list_mods's mod_root derivation.
             open_folder(entry.archive_path.parents[3])
         except Exception as e:  # noqa: BLE001 - GUI event loop must survive
             logger.exception("Failed to open mod folder")

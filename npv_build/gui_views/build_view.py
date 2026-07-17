@@ -65,6 +65,7 @@ class BuildView(ctk.CTkFrame):
         cancel_build: Callable[[], None],
         build_queue: queue.Queue,
         is_worker_alive: Callable[[], bool],
+        on_done: Callable[[str], None] | None = None,
         **kwargs,
     ):
         super().__init__(master, **kwargs)
@@ -72,6 +73,7 @@ class BuildView(ctk.CTkFrame):
         self._cancel_build = cancel_build
         self._queue = build_queue
         self._is_worker_alive = is_worker_alive
+        self._on_done = on_done
         self.vm = BuildViewModel()
 
         self._progress_bar = ctk.CTkProgressBar(self)
@@ -97,6 +99,12 @@ class BuildView(ctk.CTkFrame):
         # Gridded only when vm.can_retry (see _sync_widgets).
 
         self._sync_widgets()
+
+    def log(self, text: str) -> None:
+        """Public hook for the host app to append a line outside the worker
+        queue's own log stream (e.g. validation errors before a build starts).
+        """
+        self._append_log(text)
 
     def start(self, **kwargs) -> None:
         """Start (or restart) the build; kicks off queue polling."""
@@ -129,6 +137,8 @@ class BuildView(ctk.CTkFrame):
                         self._progress_bar.set(val)
                     elif kind in ("done", "error"):
                         self._append_log(f"\n{val}\n")
+                        if kind == "done" and self._on_done is not None:
+                            self._on_done(val)
                 self._queue.task_done()
         except queue.Empty:
             pass

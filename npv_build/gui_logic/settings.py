@@ -92,11 +92,7 @@ def validate(s: Settings) -> list[str]:
         problems.append(f"Log verbosity must be 0, 1, or 2 (got {s.log_verbosity})")
 
     if s.game_dir is not None:
-        try:
-            path = Path(s.game_dir)
-            if not is_valid_game_dir(path):
-                problems.append(f"Game directory is not valid: {s.game_dir}")
-        except (ValueError, TypeError):
-            problems.append(f"Invalid game directory path: {s.game_dir}")
+        if not is_valid_game_dir(Path(s.game_dir)):
+            problems.append(f"Game directory is not valid: {s.game_dir}")
 
     return problems
