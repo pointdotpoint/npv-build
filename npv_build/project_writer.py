@@ -122,4 +122,4 @@ to the .app file in WolvenKit GUI.
 - After packing, test in-game: AMM → Custom Entities → your NPV name
 """
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(text)
+    out_path.write_text(text, encoding="utf-8")
