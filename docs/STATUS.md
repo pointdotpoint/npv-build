@@ -8,9 +8,9 @@
 |---|---|---|
 | M0 — repo cleanup + tooling | ✅ merged | uv+hatchling+ruff, CI matrix ubuntu+windows |
 | M1 — core foundation | ✅ merged | errors/cancel/proc/logging/platform + PipelineService (checkpoint/resume/cancel); CLI+GUI on core; 122 tests |
-| M2 — patch currency | ✅ 7/8 merged, T7 gated | see below |
-| M3 — ArchiveXL spike | ⏳ through T3; T4 awaits user in-game check | both hypotheses desk-pass |
-| M4 — GUI overhaul | 📄 planned | `docs/superpowers/plans/2026-07-17-m4-gui-overhaul.md` |
+| M2 — patch currency | ✅ complete (8/8) merged | 2.31 = same format as 2.13; relabel+alias; real 2.31 build proven |
+| M3 — ArchiveXL spike | ✅ complete, merged | ADR 0001 = Branch A' (retire npv-inject; keep donor; H2-v2 follow-up) |
+| M4 — GUI overhaul | 🚧 executing | `docs/superpowers/plans/2026-07-17-m4-gui-overhaul.md` |
 | M5 — security + tests | 📄 spec only | not yet planned |
 | M6 — release bundles | 📄 spec only | not yet planned |
 
