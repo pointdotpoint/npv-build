@@ -67,7 +67,7 @@ def _inject_components(
     if verbosity >= 1:
         cmd.append("--verbose")
     if verbosity >= 2:
-        print(f"[npv-inject] $ {' '.join(cmd)}")
+        logger.debug(f"[npv-inject] $ {' '.join(cmd)}")
 
     stream = verbosity >= 2
     try:
@@ -88,12 +88,10 @@ def _inject_components(
         ) from e
 
     if stream:
-        import sys
-
         if result.stdout:
-            sys.stdout.write(result.stdout)
+            logger.debug(result.stdout)
         if result.stderr:
-            sys.stderr.write(result.stderr)
+            logger.debug(result.stderr)
 
 
 def _resolve_morphtarget_to_mesh(wk: WolvenKit, morphtarget_depot: str) -> str:
@@ -198,8 +196,8 @@ def _resolve_garment_mesh(wk: WolvenKit, game_dir, name: str, verbosity: int) ->
                 except Exception:
                     matches = []
                 if matches:
-                    if len(matches) > 1 and verbosity > 0:
-                        print(
+                    if len(matches) > 1:
+                        logger.info(
                             f"[Clothing] '{name}': {len(matches)} matches in "
                             f"{arch.name}, using first: {matches[0]}"
                         )
@@ -213,8 +211,7 @@ def _resolve_garment_mesh(wk: WolvenKit, game_dir, name: str, verbosity: int) ->
     if matches:
         return matches[0]
 
-    if verbosity > 0:
-        print(f"[Clothing] WARNING: no mesh found for equipped garment '{name}'")
+    logger.warning(f"[Clothing] no mesh found for equipped garment '{name}'")
     return ""
 
 
@@ -242,11 +239,10 @@ def _resolve_equipped_clothing_meshes(
         new_item = dict(item)
         new_item["mesh"] = mesh
         resolved.append(new_item)
-        if verbosity > 0:
-            print(
-                f"[Clothing] resolved {item.get('slot') or '?'}: {name} -> "
-                f"{mesh.rsplit(chr(92), 1)[-1]}"
-            )
+        logger.info(
+            f"[Clothing] resolved {item.get('slot') or '?'}: {name} -> "
+            f"{mesh.rsplit(chr(92), 1)[-1]}"
+        )
     return resolved
 
 
@@ -327,12 +323,10 @@ def _extract_ccxl_eye_components(
             continue
 
     if not target_archive:
-        if verbosity > 0:
-            print(f"[Eyes] modded eyes '{mod_prefix}' archive not found")
+        logger.info(f"[Eyes] modded eyes '{mod_prefix}' archive not found")
         return []
 
-    if verbosity > 0:
-        print(f"[Eyes] modded eyes from {target_archive.name}")
+    logger.info(f"[Eyes] modded eyes from {target_archive.name}")
 
     components = []
     with tempfile.TemporaryDirectory() as td:
@@ -431,8 +425,7 @@ def _extract_ccxl_eye_components(
                             "source": f"modded eyes ({mod_prefix})",
                         }
                     )
-                    if verbosity > 0:
-                        print(f"[Eyes]   {comp_name}: {mesh.rsplit(chr(92), 1)[-1]} -> {ma}")
+                    logger.info(f"[Eyes]   {comp_name}: {mesh.rsplit(chr(92), 1)[-1]} -> {ma}")
                 break
 
     return components
@@ -634,7 +627,7 @@ def build_project(
             if result:
                 baked_mesh_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_head.mesh"
         except Exception as e:
-            print(f"[Head] head preparation failed ({e}); using stock head.")
+            logger.info(f"[Head] head preparation failed ({e}); using stock head.")
 
     if baked_mesh_depot:
         if user_head_glb:
@@ -653,8 +646,7 @@ def build_project(
                 "source": source_label,
             }
         )
-        if verbosity > 0:
-            print(f"[Head] baked head component: h0_000_{body_rig}_c__basehead")
+        logger.info(f"[Head] baked head component: h0_000_{body_rig}_c__basehead")
 
         # Auto-inject VTK seamfix and headpatch if VTK is installed in the game mods directory
         has_vtk = False
@@ -698,8 +690,7 @@ def build_project(
                     "source": "VTK seamfix (auto-injected)",
                 }
             )
-            if verbosity > 0:
-                print(f"[Head] Auto-injected VTK headpatch and seamfix for rig {body_rig}")
+            logger.info(f"[Head] Auto-injected VTK headpatch and seamfix for rig {body_rig}")
     elif stock_head_depot:
         use_morph_fallback = bool(face_morphs)
         comps = _extract_part_components(wk, stock_head_depot, verbosity)
@@ -715,20 +706,18 @@ def build_project(
                     c["mesh"] = stock_mesh
                     c["graph"] = stock_mt  # Reused by C# injector for MorphResource
                     c["source"] = "stock morph target head (programmatic fallback)"
-                    if verbosity > 0:
-                        print(
-                            f"[Head] Programmatic morph fallback: {cname} using morphtarget {stock_mt}"
-                        )
+                    logger.info(
+                        f"[Head] Programmatic morph fallback: {cname} using morphtarget {stock_mt}"
+                    )
                 else:
                     c["source"] = "stock head"
         else:
             for c in comps:
                 c["source"] = "stock head"
         component_specs.extend(comps)
-        if verbosity > 0:
-            print(
-                f"[Head] stock head: {len(comps)} component(s) (morph_fallback={use_morph_fallback})"
-            )
+        logger.info(
+            f"[Head] stock head: {len(comps)} component(s) (morph_fallback={use_morph_fallback})"
+        )
 
     # Load CC selections once — used to suppress the stock eye when modded eyes
     # are present (below) and to inject the modded eyes themselves (section 2d).
@@ -766,21 +755,20 @@ def build_project(
                 for c in comps:
                     c["appearance"] = eyelash_appearance
                     c["source"] = dp.replace("\\", "/").rsplit("/", 1)[-1] + " (eyelashes only)"
-                if verbosity > 0:
-                    print(
-                        f"[Eyes] stock eye -> eyelashes only ({eyelash_appearance}); iris from modded eyes"
-                    )
+                logger.info(
+                    f"[Eyes] stock eye -> eyelashes only ({eyelash_appearance}); iris from modded eyes"
+                )
                 component_specs.extend(comps)
-            elif verbosity > 0:
-                print(
+            else:
+                logger.info(
                     f"[Eyes] skipping stock eye part {dp.rsplit(chr(92), 1)[-1]} (modded eyes, no eyelash appearance found)"
                 )
             continue
         for c in comps:
             c["source"] = dp.replace("\\", "/").rsplit("/", 1)[-1]
-        if verbosity > 0 and comps:
+        if comps:
             short = dp.rsplit("\\", 1)[-1]
-            print(f"[Project]   {short}: {len(comps)} component(s)")
+            logger.info(f"[Project]   {short}: {len(comps)} component(s)")
         component_specs.extend(comps)
 
     # 2a. Repoint the heb_ skin-detail layer to the morph-baked heb mesh.
@@ -795,8 +783,7 @@ def build_project(
                 if c.get("name", "").startswith("heb_000_") and c["name"].endswith("__basehead"):
                     c["mesh"] = heb_baked_depot
                     c["source"] = "user heb_ layer"
-                    if verbosity > 0:
-                        print(f"[Head] repointed {c['name']} -> user heb mesh")
+                    logger.info(f"[Head] repointed {c['name']} -> user heb mesh")
         else:
             component_specs[:] = [
                 c
@@ -805,8 +792,7 @@ def build_project(
                     c.get("name", "").startswith("heb_000_") and c["name"].endswith("__basehead")
                 )
             ]
-            if verbosity > 0:
-                print("[Head] no --heb-mesh with custom head; skin-detail layer omitted")
+            logger.info("[Head] no --heb-mesh with custom head; skin-detail layer omitted")
     elif baked_mesh_depot:
         heb_baked_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_heb.mesh"
         heb_baked_fs = source_dir / heb_baked_depot.replace("\\", "/")
@@ -815,8 +801,7 @@ def build_project(
                 if c.get("name", "").startswith("heb_000_") and c["name"].endswith("__basehead"):
                     c["mesh"] = heb_baked_depot
                     c["source"] = "baked heb_ layer (face morphs applied)"
-                    if verbosity > 0:
-                        print(f"[Head] repointed {c['name']} -> baked heb mesh")
+                    logger.info(f"[Head] repointed {c['name']} -> baked heb mesh")
 
     # 2b. Arms
     arms_mesh = {
@@ -833,8 +818,7 @@ def build_project(
                 "source": "arms mesh",
             }
         )
-        if verbosity > 0:
-            print(f"[Project]   arms: a0_000_{body_rig}_base_hq__full")
+        logger.info(f"[Project]   arms: a0_000_{body_rig}_base_hq__full")
 
     # 2c. Seamfix
     seamfix_mesh = {
@@ -906,13 +890,10 @@ def build_project(
                     "source": "modded hair",
                 }
             )
-        if verbosity > 0:
-            mesh_count = sum(
-                1 for c in hair_components if c.get("$type") == "entSkinnedMeshComponent"
-            )
-            print(
-                f"[Project]   hair: {mesh_count} mesh + {'dangle' if hair_has_dangle else 'no dangle'}"
-            )
+        mesh_count = sum(1 for c in hair_components if c.get("$type") == "entSkinnedMeshComponent")
+        logger.info(
+            f"[Project]   hair: {mesh_count} mesh + {'dangle' if hair_has_dangle else 'no dangle'}"
+        )
 
     # 4. Recipe material overrides
     runtime_overrides = _apply_recipe_overrides(
@@ -925,8 +906,7 @@ def build_project(
             name = comp.get("name", "")
             if name.startswith(("t0_", "a0_", "i0_", "l0_")):
                 comp["appearance"] = skin_tone
-                if verbosity > 0:
-                    print(f"[Project] Skin tone override: {name} -> {skin_tone}")
+                logger.info(f"[Project] Skin tone override: {name} -> {skin_tone}")
 
     # 6. Clothing — resolve equipped garment meshes by name (CET gives only hashes)
     equipped_clothing = _resolve_equipped_clothing_meshes(
@@ -960,16 +940,15 @@ def build_project(
                 and not (is_circumcised and c.get("name", "") == "i0_000_pwa_base__penis")
                 and not (not is_circumcised and "circumcised" in c.get("name", ""))
             ]
-    if verbosity > 0 and genital_selection:
-        print(
+    if genital_selection:
+        logger.info(
             f"[Project] Genitals: {genital_selection.rsplit('__', 1)[0].rsplit('__', 1)[-1] if '__' in genital_selection else genital_selection}"
         )
 
-    if verbosity > 0:
-        print(f"[Project] Total components: {len(component_specs)}")
+    logger.info(f"[Project] Total components: {len(component_specs)}")
 
     # --- Author .app template ---
-    if runtime_overrides and verbosity > 0:
+    if runtime_overrides:
         for ro in runtime_overrides:
             part_name = (
                 ro.get("partResource", {})
@@ -989,7 +968,7 @@ def build_project(
                     if isinstance(co.get("meshAppearance"), dict)
                     else str(co.get("meshAppearance", ""))
                 )
-                print(f"[Project] Runtime override ({part_name}): {cname} -> {mapp}")
+                logger.info(f"[Project] Runtime override ({part_name}): {cname} -> {mapp}")
 
     app_json = build_app_template(mod_id, parts_overrides=runtime_overrides)
     app_out = source_dir / "base" / "npv-build" / mod_id / f"{mod_id}.app.json"
@@ -1017,8 +996,7 @@ def build_project(
         )
     donor_data = json.loads(donor_ent_files[0].read_text())
     ent_json = build_ent_from_donor(mod_id, donor_data, body_rig)
-    if verbosity > 0:
-        print(f"[Project] NPV .ent based on {ent_basename}")
+    logger.info(f"[Project] NPV .ent based on {ent_basename}")
 
     ent_out = source_dir / "base" / "npv-build" / mod_id / f"{mod_id}.ent.json"
     ent_out.parent.mkdir(parents=True, exist_ok=True)
@@ -1028,12 +1006,11 @@ def build_project(
     app_basename = donor_app_depot.replace("\\", "/").rsplit("/", 1)[-1]
     donor_app_bins = [f for f in donor_stage.rglob(app_basename) if not f.name.endswith(".json")]
     donor_app_binary = donor_app_bins[0] if donor_app_bins else None
-    if donor_app_binary and verbosity > 0:
-        print(f"[Project] Donor .app for infrastructure: {app_basename}")
+    if donor_app_binary:
+        logger.info(f"[Project] Donor .app for infrastructure: {app_basename}")
 
     # --- Cook JSON -> binary ---
-    if verbosity > 0:
-        print("[WolvenKit] Cooking JSON to binary...")
+    logger.info("[WolvenKit] Cooking JSON to binary...")
     wk.deserialize(source_dir)
 
     for p in list(source_dir.rglob("*.json")):
@@ -1075,8 +1052,7 @@ def build_project(
         body_rig, "base\\animations\\facial\\_facial_graphs\\player_woman_paperdoll_sermo.animgraph"
     )
 
-    if verbosity > 0:
-        print(f"[npv-inject] Injecting {len(component_specs)} component(s)...")
+    logger.info(f"[npv-inject] Injecting {len(component_specs)} component(s)...")
     _inject_components(
         app_cooked,
         components_json,
@@ -1091,8 +1067,7 @@ def build_project(
     shutil.rmtree(donor_stage, ignore_errors=True)
 
     # --- Pack ---
-    if verbosity > 0:
-        print("[WolvenKit] Packing archive...")
+    logger.info("[WolvenKit] Packing archive...")
     archive_dir = out_dir / "archive" / "pc" / "mod"
     archive_path = wk.pack(source_dir, dest=archive_dir)
 

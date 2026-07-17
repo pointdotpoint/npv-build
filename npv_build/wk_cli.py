@@ -261,11 +261,10 @@ class WolvenKit:
         result = self._run(["--version"], operation="version")
         version = (result.stdout or "").strip()
         if not version.startswith(SUPPORTED_VERSION_PREFIX):
-            print(
-                f"[WolvenKit] Warning: detected version '{version}', "
+            logger.warning(
+                f"[WolvenKit] detected version '{version}', "
                 f"tool was developed against {SUPPORTED_VERSION_PREFIX}x. "
-                "Proceeding anyway.",
-                file=sys.stderr,
+                "Proceeding anyway."
             )
         return version
 
@@ -288,7 +287,7 @@ class WolvenKit:
         stream = self._cfg.verbosity >= 2
 
         if stream:
-            print(f"[WolvenKit] $ {' '.join(cmd)}")
+            logger.debug(f"[WolvenKit] $ {' '.join(cmd)}")
 
         try:
             result = run_tool(
@@ -311,8 +310,8 @@ class WolvenKit:
 
         if stream:
             if result.stdout:
-                sys.stdout.write(result.stdout)
+                logger.debug(result.stdout)
             if result.stderr:
-                sys.stderr.write(result.stderr)
+                logger.debug(result.stderr)
 
         return subprocess.CompletedProcess(cmd, result.returncode, result.stdout, result.stderr)

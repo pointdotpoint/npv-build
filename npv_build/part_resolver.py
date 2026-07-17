@@ -56,8 +56,7 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
     if not archive_path.exists():
         raise ResolverError(f"basegame_4_appearance.archive not found in {archive_path.parent}")
 
-    if verbosity > 0:
-        print(f"[Indexer] Scanning basegame_4_appearance.archive at {archive_path}...")
+    logger.info(f"[Indexer] Scanning basegame_4_appearance.archive at {archive_path}...")
 
     if wk:
         raw_lines = wk.list_archive(r".*\.(ent|app)", archive=archive_path)
@@ -127,8 +126,7 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
             raise
 
     try:
-        if verbosity > 0:
-            print(f"[Indexer] Uncooking {len(head_app_paths)} head appearance .app files...")
+        logger.info(f"[Indexer] Uncooking {len(head_app_paths)} head appearance .app files...")
 
         for p in head_app_paths:
             json_file = temp_dir_path / (p.replace("\\", "/") + ".json")
@@ -148,8 +146,7 @@ def generate_index(game_dir: Path, index_path: Path, verbosity: int = 0, wk=None
                             appearance_to_app[name_val].append(p)
                 app_appearances[p] = names
             except Exception as e:
-                if verbosity > 0:
-                    print(f"[Indexer] Warning: failed to parse uncooked head app {p}: {e}")
+                logger.warning(f"[Indexer] failed to parse uncooked head app {p}: {e}")
     finally:
         shutil.rmtree(temp_dir_path, ignore_errors=True)
 
@@ -284,8 +281,7 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
             try:
                 wk.uncook_many(regex, archive=archive_path, dest=temp_dir)
             except Exception as e:
-                if verbosity > 0:
-                    print(f"[Recipe] uncook failed: {e}")
+                logger.info(f"[Recipe] uncook failed: {e}")
                 return {"parts": [], "overrides": []}
         else:
             cmd = [
@@ -308,8 +304,7 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
         for app_depot, want_name in feature_apps.items():
             jf = _depot_to_fs(temp_dir, app_depot)
             if not jf.exists():
-                if verbosity > 0:
-                    print(f"[Recipe] missing uncooked {app_depot}")
+                logger.info(f"[Recipe] missing uncooked {app_depot}")
                 continue
             try:
                 data = json.load(open(jf))
@@ -322,8 +317,7 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
                     target = a["Data"]
                     break
             if target is None:
-                if verbosity > 0:
-                    print(f"[Recipe] appearance '{want_name}' not in {app_depot}")
+                logger.info(f"[Recipe] appearance '{want_name}' not in {app_depot}")
                 continue
             for pv in target.get("partsValues", []):
                 path = pv.get("resource", {}).get("DepotPath", {}).get("$value", "")
@@ -332,11 +326,10 @@ def extract_recipe(game_dir: Path, feature_apps: dict, verbosity: int = 0, wk=No
                     merged_parts.append(pv)
             for ov in target.get("partsOverrides", []):
                 merged_overrides.append(ov)
-            if verbosity > 0:
-                print(
-                    f"[Recipe]   {want_name}: +{len(target.get('partsValues', []))} parts, "
-                    f"+{len(target.get('partsOverrides', []))} overrides"
-                )
+            logger.info(
+                f"[Recipe]   {want_name}: +{len(target.get('partsValues', []))} parts, "
+                f"+{len(target.get('partsOverrides', []))} overrides"
+            )
 
     # Remap each override's componentName values to the part's REAL component
     # names. The recipe's overrides were copied from cooked head .apps where
@@ -378,8 +371,7 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
             try:
                 wk.uncook_many(regex, archive=archive, dest=temp_dir)
             except Exception as e:
-                if verbosity > 0:
-                    print(f"[Recipe] remap uncook failed: {e}")
+                logger.info(f"[Recipe] remap uncook failed: {e}")
                 return
         else:
             try:
@@ -449,8 +441,8 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
                 # Pick the first real component name as the rebind target.
                 cn["$value"] = real[0]
                 fixed += 1
-    if verbosity > 0 and fixed:
-        print(f"[Recipe] remapped {fixed} override componentName(s) to real part components")
+    if fixed:
+        logger.info(f"[Recipe] remapped {fixed} override componentName(s) to real part components")
 
 
 def extract_hair_components(
@@ -506,8 +498,7 @@ def extract_hair_components(
 
     if not candidates:
         candidates = [a for a in all_arch if "hair" in a.name.lower()]
-    if verbosity > 0:
-        print(f"[Hair] scanning {len(candidates)} candidate archive(s) of {len(all_arch)}")
+    logger.info(f"[Hair] scanning {len(candidates)} candidate archive(s) of {len(all_arch)}")
 
     # Find candidate archives whose listing contains a matching hair .app.
     best = None  # (archive_path, app_depot)
@@ -543,13 +534,11 @@ def extract_hair_components(
                 if best is None or score > best[2]:
                     best = (arch, p, score)
     if not best:
-        if verbosity > 0:
-            print(f"[Hair] no mod .app matched tokens {tokens}")
+        logger.info(f"[Hair] no mod .app matched tokens {tokens}")
         return [], None, None, None
 
     arch, app_depot, _ = best
-    if verbosity > 0:
-        print(f"[Hair] matched {app_depot} in {arch.name}")
+    logger.info(f"[Hair] matched {app_depot} in {arch.name}")
 
     with tempfile.TemporaryDirectory() as td:
         temp_dir = Path(td)
@@ -591,8 +580,7 @@ def extract_hair_components(
             for c in chunks
             if c.get("$type") in ("entSkinnedMeshComponent", "entAnimatedComponent")
         ]
-        if verbosity > 0:
-            print(f"[Hair] extracted {len(mesh_chunks)} hair components")
+        logger.info(f"[Hair] extracted {len(mesh_chunks)} hair components")
         # Also return the source .app depot path + appearance name so the
         # caller can choose to attach via app-reference instead of copying
         # components (which loses parentTransform/rig bindings).
@@ -614,6 +602,5 @@ def get_or_create_index(
     try:
         return generate_index(game_dir, index_path, verbosity, wk=wk)
     except Exception as e:
-        if verbosity > 0:
-            print(f"[Indexer] Scan failed: {e}. Falling back to mock/embedded index.")
+        logger.info(f"[Indexer] Scan failed: {e}. Falling back to mock/embedded index.")
         return get_mock_index()

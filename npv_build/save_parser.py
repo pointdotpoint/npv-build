@@ -1,9 +1,12 @@
 import json
+import logging
 import re
 import struct
 from pathlib import Path
 
 from .save_format import SaveContainer, SaveFormatError, _Reader
+
+logger = logging.getLogger(__name__)
 
 
 class SaveParserError(Exception):
@@ -106,7 +109,7 @@ def detect_patch(version: tuple) -> str:
                 return versions[v2_str]
         except Exception:
             pass
-    print(f"Warning: game build {v2} not found in save_versions.json. Defaulting to patch 2.13.")
+    logger.warning(f"game build {v2} not found in save_versions.json. Defaulting to patch 2.13.")
     return "2.13"
 
 

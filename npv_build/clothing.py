@@ -1,7 +1,10 @@
 """Resolve clothing for an NPV: fallback outfit + user garment overrides."""
 
 import json
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_clothing(
@@ -48,8 +51,7 @@ def resolve_clothing(
                     "source": f"clothing:{item.get('slot') or 'equipped'} (equipped)",
                 }
             )
-            if verbosity > 0:
-                print(f"[Clothing] equipped {item.get('slot') or '?'}: {name}")
+            logger.info(f"[Clothing] equipped {item.get('slot') or '?'}: {name}")
     else:
         fallback_file = Path(__file__).parent / "data" / "fallback_outfit.json"
         fallback = json.loads(fallback_file.read_text()).get(body_rig, {})
@@ -85,8 +87,7 @@ def resolve_clothing(
                 "source": f"clothing:{slot}",
             }
         )
-        if verbosity > 0:
-            print(f"[Clothing] override {slot}: {name}")
+        logger.info(f"[Clothing] override {slot}: {name}")
 
     def base_slot(spec: dict) -> str:
         # source is "clothing:<slot>" or "clothing:<slot> (equipped)" -> "<slot>"

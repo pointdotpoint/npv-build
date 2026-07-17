@@ -1,5 +1,8 @@
 import json
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class MappingError(Exception):
@@ -230,7 +233,7 @@ def resolve_assets(
         try:
             recipe = extract_recipe(game_dir, feature_apps, verbosity=1, wk=wk)
         except Exception as e:
-            print(f"Warning: recipe extraction failed ({e}); falling back to plain part list.")
+            logger.warning(f"recipe extraction failed ({e}); falling back to plain part list.")
 
     asset_paths["recipe_parts"] = recipe.get("parts", [])
     asset_paths["recipe_overrides"] = recipe.get("overrides", [])
@@ -277,19 +280,19 @@ def resolve_assets(
             if not d["selection"].startswith("fhair_")
         ]
         if ov in ("none", "bald", "0", ""):
-            print("[Mapping] Hair override: none (NPV will be bald).")
+            logger.info("[Mapping] Hair override: none (NPV will be bald).")
         elif ov.isdigit():
             hair_num = ov.zfill(3)
             hair_ent = _find_vanilla_hair_ent(index, body_rig, hair_num)
             if hair_ent:
                 asset_paths["part_entities"].append(hair_ent)
                 asset_paths["part_entities"] = list(sorted(set(asset_paths["part_entities"])))
-                print(
+                logger.info(
                     f"[Mapping] Hair override: vanilla hh_{hair_num} -> {hair_ent.split(chr(92))[-1]}"
                 )
             else:
                 asset_paths["unresolved"].append(f"hair_override:hh_{hair_num}")
-                print(f"[Mapping] Hair override hh_{hair_num} not found in index.")
+                logger.info(f"[Mapping] Hair override hh_{hair_num} not found in index.")
         elif game_dir:
             # Modded-hair name. Probe `extract_hair_components` with this token.
             from .part_resolver import extract_hair_components
@@ -313,12 +316,14 @@ def resolve_assets(
                             else "modded hair (mod must stay installed)",
                         }
                     )
-                    print(f"[Mapping] Hair override: modded '{ov}' -> {app_depot} '{app_name}'")
+                    logger.info(
+                        f"[Mapping] Hair override: modded '{ov}' -> {app_depot} '{app_name}'"
+                    )
                 else:
-                    print(f"[Mapping] Hair override '{ov}': no matching mod archive found.")
+                    logger.info(f"[Mapping] Hair override '{ov}': no matching mod archive found.")
                     asset_paths["unresolved"].append(f"hair_override:{ov}")
             except Exception as e:
-                print(f"Warning: hair override extraction failed ({e}); NPV will be bald.")
+                logger.warning(f"hair override extraction failed ({e}); NPV will be bald.")
     elif (
         hair_raw.startswith("fhair_") or (hair_raw.endswith("_hair") and hair_style)
     ) and game_dir:
@@ -339,14 +344,14 @@ def resolve_assets(
                     if dep["selection"] == hair_raw and src:
                         dep["reason"] = f"modded hair from {src} (must stay installed)"
         except Exception as e:
-            print(f"Warning: hair extraction failed ({e}); NPV will be bald.")
+            logger.warning(f"hair extraction failed ({e}); NPV will be bald.")
 
     # Garment overrides: add explicit garment .ent depot paths as parts.
     for g in garments or []:
         g = g.strip()
         if g and g not in asset_paths["part_entities"]:
             asset_paths["part_entities"].append(g)
-            print(f"[Mapping] Garment added: {g.split(chr(92))[-1]}")
+            logger.info(f"[Mapping] Garment added: {g.split(chr(92))[-1]}")
 
     return asset_paths
 

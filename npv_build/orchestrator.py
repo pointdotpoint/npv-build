@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import re
 import shutil
 from pathlib import Path
@@ -8,6 +9,8 @@ from .mapping import MappingError, resolve_assets
 from .save_parser import SaveParserError, parse_save
 from .wk_cli import WolvenKit, WolvenKitConfig, WolvenKitError
 from .wolvenkit import build_project
+
+logger = logging.getLogger(__name__)
 
 
 class OrchestratorError(Exception):
@@ -76,8 +79,8 @@ def run_orchestrator(
                 body_rig = cc_tmp.get("body_rig", "pwa")
             except Exception:
                 pass
-        if verbosity > 0 and body_rig == "pwa" and not (cc_json_path or save_path):
-            print("[Head] using default body rig 'pwa' for head dump")
+        if body_rig == "pwa" and not (cc_json_path or save_path):
+            logger.info("[Head] using default body rig 'pwa' for head dump")
         _dump_head_glb(wk, body_rig, dump_head_glb, verbosity)
         return str(dump_head_glb)
 
@@ -87,8 +90,7 @@ def run_orchestrator(
     # game_dir no longer required: NPV resources are authored from scratch and
     # reference base-game part .ents by depot path (resolved at game load).
 
-    if verbosity > 0:
-        print("[Orchestrator] Starting build process...")
+    logger.info("[Orchestrator] Starting build process...")
 
     # Load CC settings. Three modes:
     #   save only            -> full CC from the save parser (fallback outfit)
@@ -99,8 +101,7 @@ def run_orchestrator(
     #                           reconstruct head CC, so we never let it replace it.
     dump_data = None
     if cc_json_path is not None:
-        if verbosity > 0:
-            print(f"[CC Loader] Loading CC dump from {cc_json_path}...")
+        logger.info(f"[CC Loader] Loading CC dump from {cc_json_path}...")
         try:
             with open(cc_json_path) as f:
                 dump_data = json.load(f)
@@ -108,8 +109,7 @@ def run_orchestrator(
             raise OrchestratorError("CC Loader", f"Failed to load --cc-json: {e}") from e
 
     if save_path is not None:
-        if verbosity > 0:
-            print("[Save Parser] Parsing save file...")
+        logger.info("[Save Parser] Parsing save file...")
         try:
             cc_settings = parse_save(save_path)
         except SaveParserError as e:
@@ -120,11 +120,10 @@ def run_orchestrator(
         if dump_data is not None:
             clothing = dump_data.get("clothing", [])
             cc_settings["clothing"] = clothing
-            if verbosity > 0:
-                print(
-                    f"[CC Loader] Overlaid {len(clothing)} equipped garment(s) "
-                    "from the CET dump onto the save CC."
-                )
+            logger.info(
+                f"[CC Loader] Overlaid {len(clothing)} equipped garment(s) "
+                "from the CET dump onto the save CC."
+            )
     else:
         # --cc-json only: the dump is the sole CC source.
         cc_settings = dump_data
@@ -135,8 +134,7 @@ def run_orchestrator(
         json.dump(cc_settings, f, indent=2)
 
     # Mapping
-    if verbosity > 0:
-        print("[Mapping] Resolving asset paths...")
+    logger.info("[Mapping] Resolving asset paths...")
     try:
         asset_paths = resolve_assets(
             cc_settings, game_dir, hair_override=hair_override, garments=garments or [], wk=wk
@@ -157,29 +155,28 @@ def run_orchestrator(
     ent_depot_path = f"base\\\\npv-build\\\\{mod_id}\\\\{mod_id}.ent"
 
     # AMM Lua Generator
-    if verbosity > 0:
-        print("[AMM Lua Generator] Generating LUA script...")
+    logger.info("[AMM Lua Generator] Generating LUA script...")
 
     ext_deps = asset_paths.get("external_dependencies", [])
     unresolved = asset_paths.get("unresolved", [])
 
     lua_comments = []
     if ext_deps:
-        print(
-            "\n[Orchestrator] WARNING: External mod dependencies detected! These assets are not in the base game:"
+        logger.warning(
+            "\n[Orchestrator] External mod dependencies detected! These assets are not in the base game:"
         )
         for dep in ext_deps:
             sel = dep.get("selection")
             reason = dep.get("reason")
-            print(f"  - {sel}: {reason}")
+            logger.warning(f"  - {sel}: {reason}")
             lua_comments.append(f"-- WARNING: External mod dependency: {sel} ({reason})")
 
     if unresolved:
-        print(
-            "\n[Orchestrator] WARNING: Unresolved base-game selections (using sensible fallbacks):"
+        logger.warning(
+            "\n[Orchestrator] Unresolved base-game selections (using sensible fallbacks):"
         )
         for unr in unresolved:
-            print(f"  - {unr}")
+            logger.warning(f"  - {unr}")
             lua_comments.append(f"-- WARNING: Unresolved selection (fallback used): {unr}")
 
     lua_comments_str = "\n".join(lua_comments) + "\n" if lua_comments else ""
@@ -211,8 +208,7 @@ def run_orchestrator(
 """
 
     # Build WolvenKit project (all binary assets, no archive packing)
-    if verbosity > 0:
-        print("[Project] Building WolvenKit project...")
+    logger.info("[Project] Building WolvenKit project...")
 
     try:
         component_specs = build_project(
@@ -231,9 +227,7 @@ def run_orchestrator(
     except WolvenKitError as e:
         raise OrchestratorError(e.module_name, str(e)) from e
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
+        logger.debug("Traceback:", exc_info=True)
         raise OrchestratorError("WolvenKit Automation", f"Unexpected error: {e}") from e
 
     # AMM Lua
@@ -252,9 +246,8 @@ def run_orchestrator(
     lua_file = lua_dir / f"{mod_id}.lua"
     lua_file.write_text(lua_code, encoding="utf-8")
 
-    if verbosity > 0:
-        print(f"[Orchestrator] Mod built: {output_dir}")
-        print(f"[Orchestrator] Components: {len(component_specs)}")
-        print("[Orchestrator] Install: copy archive/ and bin/ to your game directory")
+    logger.info(f"[Orchestrator] Mod built: {output_dir}")
+    logger.info(f"[Orchestrator] Components: {len(component_specs)}")
+    logger.info("[Orchestrator] Install: copy archive/ and bin/ to your game directory")
 
     return str(output_dir)

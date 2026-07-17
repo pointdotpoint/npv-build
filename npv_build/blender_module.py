@@ -96,19 +96,17 @@ def _depot_to_rel(depot: str) -> str:
 def _run(cmd, verbosity, error_prefix):
     stream = verbosity >= 2
     if stream:
-        print(f"[Blender] $ {' '.join(str(c) for c in cmd)}")
+        logger.debug(f"[Blender] $ {' '.join(str(c) for c in cmd)}")
     try:
         result = run_tool(cmd, tool="blender", timeout=900.0, logger=logger)
     except ToolError as e:
         raise BlenderError(f"{error_prefix}: {e}") from e
 
     if stream:
-        import sys
-
         if result.stdout:
-            sys.stdout.write(result.stdout)
+            logger.debug(result.stdout)
         if result.stderr:
-            sys.stderr.write(result.stderr)
+            logger.debug(result.stderr)
     return result
 
 
@@ -135,8 +133,7 @@ def bake_face_mesh(
     if not game_dir or not face_morphs:
         return None
     if body_rig not in HEAD_MORPHTARGET:
-        if verbosity > 0:
-            print(f"[Blender] no morphtarget mapping for rig {body_rig}; skipping bake")
+        logger.info(f"[Blender] no morphtarget mapping for rig {body_rig}; skipping bake")
         return None
 
     content = game_dir / "archive" / "pc" / "content"
@@ -173,10 +170,9 @@ def bake_face_mesh(
     mt_fs = extract_dir / _depot_to_rel(mt_depot)
     mesh_fs = extract_dir / _depot_to_rel(mesh_depot)
     if not mt_fs.exists() or not mesh_fs.exists():
-        if verbosity > 0:
-            print(
-                f"[Blender] extract missing files (mt={mt_fs.exists()}, mesh={mesh_fs.exists()}); skip bake"
-            )
+        logger.info(
+            f"[Blender] extract missing files (mt={mt_fs.exists()}, mesh={mesh_fs.exists()}); skip bake"
+        )
         return None
 
     # 2. export morphtarget -> glb
@@ -206,8 +202,7 @@ def bake_face_mesh(
     # bake script must be readable by flatpak: copy it under $HOME stage.
     local_script = stage / "bake_head.py"
     shutil.copy2(BAKE_SCRIPT, local_script)
-    if verbosity > 0:
-        print(f"[Blender] baking morphs {face_morphs} ...")
+    logger.info(f"[Blender] baking morphs {face_morphs} ...")
     _run(
         _blender_cmd()
         + [
@@ -232,8 +227,7 @@ def bake_face_mesh(
     # peripheral file warning even though "Imported 1/1 file(s)" succeeded).
     glb_for_import = mesh_fs.parent / (mesh_fs.stem + ".glb")
     shutil.copy2(baked_glb, glb_for_import)
-    if verbosity > 0:
-        print(f"[Blender] importing baked glb: {glb_for_import}")
+    logger.info(f"[Blender] importing baked glb: {glb_for_import}")
     mesh_mtime_before = mesh_fs.stat().st_mtime if mesh_fs.exists() else 0
     if wk:
         from .wk_cli import WolvenKitError
@@ -266,6 +260,5 @@ def bake_face_mesh(
     # mesh_fs is now rebuilt with baked geometry.
     out_mesh_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(mesh_fs, out_mesh_path)
-    if verbosity > 0:
-        print(f"[Blender] baked head mesh -> {out_mesh_path}")
+    logger.info(f"[Blender] baked head mesh -> {out_mesh_path}")
     return out_mesh_path

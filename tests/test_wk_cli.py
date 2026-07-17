@@ -50,13 +50,16 @@ class TestCheckVersion:
         assert version == "8.18.1"
 
     @patch("npv_build.wk_cli.run_tool")
-    def test_check_version_mismatch_warns(self, mock_run_tool, wk, capsys):
+    def test_check_version_mismatch_warns(self, mock_run_tool, wk, caplog):
         mock_run_tool.return_value = ToolResult(
             argv=["WolvenKit.CLI", "--version"], returncode=0, stdout="9.0.0\n", stderr=""
         )
-        version = wk.check_version()
+        with caplog.at_level("WARNING", logger="npv_build.wk_cli"):
+            version = wk.check_version()
         assert version == "9.0.0"
-        assert "Warning" in capsys.readouterr().err
+        assert any(
+            record.levelname == "WARNING" and "9.0.0" in record.message for record in caplog.records
+        )
 
     @patch("npv_build.wk_cli.run_tool")
     def test_check_version_not_found(self, mock_run_tool, wk):

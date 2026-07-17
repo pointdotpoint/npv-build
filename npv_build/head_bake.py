@@ -7,12 +7,15 @@ all CLI operations.
 from __future__ import annotations
 
 import json
+import logging
 import re as _re
 import shutil
 import tempfile
 from pathlib import Path
 
 from .wk_cli import WolvenKit, WolvenKitError
+
+logger = logging.getLogger(__name__)
 
 STOCK_HEAD_MESH = {
     "pwa": "h0_000_pwa_c__basehead.mesh",
@@ -163,18 +166,16 @@ def _restore_part_materials(
                     matches = wk.list_archive(canonical_regex, archive=arch)
                     if matches:
                         mod_archive_path = arch
-                        if verbosity > 0:
-                            print(
-                                f"[Head] Found custom head mesh override in mod archive: {arch.name}"
-                            )
+                        logger.info(
+                            f"[Head] Found custom head mesh override in mod archive: {arch.name}"
+                        )
                         break
                 except Exception:
                     pass
 
     # Use the custom skin mod archive if found, otherwise fall back to base-game
     source_archive = mod_archive_path or wk.config.appearance_archive
-    if verbosity > 0:
-        print(f"[Head] Restoring head materials from archive: {source_archive.name}")
+    logger.info(f"[Head] Restoring head materials from archive: {source_archive.name}")
 
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
@@ -242,8 +243,7 @@ def _restore_part_materials(
         wk.deserialize(patched_json)
 
         mat_count = len(stock_rc.get("materialEntries", []))
-        if verbosity > 0:
-            print(f"[Head] restored {mat_count} materials from stock head")
+        logger.info(f"[Head] restored {mat_count} materials from stock head")
 
 
 def _finalize_head(
@@ -269,8 +269,7 @@ def _finalize_head(
             if heb_mesh:
                 _restore_part_materials(wk, heb_baked_fs, heb_mesh, verbosity)
     else:
-        if verbosity > 0:
-            print("[Head] material restore skipped; using mesh's own materials")
+        logger.info("[Head] material restore skipped; using mesh's own materials")
 
     from .blender_module import HEAD_MORPHTARGET
 
@@ -283,24 +282,21 @@ def _finalize_head(
     try:
         mt_data = wk.uncook_json(mt_basename)
     except (WolvenKitError, FileNotFoundError):
-        if verbosity > 0:
-            print("[Head] could not uncook stock morphtarget")
+        logger.info("[Head] could not uncook stock morphtarget")
         return None
 
     bm = mt_data.get("Data", {}).get("RootChunk", {}).get("baseMesh", {})
     bm_dp = bm.get("DepotPath", {})
     old_bm = bm_dp.get("$value", "")
     bm_dp["$value"] = baked_mesh_depot
-    if verbosity > 0:
-        print(f"[Head] morphtarget baseMesh: {old_bm} -> {baked_mesh_depot}")
+    logger.info(f"[Head] morphtarget baseMesh: {old_bm} -> {baked_mesh_depot}")
 
     mt_json_fs = build_dir / (mt_depot.replace("\\", "/") + ".json")
     mt_json_fs.parent.mkdir(parents=True, exist_ok=True)
     mt_json_fs.write_text(json.dumps(mt_data, indent=2))
 
-    if verbosity > 0:
-        print(f"[Head] baked mesh: {baked_mesh_depot}")
-        print(f"[Head] morphtarget: {mt_depot}")
+    logger.info(f"[Head] baked mesh: {baked_mesh_depot}")
+    logger.info(f"[Head] morphtarget: {mt_depot}")
     return True
 
 
@@ -361,13 +357,11 @@ def bake_head(
             stage_name="bake_heb",
         )
         if heb_result:
-            if verbosity > 0:
-                print(f"[Head] baked heb_ layer: {heb_baked_depot}")
+            logger.info(f"[Head] baked heb_ layer: {heb_baked_depot}")
         else:
             heb_baked_fs = None
             heb_baked_depot = None
-            if verbosity > 0:
-                print("[Head] heb_ bake skipped/failed; head may show overlap")
+            logger.info("[Head] heb_ bake skipped/failed; head may show overlap")
 
     return _finalize_head(
         wk,
@@ -501,12 +495,11 @@ def _import_user_glb(
                 and user_v_count is not None
                 and stock_v_count != user_v_count
             ):
-                print(
-                    f"[Head] warning: head GLB vertex count ({user_v_count}) differs from stock head ({stock_v_count}); skinning may be imperfect"
+                logger.warning(
+                    f"[Head] head GLB vertex count ({user_v_count}) differs from stock head ({stock_v_count}); skinning may be imperfect"
                 )
         except Exception as e:
-            if verbosity > 0:
-                print(f"[Head] warning: could not compare vertex counts ({e})")
+            logger.warning(f"[Head] could not compare vertex counts ({e})")
 
         # Import
         mesh_mtime_before = stock_head_fs.stat().st_mtime if stock_head_fs.exists() else 0
@@ -552,8 +545,7 @@ def _import_user_glb(
                     heb_baked_fs = build_dir / heb_baked_depot.replace("\\", "/")
                     heb_baked_fs.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(stock_heb_fs, heb_baked_fs)
-                    if verbosity > 0:
-                        print(f"[Head] imported user heb_ layer: {heb_baked_depot}")
+                    logger.info(f"[Head] imported user heb_ layer: {heb_baked_depot}")
 
         return _finalize_head(
             wk,
@@ -585,8 +577,7 @@ def _import_user_mesh(
     baked_mesh_fs = build_dir / baked_mesh_depot.replace("\\", "/")
     baked_mesh_fs.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(user_mesh, baked_mesh_fs)
-    if verbosity > 0:
-        print("[Head] warning: user mesh — skinning not verified")
+    logger.warning("[Head] user mesh — skinning not verified")
 
     heb_baked_fs = None
     heb_baked_depot = None
@@ -595,8 +586,7 @@ def _import_user_mesh(
         heb_baked_fs = build_dir / heb_baked_depot.replace("\\", "/")
         heb_baked_fs.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(user_heb_mesh, heb_baked_fs)
-        if verbosity > 0:
-            print(f"[Head] copied user heb_ mesh verbatim: {heb_baked_depot}")
+        logger.info(f"[Head] copied user heb_ mesh verbatim: {heb_baked_depot}")
 
     return _finalize_head(
         wk,
@@ -647,4 +637,4 @@ def dump_head_glb(
         # Copy to final destination
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(produced_glb, dest_path)
-        print(f"[Head] stock head GLB written: {dest_path} — edit and pass via --head-glb")
+        logger.info(f"[Head] stock head GLB written: {dest_path} — edit and pass via --head-glb")
