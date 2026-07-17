@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from npv_build.core import platform as plat
 
 
@@ -72,3 +74,34 @@ def test_find_game_dirs(tmp_path):
 
 def test_missing_dirs_excluded(tmp_path):
     assert plat.candidate_save_dirs(home=tmp_path / "ghost", steam_roots=[]) == []
+
+
+def test_open_folder_linux(tmp_path, monkeypatch):
+    monkeypatch.setattr(plat.sys, "platform", "linux")
+    calls = []
+    monkeypatch.setattr(plat.subprocess, "Popen", lambda args, **kw: calls.append(args))
+    plat.open_folder(tmp_path)
+    assert calls == [["xdg-open", str(tmp_path)]]
+
+
+def test_open_folder_macos(tmp_path, monkeypatch):
+    monkeypatch.setattr(plat.sys, "platform", "darwin")
+    calls = []
+    monkeypatch.setattr(plat.subprocess, "Popen", lambda args, **kw: calls.append(args))
+    plat.open_folder(tmp_path)
+    assert calls == [["open", str(tmp_path)]]
+
+
+def test_open_folder_windows(tmp_path, monkeypatch):
+    monkeypatch.setattr(plat.sys, "platform", "win32")
+    calls = []
+    # os.startfile only exists on Windows; inject it so the attribute lookup resolves.
+    monkeypatch.setattr(plat.os, "startfile", lambda p: calls.append(p), raising=False)
+    plat.open_folder(tmp_path)
+    assert calls == [str(tmp_path)]
+
+
+def test_open_folder_missing_path_raises(tmp_path, monkeypatch):
+    monkeypatch.setattr(plat.subprocess, "Popen", lambda *a, **kw: pytest.fail("should not open"))
+    with pytest.raises(FileNotFoundError):
+        plat.open_folder(tmp_path / "does-not-exist")

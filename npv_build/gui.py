@@ -2,7 +2,6 @@ import logging
 import queue
 import sys
 import tkinter as tk
-import webbrowser
 from pathlib import Path
 from tkinter import filedialog
 
@@ -11,6 +10,7 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from .config import get_cache_dir, load_config, save_config
 from .core.errors import NpvError
+from .core.platform import open_folder
 from .gui_backend import BuildWorker, InstallerWorker, check_dependencies, preview_save
 from .save_parser import SaveParserError
 
@@ -352,9 +352,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         # Hidden initially
 
-        # Build Button
+        # Build + Cancel Buttons (share row 1 in a sub-frame)
+        self.frame_build_row = ctk.CTkFrame(self.frame_actions, fg_color="transparent")
+        self.frame_build_row.grid(row=1, column=0, sticky="ew", pady=5)
+        self.frame_build_row.grid_columnconfigure(0, weight=1)
+        self.frame_build_row.grid_columnconfigure(1, weight=0)
+
         self.btn_build = ctk.CTkButton(
-            self.frame_actions,
+            self.frame_build_row,
             text="BUILD NPV MOD",
             font=("Arial", 16, "bold"),
             fg_color=BG_DARK,
@@ -365,7 +370,23 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             height=45,
             command=self.start_build,
         )
-        self.btn_build.grid(row=1, column=0, sticky="ew", pady=5)
+        self.btn_build.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+
+        self.btn_cancel = ctk.CTkButton(
+            self.frame_build_row,
+            text="CANCEL",
+            font=("Arial", 14, "bold"),
+            width=120,
+            fg_color=BG_DARK,
+            text_color=STATUS_RED,
+            border_color=STATUS_RED,
+            border_width=2,
+            hover_color="#1f2833",
+            height=45,
+            state="disabled",
+            command=self.cancel_build,
+        )
+        self.btn_cancel.grid(row=0, column=1, sticky="ew")
 
         # Success/Failure Alert Banner
         self.lbl_banner = ctk.CTkLabel(
@@ -946,6 +967,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # 2. Update UI states
         self.btn_build.configure(state="disabled", text="BUILDING...")
+        self.btn_cancel.configure(state="normal", text="CANCEL")
         self.progress_bar.grid(row=0, column=0, sticky="ew", pady=(0, 10))
         self.progress_bar.start()
 
@@ -954,6 +976,16 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # 4. Schedule Queue Poller
         self.after(50, self.poll_queue)
+
+    def cancel_build(self):
+        # Signals the worker to terminate in-flight tools. The terminal
+        # ("error", "Build cancelled.") tuple flows through poll_queue ->
+        # build_finished, which resets both buttons.
+        if not self.worker.is_alive:
+            return
+        self.worker.cancel()
+        self.btn_cancel.configure(state="disabled", text="Cancelling...")
+        self.append_log("\nCancellation requested. Waiting for build to stop...\n")
 
     def poll_queue(self):
         try:
@@ -1045,6 +1077,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.progress_bar.stop()
         self.progress_bar.grid_forget()
         self.btn_build.configure(state="normal", text="BUILD NPV MOD")
+        self.btn_cancel.configure(state="disabled", text="CANCEL")
 
         if success:
             self.append_log(f"\n[Success] NPV Mod built successfully! Saved at: {payload}\n")
@@ -1054,13 +1087,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 text_color=BG_DARK,
             )
             # Add helper button to open output dir
+            self.last_output_dir = Path(payload)
             self.btn_open_out = ctk.CTkButton(
                 self.frame_actions,
                 text="Open Output Folder",
                 fg_color="#333",
                 hover_color="#444",
                 text_color=ACCENT_CYAN,
-                command=lambda: webbrowser.open(f"file://{payload}"),
+                command=self.open_output_folder,
             )
             self.btn_open_out.grid(row=3, column=0, sticky="ew", pady=5)
         else:
@@ -1074,6 +1108,23 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
                 self.btn_open_out.grid_forget()
 
         self.lbl_banner.grid(row=2, column=0, sticky="ew", pady=5)
+
+    def open_output_folder(self):
+        target = getattr(self, "last_output_dir", None)
+        if target is None:
+            out = self.entry_output.get().strip()
+            target = Path(out) if out else None
+        if target is None or not target.exists():
+            self.show_error(
+                "Folder Not Found",
+                "The output folder does not exist yet. Build the mod first.",
+            )
+            return
+        try:
+            open_folder(target)
+        except Exception as e:  # noqa: BLE001 - GUI event loop must survive
+            logger.exception("Failed to open output folder")
+            self.show_error("Open Folder Error", f"Could not open folder:\n{e}")
 
     def show_error(self, title: str, message: str):
         self.append_log(f"\n[{title}] {message}\n")
