@@ -15,7 +15,15 @@ from npv_build.wk_cli import WolvenKit, WolvenKitConfig, WolvenKitError
 
 
 @pytest.fixture
-def wk():
+def wk(monkeypatch):
+    # Tool resolution (core.toolpaths.resolve_tool) runs before run_tool inside
+    # _run and requires a real, existing executable on disk. These tests mock
+    # run_tool to exercise higher-level logic (check_version parsing, error
+    # wrapping, etc.) and must not depend on a real WolvenKit binary being
+    # installed on the machine running the tests (see CI regression from M5 T4).
+    monkeypatch.setattr(
+        "npv_build.wk_cli.resolve_tool", lambda name, candidates: Path("/fake/WolvenKit.CLI")
+    )
     config = WolvenKitConfig(
         game_dir=Path("/fake/game"),
         cli_binary="WolvenKit.CLI",
@@ -197,6 +205,9 @@ def test_run_routes_through_run_tool(monkeypatch, tmp_path):
         return ToolResult(argv=list(argv), returncode=0, stdout="8.19.0\n", stderr="")
 
     monkeypatch.setattr("npv_build.wk_cli.run_tool", fake_run_tool)
+    monkeypatch.setattr(
+        "npv_build.wk_cli.resolve_tool", lambda name, candidates: Path("/fake/WolvenKit.CLI")
+    )
     token = CancelToken()
     wk = WolvenKit(WolvenKitConfig(game_dir=tmp_path, timeout_s=123.0, cancel=token))
     wk.check_version()
@@ -213,6 +224,9 @@ def test_list_archive_routes_through_run_tool(monkeypatch, tmp_path):
         return ToolResult(argv=list(argv), returncode=0, stdout="a.ent\nb.app\n", stderr="")
 
     monkeypatch.setattr("npv_build.wk_cli.run_tool", fake_run_tool)
+    monkeypatch.setattr(
+        "npv_build.wk_cli.resolve_tool", lambda name, candidates: Path("/fake/WolvenKit.CLI")
+    )
     wk = WolvenKit(WolvenKitConfig(game_dir=tmp_path))
     archive = tmp_path / "x.archive"
     archive.write_bytes(b"")
