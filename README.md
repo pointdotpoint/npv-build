@@ -2,7 +2,7 @@
 
 **Turn your Cyberpunk 2077 save into an AMM-spawnable NPC clone of V — in one command.**
 
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-2.0.0-blue)
 ![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
 ![assets](https://img.shields.io/badge/CDPR%20bytes%20in%20repo-none-green)
 
@@ -29,6 +29,32 @@ the WolvenKit GUI, no hand-editing `.app`/`.ent` files. The CLI does all of it.
 [Quick Start](#quick-start) · [CLI Reference](#cli-reference) ·
 [Troubleshooting](#troubleshooting) · [Limitations](#limitations) ·
 [For developers](#for-developers)
+
+---
+
+## Install from Release
+
+If you'd rather not build from source, download a prebuilt binary:
+
+### Windows
+1. Download `npv-build-2.0.0-windows.zip` from [Releases](https://github.com/pointdotpoint/npv-build/releases).
+2. Extract the `.zip`.
+3. Run `npv-build.exe` (double-click for GUI, or use a terminal for CLI).
+4. The first run will auto-download and install WolvenKit and Blender (checksum-verified) — **they are not bundled**.
+5. **Note:** Windows binary is unsigned; you may see a SmartScreen warning — this is expected.
+
+### Linux
+1. Download `npv-build-2.0.0-x86_64.AppImage` from [Releases](https://github.com/pointdotpoint/npv-build/releases).
+2. Make it executable: `chmod +x npv-build-2.0.0-x86_64.AppImage`
+3. Run it (double-click for GUI, or use a terminal for CLI): `./npv-build-2.0.0-x86_64.AppImage`
+4. The first run will auto-download and install WolvenKit and Blender (checksum-verified) — **they are not bundled**.
+
+Both artifacts include the GUI and CLI in a single executable:
+- **Double-click** or run with **no arguments** → launches the GUI.
+- **Pass arguments** from a terminal → runs the CLI. Example: `./npv-build <sav.dat> "My V" --output ./my_v_mod --game-dir "..."`
+- **`--gui` flag** → forces the GUI even if other arguments are present.
+
+For verification, check the SHA-256 hash of your download against the line in `SHA256SUMS` in the release.
 
 ---
 
@@ -76,7 +102,9 @@ You point the tool at a save and a name; it hands you an installable mod. The
 
 ---
 
-## Install
+## Install (from source / development)
+
+To build `npv-build` from source, you'll need the development tools above, plus a clone of this repo:
 
 ```bash
 cd npv_project
@@ -95,6 +123,8 @@ Verify the install:
 ```bash
 uv run npv-build --help
 ```
+
+**For end users**, see [Install from Release](#install-from-release) above for prebuilt binaries.
 
 ---
 
