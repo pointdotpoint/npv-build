@@ -21,8 +21,12 @@ else
   cp "$PKG/npv-build.png" "$APPDIR/npv-build.png"
 fi
 
-# fetch appimagetool if not present
-TOOL="$DIST/appimagetool.AppImage"
+# fetch appimagetool if not present — into a tool dir OUTSIDE $DIST so it never
+# matches the release's `*.AppImage` upload glob (would otherwise be attached to
+# the release and land in SHA256SUMS).
+TOOLDIR="$PKG/.appimagetool"
+mkdir -p "$TOOLDIR"
+TOOL="$TOOLDIR/appimagetool.AppImage"
 if [ ! -f "$TOOL" ]; then
   curl -fsSL -o "$TOOL" \
     "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"

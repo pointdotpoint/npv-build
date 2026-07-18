@@ -27,7 +27,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: packaging/dist/*.AppImage
+          path: packaging/dist/npv-build-*-x86_64.AppImage
 
   build-windows:
     runs-on: windows-latest
