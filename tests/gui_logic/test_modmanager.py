@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -11,8 +10,6 @@ from npv_build.gui_logic.modmanager import (
     list_mods,
     uninstall_mod,
 )
-
-_HAS_DISPLAY = bool(os.environ.get("DISPLAY"))
 
 
 def _built_mod(root: Path, mod_id: str) -> Path:
@@ -107,23 +104,3 @@ def test_uninstall_permission_denied_raises_install_error(tmp_path, monkeypatch)
 
     with pytest.raises(InstallError):
         uninstall_mod(entry, game)
-
-
-@pytest.mark.skipif(not _HAS_DISPLAY, reason="requires a display (headless environment)")
-def test_modmanager_view_instantiates(tmp_path):
-    import customtkinter as ctk
-
-    from npv_build.gui_views.modmanager_view import ModManagerView
-
-    out = tmp_path / "out"
-    out.mkdir()
-    _built_mod(out, "my_v_abc")
-    game = _game(tmp_path / "game")
-
-    root = ctk.CTk()
-    try:
-        view = ModManagerView(root, output_root=out, game_dir=game)
-        root.update()
-        assert view is not None
-    finally:
-        root.destroy()

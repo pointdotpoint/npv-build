@@ -13,7 +13,7 @@ def test_dispatches_to_cli_when_args(monkeypatch):
     called = {}
     monkeypatch.setattr(sys, "argv", ["npv-build", "--help"])
     monkeypatch.setattr("npv_build.cli.main", lambda: called.setdefault("cli", True) or 0)
-    monkeypatch.setattr("npv_build.gui.main", lambda: called.setdefault("gui", True))
+    monkeypatch.setattr("npv_build.webui_shell.main", lambda: called.setdefault("gui", True))
     try:
         entry.run()
     except SystemExit:
@@ -25,7 +25,7 @@ def test_dispatches_to_gui_when_no_args(monkeypatch):
     called = {}
     monkeypatch.setattr(sys, "argv", ["npv-build"])
     monkeypatch.setattr("npv_build.cli.main", lambda: called.setdefault("cli", True) or 0)
-    monkeypatch.setattr("npv_build.gui.main", lambda: called.setdefault("gui", True))
+    monkeypatch.setattr("npv_build.webui_shell.main", lambda: called.setdefault("gui", True))
     entry.run()
     assert called == {"gui": True}
 
@@ -34,6 +34,6 @@ def test_gui_forced_with_flag(monkeypatch):
     called = {}
     monkeypatch.setattr(sys, "argv", ["npv-build", "--gui"])
     monkeypatch.setattr("npv_build.cli.main", lambda: called.setdefault("cli", True) or 0)
-    monkeypatch.setattr("npv_build.gui.main", lambda: called.setdefault("gui", True))
+    monkeypatch.setattr("npv_build.webui_shell.main", lambda: called.setdefault("gui", True))
     entry.run()
     assert called == {"gui": True}
