@@ -1,0 +1,77 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+      - run: uv sync --locked --extra gui
+      - run: sudo apt-get update && sudo apt-get install -y libfuse2
+      - name: Build one-dir bundle
+        run: cd packaging && uv run pyinstaller --clean --noconfirm npv-build.spec
+      - name: Build AppImage
+        run: packaging/build_appimage.sh "${GITHUB_REF_NAME#v}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: packaging/dist/npv-build-*-x86_64.AppImage
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+      - run: uv sync --locked --extra gui
+      - name: Build one-dir bundle
+        run: cd packaging; uv run pyinstaller --clean --noconfirm npv-build.spec
+      - name: Zip the one-dir bundle
+        shell: pwsh
+        run: |
+          $v = "${env:GITHUB_REF_NAME}".TrimStart("v")
+          Compress-Archive -Path packaging/dist/npv-build/* -DestinationPath "packaging/dist/npv-build-$v-windows.zip"
+      - name: Smoke the frozen CLI
+        shell: pwsh
+        run: |
+          & packaging/dist/npv-build/npv-build.exe --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: packaging/dist/*.zip
+
+  release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Collect + checksum
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.AppImage" -o -name "*.zip" \) -exec cp {} release/ \;
+          cd release && sha256sum * > SHA256SUMS && cat SHA256SUMS
+      - name: Draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: release/*
+          body_path: CHANGELOG.md
+          generate_release_notes: false

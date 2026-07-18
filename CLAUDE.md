@@ -87,3 +87,17 @@ Foundation modules used by the pipeline:
 ### Save format internals
 
 The sav.dat binary format uses length-prefixed strings (packed int64 length, negative = Latin-1, positive = UTF-16-LE), LZ4 block compression, and a node tree. The CC struct version is tracked by `v3` in the header tuple `(v1, v2, v3)` — the parser currently targets `v3=195`. Depot paths use Windows backslashes (`base\characters\...`) even on Linux; this is the game's convention and must be preserved in all authored files.
+
+## Packaging & Distribution
+
+**Release Artifacts** — Built via GitHub Actions (`release.yml`) by pushing a `v*` git tag:
+- **Linux:** `npv-build-2.0.0-x86_64.AppImage` — single executable, requires `chmod +x`.
+- **Windows:** `npv-build-2.0.0-windows.zip` — contains `npv-build.exe` (unsigned; SmartScreen warning expected).
+
+Both bundles include the **GUI and CLI in one binary** — double-click launches GUI, pass args from a terminal for CLI.
+
+**No third-party binaries are bundled** — WolvenKit, Blender, and .NET tools are **auto-downloaded on first run** with checksum verification. This keeps artifacts lean and lets users stay on their preferred tool versions.
+
+**SHA-256 verification** — Each release includes a `SHA256SUMS` file covering all artifacts for integrity checking.
+
+See `docs/release-qa.md` for the full QA checklist before publishing a release.

@@ -41,4 +41,7 @@ app_verify/
 # Packaging / tooling
 dist/
 build/
+packaging/build/
+packaging/dist/
 .ruff_cache/
+packaging/.appimagetool/

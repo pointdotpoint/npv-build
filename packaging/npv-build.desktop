@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=npv-build
+Comment=Cyberpunk 2077 NPV builder
+Exec=npv-build
+Icon=npv-build
+Categories=Utility;
+Terminal=false
