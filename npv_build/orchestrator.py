@@ -114,6 +114,58 @@ def write_amm_lua(
     return lua_file
 
 
+def write_photomode_files(
+    mod_id: str,
+    npv_name: str,
+    body_rig: str,
+    output_dir: Path,
+    ent_depot_path: str | None = None,
+) -> dict[str, Path]:
+    """Emit Photomode NPCs Extended registration files for this mod.
+
+    Sibling of write_amm_lua: emitted on every build, into disjoint paths.
+    Produces a TweakXL Character record (persistentName: PhotomodePuppet) and
+    an ArchiveXL .archive.xl control file. `ent_depot_path` defaults to the
+    NPV .ent (the yaml-only fallback target); the photomode-variant spike
+    passes its own variant .ent path here.
+
+    Returns {"tweak": <yaml path>, "xl": <xl path>}.
+    """
+    if ent_depot_path is None:
+        ent_depot_path = f"base\\npv-build\\{mod_id}\\{mod_id}.ent"
+
+    safe_display = npv_name.replace('"', '\\"')
+
+    tweak_text = (
+        f"Character.{mod_id}_Photomode_Puppet:\n"
+        f"  $type: Character\n"
+        f"  entityTemplatePath: {ent_depot_path}\n"
+        f'  displayName: "{safe_display}"\n'
+        f"  persistentName: PhotomodePuppet\n"
+        f"  attachmentSlots: [ AttachmentSlots.WeaponRight, AttachmentSlots.WeaponLeft ]\n"
+    )
+
+    tweak_dir = output_dir / "r6" / "tweaks" / "npv_build"
+    tweak_dir.mkdir(parents=True, exist_ok=True)
+    tweak_path = tweak_dir / f"{mod_id}_photomode.yaml"
+    tweak_path.write_text(tweak_text, encoding="utf-8")
+
+    # ArchiveXL control file: names the mod's packed .archive and marks it
+    # animation-enabled, per the Photomode NPCs Extended convention.
+    xl_text = (
+        "archive:\n"
+        "  customIsHidden: false\n"
+        "  enabled: true\n"
+        f"  # Photomode registration for {mod_id}\n"
+    )
+    xl_dir = output_dir / "archive" / "pc" / "mod"
+    xl_dir.mkdir(parents=True, exist_ok=True)
+    xl_path = xl_dir / f"{mod_id}_photomode.archive.xl"
+    xl_path.write_text(xl_text, encoding="utf-8")
+
+    return {"tweak": tweak_path, "xl": xl_path}
+
+
 def run_orchestrator(
     save_path: Path,
     npv_name: str,
