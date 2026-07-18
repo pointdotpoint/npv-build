@@ -1,4 +1,3 @@
-import os
 import struct
 from pathlib import Path
 
@@ -24,11 +23,15 @@ def _isolate_user_dirs(tmp_path, monkeypatch):
 
 @pytest.fixture
 def gui_root():
-    if not os.environ.get("DISPLAY") and os.name != "nt":
-        pytest.skip("no display for Tk root")
+    # Create a real Tk root for tests that resolve fonts. Skip cleanly wherever
+    # Tk can't initialize — no X display (headless Linux) or a headless Windows
+    # runner whose Tcl install can't find init.tcl — rather than erroring.
     import customtkinter as ctk
 
-    root = ctk.CTk()
+    try:
+        root = ctk.CTk()
+    except Exception as exc:  # noqa: BLE001 - any Tk init failure means "no usable GUI here"
+        pytest.skip(f"no usable Tk root: {exc}")
     root.withdraw()
     yield root
     root.destroy()
