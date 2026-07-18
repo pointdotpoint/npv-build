@@ -15,6 +15,8 @@ from tkinter import filedialog
 
 import customtkinter as ctk
 
+import npv_build.gui_theme as theme
+
 from ..gui_logic.settings import Settings, load_settings, save_settings, validate
 
 
@@ -32,79 +34,153 @@ class SettingsView(ctk.CTkFrame):
         self._on_saved = on_saved
         self._on_cancelled = on_cancelled
 
+        self.configure(fg_color=theme.BG)
+
         # Load current settings
         self.settings = load_settings()
 
         # Build the form
         self._build_form()
 
+    def _label(self, parent, text: str, **kwargs) -> ctk.CTkLabel:
+        return ctk.CTkLabel(
+            parent, text=text, font=theme.label_font(), text_color=theme.TEXT, **kwargs
+        )
+
+    def _entry(self, parent) -> ctk.CTkEntry:
+        return ctk.CTkEntry(
+            parent,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
+        )
+
     def _build_form(self) -> None:
         """Construct the form widgets."""
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        # Card grouping all settings fields.
+        card = ctk.CTkFrame(
+            self,
+            fg_color=theme.SURFACE,
+            border_color=theme.BORDER,
+            border_width=1,
+            corner_radius=8,
+        )
+        card.grid(row=0, column=0, sticky="new", padx=theme.PAD_L, pady=theme.PAD_L)
+        card.grid_columnconfigure(1, weight=1)
 
         # Game dir row
-        ctk.CTkLabel(self, text="Game Directory:").grid(row=0, column=0, sticky="w", padx=8, pady=8)
-        self._game_dir_entry = ctk.CTkEntry(self)
+        self._label(card, "Game Directory:").grid(
+            row=0, column=0, sticky="w", padx=(theme.PAD_M, theme.PAD_S), pady=theme.PAD_M
+        )
+        self._game_dir_entry = self._entry(card)
         self._game_dir_entry.insert(0, self.settings.game_dir or "")
-        self._game_dir_entry.grid(row=0, column=1, sticky="ew", padx=(0, 4), pady=8)
+        self._game_dir_entry.grid(
+            row=0, column=1, sticky="ew", padx=(0, theme.PAD_XS), pady=theme.PAD_M
+        )
         ctk.CTkButton(
-            self,
+            card,
             text="Browse",
             width=80,
             command=self._browse_game_dir,
-        ).grid(row=0, column=2, sticky="ew", padx=(4, 8), pady=8)
+            fg_color=theme.SURFACE,
+            hover_color=theme.BORDER,
+            border_color=theme.BORDER,
+            border_width=1,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
+        ).grid(row=0, column=2, sticky="ew", padx=(theme.PAD_XS, theme.PAD_M), pady=theme.PAD_M)
 
         # Output dir row
-        ctk.CTkLabel(self, text="Output Directory:").grid(
-            row=1, column=0, sticky="w", padx=8, pady=8
+        self._label(card, "Output Directory:").grid(
+            row=1, column=0, sticky="w", padx=(theme.PAD_M, theme.PAD_S), pady=theme.PAD_M
         )
-        self._output_dir_entry = ctk.CTkEntry(self)
+        self._output_dir_entry = self._entry(card)
         self._output_dir_entry.insert(0, self.settings.output_dir or "")
-        self._output_dir_entry.grid(row=1, column=1, sticky="ew", padx=(0, 4), pady=8)
+        self._output_dir_entry.grid(
+            row=1, column=1, sticky="ew", padx=(0, theme.PAD_XS), pady=theme.PAD_M
+        )
         ctk.CTkButton(
-            self,
+            card,
             text="Browse",
             width=80,
             command=self._browse_output_dir,
-        ).grid(row=1, column=2, sticky="ew", padx=(4, 8), pady=8)
+            fg_color=theme.SURFACE,
+            hover_color=theme.BORDER,
+            border_color=theme.BORDER,
+            border_width=1,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
+        ).grid(row=1, column=2, sticky="ew", padx=(theme.PAD_XS, theme.PAD_M), pady=theme.PAD_M)
 
         # Log verbosity row
-        ctk.CTkLabel(self, text="Log Verbosity:").grid(row=2, column=0, sticky="w", padx=8, pady=8)
+        self._label(card, "Log Verbosity:").grid(
+            row=2, column=0, sticky="w", padx=(theme.PAD_M, theme.PAD_S), pady=theme.PAD_M
+        )
         self._verbosity_var = ctk.StringVar(value=str(self.settings.log_verbosity))
         verbosity_menu = ctk.CTkComboBox(
-            self,
+            card,
             values=["0", "1", "2"],
             variable=self._verbosity_var,
             state="readonly",
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            button_color=theme.ACCENT,
+            button_hover_color=theme.ACCENT_HOVER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        verbosity_menu.grid(row=2, column=1, sticky="ew", padx=(0, 4), pady=8)
-        ctk.CTkLabel(self, text="(0=quiet, 1=normal, 2=verbose)", text_color="gray").grid(
-            row=2, column=2, sticky="w", padx=(4, 8), pady=8
-        )
+        verbosity_menu.grid(row=2, column=1, sticky="ew", padx=(0, theme.PAD_XS), pady=theme.PAD_M)
+        ctk.CTkLabel(
+            card,
+            text="(0=quiet, 1=normal, 2=verbose)",
+            font=theme.hint_font(),
+            text_color=theme.TEXT_MUTED,
+        ).grid(row=2, column=2, sticky="w", padx=(theme.PAD_XS, theme.PAD_M), pady=theme.PAD_M)
 
         # Patch override row
-        ctk.CTkLabel(self, text="Patch Override:").grid(row=3, column=0, sticky="w", padx=8, pady=8)
-        self._patch_override_entry = ctk.CTkEntry(self)
+        self._label(card, "Patch Override:").grid(
+            row=3, column=0, sticky="w", padx=(theme.PAD_M, theme.PAD_S), pady=theme.PAD_M
+        )
+        self._patch_override_entry = self._entry(card)
         self._patch_override_entry.insert(0, self.settings.patch_override or "")
         self._patch_override_entry.grid(
-            row=3, column=1, columnspan=2, sticky="ew", padx=(0, 8), pady=8
+            row=3, column=1, columnspan=2, sticky="ew", padx=(0, theme.PAD_M), pady=theme.PAD_M
         )
 
         # Check updates row
         self._check_updates_var = ctk.BooleanVar(value=self.settings.check_updates)
         ctk.CTkCheckBox(
-            self,
+            card,
             text="Check for updates on startup",
             variable=self._check_updates_var,
-        ).grid(row=4, column=0, columnspan=2, sticky="w", padx=8, pady=8)
+            fg_color=theme.ACCENT,
+            hover_color=theme.ACCENT_HOVER,
+            checkmark_color=theme.BG,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
+        ).grid(
+            row=4,
+            column=0,
+            columnspan=3,
+            sticky="w",
+            padx=theme.PAD_M,
+            pady=(theme.PAD_XS, theme.PAD_M),
+        )
 
         # Error label
-        self._error_label = ctk.CTkLabel(self, text="", text_color="#e74c3c", wraplength=400)
-        self._error_label.grid(row=5, column=0, columnspan=3, sticky="w", padx=8, pady=4)
+        self._error_label = ctk.CTkLabel(
+            self, text="", text_color=theme.ERROR, font=theme.body_font(), wraplength=400
+        )
+        self._error_label.grid(
+            row=1, column=0, sticky="w", padx=theme.PAD_L, pady=(0, theme.PAD_XS)
+        )
 
         # Buttons
-        button_frame = ctk.CTkFrame(self)
-        button_frame.grid(row=6, column=0, columnspan=3, sticky="ew", padx=8, pady=(8, 8))
+        button_frame = ctk.CTkFrame(self, fg_color="transparent")
+        button_frame.grid(row=2, column=0, sticky="ew", padx=theme.PAD_L, pady=(0, theme.PAD_L))
         button_frame.grid_columnconfigure(0, weight=1)
         button_frame.grid_columnconfigure(1, weight=1)
 
@@ -112,13 +188,23 @@ class SettingsView(ctk.CTkFrame):
             button_frame,
             text="Save",
             command=self._on_save_clicked,
-        ).grid(row=0, column=0, sticky="ew", padx=(0, 4))
+            fg_color=theme.ACCENT,
+            hover_color=theme.ACCENT_HOVER,
+            text_color=theme.BG,
+            font=theme.body_font(),
+        ).grid(row=0, column=0, sticky="ew", padx=(0, theme.PAD_XS))
 
         ctk.CTkButton(
             button_frame,
             text="Cancel",
             command=self._on_cancel_clicked,
-        ).grid(row=0, column=1, sticky="ew", padx=(4, 0))
+            fg_color=theme.SURFACE,
+            hover_color=theme.BORDER,
+            border_color=theme.BORDER,
+            border_width=1,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
+        ).grid(row=0, column=1, sticky="ew", padx=(theme.PAD_XS, 0))
 
     def _browse_game_dir(self) -> None:
         """Open file dialog to select game directory."""
