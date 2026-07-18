@@ -42,13 +42,13 @@ window.screens.build = {
       const b = { ...store.state.build };
       for (const ev of events) {
         if (ev.kind === "log") b.log += ev.text;
-        else if (ev.kind === "progress") b.progress = ev.value;
+        else if (ev.kind === "progress") b.progress = Math.max(0, Math.min(1, ev.value));
         else if (ev.kind === "stage") {
           if (ev.status === "started") this.starts[ev.stage] = Date.now();
           const secs = this.starts[ev.stage]
             ? ((Date.now() - this.starts[ev.stage]) / 1000).toFixed(0) + "s" : "";
           b.stages = { ...b.stages,
-            [ev.stage]: { status: ev.status, message: esc(ev.message), time: secs } };
+            [ev.stage]: { status: ev.status, message: ev.message, time: secs } };
         } else if (ev.kind === "done") {
           b.running = false; b.outputDir = ev.output_dir;
           clearInterval(this.timer);
@@ -57,7 +57,7 @@ window.screens.build = {
             screen: "install" });
           return;
         } else if (ev.kind === "error") {
-          b.running = false; b.error = esc(ev.message);
+          b.running = false; b.error = ev.message;
           clearInterval(this.timer);
         }
       }
@@ -85,15 +85,15 @@ window.screens.build = {
       div.innerHTML = `${mark} ${label}<span class="time">${st ? st.time : ""}</span>` +
         (st && st.status === "started"
           ? `<div class="progress"><div style="width:${(b.progress * 100) | 0}%"></div></div>
-             <div class="muted" style="font-size:12px">${esc(st.message)}</div>` : "") +
+             <div class="muted" style="font-size:12px">${esc(st.message || "")}</div>` : "") +
         (st && st.status === "failed"
-          ? `<div class="err" style="font-size:12px">${esc(st.message)}</div>` : "");
+          ? `<div class="err" style="font-size:12px">${esc(st.message || "")}</div>` : "");
       left.appendChild(div);
     }
     if (b.error) {
       const errCard = document.createElement("div");
       errCard.className = "card error-card";
-      errCard.innerHTML = `<span class="err">${esc(b.error)}</span>`;
+      errCard.innerHTML = `<span class="err">${esc(b.error || "")}</span>`;
       left.appendChild(errCard);
       const retry = document.createElement("button");
       retry.textContent = "Retry from failed stage";
