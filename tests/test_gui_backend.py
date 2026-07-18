@@ -128,6 +128,38 @@ def test_build_worker_success_posts_done(monkeypatch, tmp_path):
     )
 
 
+def test_build_worker_handles_non_checkpointed_stage(monkeypatch, tmp_path):
+    """Stages outside PipelineService.STAGES (e.g. "package") must not crash progress mapping."""
+
+    class FakeService:
+        def build(self, req, on_event=None, cancel=None):
+            on_event(PipelineEvent(kind="stage_started", stage="package", message="Packaging..."))
+            on_event(PipelineEvent(kind="stage_completed", stage="package", message="ok"))
+
+            class R:
+                output_dir = str(tmp_path)
+
+            return R()
+
+    monkeypatch.setattr(gui_backend, "PipelineService", FakeService)
+    q = queue_mod.Queue()
+    w = gui_backend.BuildWorker(q)
+    save = tmp_path / "s.dat"
+    save.write_bytes(b"x")
+    w.start(
+        save_path=save,
+        npv_name="V",
+        output_dir=tmp_path,
+        game_dir=tmp_path,
+        template_cache=tmp_path,
+        clear_cache=False,
+    )
+    w._thread.join(timeout=10)
+    items = _drain(q)
+    assert ("done", str(tmp_path)) in items
+    assert not [val for kind, val in items if kind == "error"]
+
+
 def test_build_worker_error_posts_error(monkeypatch, tmp_path):
     class FakeService:
         def build(self, req, on_event=None, cancel=None):

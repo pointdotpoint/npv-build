@@ -9,7 +9,7 @@ from npv_build.core.packaging import package_mod
 def _make_build_tree(tmp_path, mod_id="my_v_abc123"):
     out = tmp_path / "out"
     archive_dir = out / "archive" / "pc" / "mod"
-    archive_dir.mkdir(parents=True)
+    archive_dir.mkdir(parents=True, exist_ok=True)
     (archive_dir / f"{mod_id}.archive").write_bytes(b"archive-bytes")
 
     lua_dir = (
@@ -23,7 +23,7 @@ def _make_build_tree(tmp_path, mod_id="my_v_abc123"):
         / "Collabs"
         / "Custom Entities"
     )
-    lua_dir.mkdir(parents=True)
+    lua_dir.mkdir(parents=True, exist_ok=True)
     (lua_dir / f"{mod_id}.lua").write_text("-- amm lua")
 
     return out
@@ -91,6 +91,29 @@ def test_packaging_is_deterministic_across_calls(tmp_path):
 
     assert first_names == second_names
     assert first_bytes == second_bytes
+
+
+def test_excludes_stale_files_from_other_mod_ids(tmp_path):
+    """Regression: reusing an output dir across builds whose cc_settings changed
+    (new mod-id hash) must not package the previous build's files — that would
+    install two copies of V.
+    """
+    out = _make_build_tree(tmp_path, mod_id="my_v_abc123")
+    _make_build_tree(tmp_path, mod_id="my_v_00stale0")
+
+    zip_path = package_mod(out, "my_v_abc123")
+
+    with zipfile.ZipFile(zip_path) as zf:
+        names = zf.namelist()
+    assert "archive/pc/mod/my_v_abc123.archive" in names
+    assert not any("my_v_00stale0" in n for n in names)
+
+
+def test_raises_when_only_stale_archive_present(tmp_path):
+    """A stale archive from another mod id must not satisfy the built-archive guard."""
+    out = _make_build_tree(tmp_path, mod_id="my_v_00stale0")
+    with pytest.raises(PackagingError):
+        package_mod(out, "my_v_abc123")
 
 
 def test_raises_packaging_error_when_no_archive_present(tmp_path):

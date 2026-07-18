@@ -65,11 +65,15 @@ class BuildWorker:
         stages = _STAGES
 
         def on_event(ev):
+            # Non-checkpointed post-stages (e.g. "package") are not in STAGES;
+            # log them but leave the progress bar where the last real stage put it.
             if ev.kind == "stage_started":
                 self.queue.put(("log", f"[{ev.stage}] {ev.message}\n"))
-                self.queue.put(("progress", stages.index(ev.stage) / len(stages)))
+                if ev.stage in stages:
+                    self.queue.put(("progress", stages.index(ev.stage) / len(stages)))
             elif ev.kind in ("stage_completed", "stage_skipped"):
-                self.queue.put(("progress", (stages.index(ev.stage) + 1) / len(stages)))
+                if ev.stage in stages:
+                    self.queue.put(("progress", (stages.index(ev.stage) + 1) / len(stages)))
             elif ev.kind == "failed":
                 self.queue.put(("log", f"[{ev.stage}] FAILED: {ev.message}\n"))
 

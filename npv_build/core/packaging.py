@@ -17,8 +17,7 @@ _INSTALL_DIRS = ("archive", "bin", "r6")
 
 
 def package_mod(output_dir: Path, mod_id: str, zip_path: Path | None = None) -> Path:
-    archive_glob = list((output_dir / "archive" / "pc" / "mod").glob("*.archive"))
-    if not archive_glob:
+    if not (output_dir / "archive" / "pc" / "mod" / f"{mod_id}.archive").exists():
         raise PackagingError(
             f"No built archive found for '{mod_id}'.",
             remediation="Run a build before packaging.",
@@ -28,11 +27,14 @@ def package_mod(output_dir: Path, mod_id: str, zip_path: Path | None = None) -> 
     if zip_path is None:
         zip_path = output_dir / f"{mod_id}.zip"
 
+    # Every installable file carries the mod id in its filename. Filter on it so
+    # an output dir reused across builds with different cc_settings (and thus a
+    # different mod-id hash) doesn't package the previous build's files.
     files: list[Path] = []
     for install_dir in _INSTALL_DIRS:
         base = output_dir / install_dir
         if base.exists():
-            files.extend(p for p in base.rglob("*") if p.is_file())
+            files.extend(p for p in base.rglob("*") if p.is_file() and mod_id in p.name)
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(files, key=lambda p: p.relative_to(output_dir).as_posix()):

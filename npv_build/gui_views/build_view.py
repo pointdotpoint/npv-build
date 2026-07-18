@@ -146,9 +146,16 @@ class BuildView(ctk.CTkFrame):
 
     def start(self, **kwargs) -> None:
         """Start (or restart) the build; kicks off queue polling."""
-        self.vm.on_start(resume=kwargs.pop("resume", False))
+        resume = kwargs.pop("resume", False)
+        # Remember the build kwargs so Retry can re-run the same build with
+        # resume=True; a plain retry click carries no kwargs of its own.
+        if kwargs:
+            self._last_build_kwargs = dict(kwargs)
+        else:
+            kwargs = dict(getattr(self, "_last_build_kwargs", {}))
+        self.vm.on_start(resume=resume)
         self._sync_widgets()
-        self._start_build(**kwargs)
+        self._start_build(resume=resume, **kwargs)
         self.after(50, self._poll_queue)
 
     def _on_cancel_clicked(self) -> None:

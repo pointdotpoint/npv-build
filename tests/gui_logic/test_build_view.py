@@ -68,6 +68,38 @@ def test_build_view_instantiates():
 
 
 @pytest.mark.skipif(not _HAS_DISPLAY, reason="requires a display (headless environment)")
+def test_retry_reuses_original_build_kwargs_with_resume():
+    """Regression: Retry must re-invoke start_build with the original build
+    kwargs plus resume=True — not with empty kwargs (TypeError in BuildRequest)
+    and not with resume silently dropped.
+    """
+    import customtkinter as ctk
+
+    from npv_build.gui_views.build_view import BuildView
+
+    calls = []
+    root = ctk.CTk()
+    try:
+        view = BuildView(
+            root,
+            start_build=lambda **kw: calls.append(kw),
+            cancel_build=lambda: None,
+            build_queue=queue.Queue(),
+            is_worker_alive=lambda: False,
+        )
+        build_kwargs = {"save_path": "/saves/s.dat", "npv_name": "V", "output_dir": "/out"}
+        view.start(**build_kwargs)
+        assert calls[0] == {**build_kwargs, "resume": False}
+
+        view.vm.on_event("error", "Bake failed")
+        view._sync_widgets()
+        view._on_retry_clicked()
+        assert calls[1] == {**build_kwargs, "resume": True}
+    finally:
+        root.destroy()
+
+
+@pytest.mark.skipif(not _HAS_DISPLAY, reason="requires a display (headless environment)")
 def test_build_view_shows_full_error_and_retry_button():
     """Regression: error display must show the FULL val string (user_message +
     remediation), not truncate to 25 chars, and Retry must appear only on failure.
