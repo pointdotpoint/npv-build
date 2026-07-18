@@ -1,12 +1,9 @@
 from pathlib import Path
 
-import pytest
-
 _GUI = Path(__file__).resolve().parents[2] / "npv_build"
 _FILES = [_GUI / "gui.py"] + sorted((_GUI / "gui_views").glob("*.py"))
 
 
-@pytest.mark.xfail(reason="Arial removed incrementally in Tasks 2-5", strict=False)
 def test_no_hardcoded_arial_font():
     offenders = []
     for f in _FILES:
