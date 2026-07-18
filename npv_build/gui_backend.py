@@ -191,10 +191,12 @@ def preview_save(save_path: Path) -> dict:
         UnsupportedPatchError: If the game build/patch is not supported.
     """
     cc_settings = parse_save(save_path)
+    hair = cc_settings.get("hair") or {}
+    skin = cc_settings.get("skin") or {}
     return {
         "body_rig": cc_settings.get("body_rig", "Unknown"),
-        "skin_tone": cc_settings.get("skin_tone", "Unknown"),
-        "hair_style": cc_settings.get("hair", {}).get("style", "Unknown"),
-        "hair_color": cc_settings.get("hair", {}).get("color", "Unknown"),
+        "skin_tone": skin.get("tone_id") or "Unknown",
+        "hair_style": hair.get("style_id") or "Unknown",
+        "hair_color": hair.get("color") or "Unknown",
         "selections_count": len(cc_settings.get("selections", [])),
     }

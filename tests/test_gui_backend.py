@@ -48,12 +48,12 @@ def test_check_dependencies(monkeypatch):
 
 
 def test_preview_save(monkeypatch):
-    # Mock parse_save
+    # Mock parse_save with the real cc_settings shape (skin.tone_id, hair.style_id)
     def mock_parse_save(save_path):
         return {
             "body_rig": "pwa",
-            "skin_tone": "01_ca_pale",
-            "hair": {"style": "hh_001", "color": "black"},
+            "skin": {"tone_id": "01_ca_pale"},
+            "hair": {"style_id": "hh_001", "color": "black", "raw": ""},
             "selections": [1, 2, 3],
         }
 
@@ -65,6 +65,25 @@ def test_preview_save(monkeypatch):
     assert res["hair_style"] == "hh_001"
     assert res["hair_color"] == "black"
     assert res["selections_count"] == 3
+
+
+def test_preview_save_empty_optionals_fall_back_to_unknown(monkeypatch):
+    # A save with empty hair/skin entries must preview as "Unknown", not "".
+    def mock_parse_save(save_path):
+        return {
+            "body_rig": "pwa",
+            "skin": {},
+            "hair": {"style_id": "", "raw": ""},
+            "selections": [],
+        }
+
+    monkeypatch.setattr(gui_backend, "parse_save", mock_parse_save)
+
+    res = gui_backend.preview_save(Path("dummy.sav.dat"))
+    assert res["skin_tone"] == "Unknown"
+    assert res["hair_style"] == "Unknown"
+    assert res["hair_color"] == "Unknown"
+    assert res["selections_count"] == 0
 
 
 def test_preview_save_unsupported_patch_error(monkeypatch):
