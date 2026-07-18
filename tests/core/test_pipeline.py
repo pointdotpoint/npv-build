@@ -79,9 +79,9 @@ def test_events_emitted(fake_stages, tmp_path):
     events = []
     PipelineService().build(_req(tmp_path), on_event=events.append)
     kinds = [e.kind for e in events]
-    # 4 checkpointed stages + the post-stage packaging step.
-    assert kinds.count("stage_started") == 5
-    assert kinds.count("stage_completed") == 5
+    # 5 checkpointed stages + the post-stage packaging step.
+    assert kinds.count("stage_started") == 6
+    assert kinds.count("stage_completed") == 6
     assert kinds[-1] == "finished"
 
 

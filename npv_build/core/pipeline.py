@@ -140,7 +140,7 @@ def _write_manifest(output_dir: Path, manifest: dict) -> None:
 
 
 class PipelineService:
-    STAGES = ("parse_save", "resolve_assets", "assemble", "emit_amm_lua")
+    STAGES = ("parse_save", "resolve_assets", "assemble", "emit_amm_lua", "emit_photomode")
 
     def build(
         self,
@@ -319,6 +319,37 @@ class PipelineService:
                 stages_run.append(current_stage)
                 emit("stage_completed", current_stage, "Wrote AMM lua script.")
 
+            # --- emit_photomode ---
+            current_stage = "emit_photomode"
+            emit("stage_started", current_stage, "Writing Photo Mode files...")
+            if cancel is not None:
+                cancel.raise_if_cancelled()
+
+            pm_hash = _hash_input([mod_id, req.npv_name, body_rig, asset_paths])
+            prior = manifest.get(current_stage)
+            pm_output = prior.get("output") if prior else None
+            pm_exists = bool(pm_output) and Path(pm_output).exists()
+            if (
+                req.resume
+                and prior is not None
+                and prior.get("input_hash") == pm_hash
+                and pm_exists
+            ):
+                stages_resumed.append(current_stage)
+                emit("stage_skipped", current_stage, "Unchanged, skipping.")
+            else:
+                pm_paths = write_photomode_files(
+                    mod_id, req.npv_name, body_rig, req.output_dir
+                )
+                manifest[current_stage] = {
+                    "input_hash": pm_hash,
+                    "completed_at": datetime.now(UTC).isoformat(),
+                    "output": str(pm_paths["tweak"]),
+                }
+                _write_manifest(req.output_dir, manifest)
+                stages_run.append(current_stage)
+                emit("stage_completed", current_stage, "Wrote Photo Mode files.")
+
             # --- package (post-stage, not checkpointed) ---
             # Packaging just re-zips the already-checkpointed archive/ + bin/
             # output of assemble/emit_amm_lua. It's cheap and deterministic, so
@@ -350,4 +381,4 @@ class PipelineService:
 # Imported at module level per the circular-import rule: orchestrator.py imports
 # pipeline lazily (inside run_orchestrator's body), so pipeline is free to import
 # orchestrator.write_amm_lua at module load time.
-from ..orchestrator import write_amm_lua  # noqa: E402
+from ..orchestrator import write_amm_lua, write_photomode_files  # noqa: E402
