@@ -43,6 +43,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
-      - run: sudo apt-get update && sudo apt-get install -y xvfb
       - run: uv sync --locked --extra gui
-      - run: xvfb-run -a uv run pytest tests/gui_logic/test_gui_smoke.py -q
+      - run: uv run playwright install chromium --with-deps
+      - run: uv run pytest tests/webui_smoke/ -q

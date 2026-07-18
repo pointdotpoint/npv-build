@@ -189,3 +189,31 @@ def test_build_worker_cancel_sets_token(monkeypatch, tmp_path):
     w = gui_backend.BuildWorker(q)
     w.cancel()  # before start: must not raise
     assert w._make_token().cancelled is False  # fresh token per start
+
+
+def test_build_worker_emits_stage_tuples(monkeypatch, tmp_path):
+    """BuildWorker forwards stage_started/completed/skipped/failed as
+    ("stage", {...}) tuples so the web UI can render a stage timeline."""
+
+    class FakeService:
+        def build(self, req, on_event=None, cancel=None):
+            on_event(PipelineEvent(kind="stage_started", stage="parse_save", message="Parsing"))
+            on_event(PipelineEvent(kind="stage_completed", stage="parse_save", message="ok"))
+
+            class R:
+                output_dir = str(tmp_path)
+
+            return R()
+
+    monkeypatch.setattr(gui_backend, "PipelineService", FakeService)
+    q = queue_mod.Queue()
+    w = gui_backend.BuildWorker(q)
+    save = tmp_path / "s.dat"
+    save.write_bytes(b"x")
+    w.start(save_path=save, npv_name="V", output_dir=tmp_path, game_dir=tmp_path,
+            template_cache=tmp_path, clear_cache=False)
+    w._thread.join(timeout=10)
+    items = _drain(q)
+    stages = [val for kind, val in items if kind == "stage"]
+    assert {"stage": "parse_save", "status": "started", "message": "Parsing"} in stages
+    assert {"stage": "parse_save", "status": "completed", "message": "ok"} in stages

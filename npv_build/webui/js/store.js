@@ -1,0 +1,17 @@
+"use strict";
+window.store = {
+  state: {
+    screen: "source",
+    stepsDone: { source: false, appearance: false, build: false },
+    appState: null,            // get_state() payload
+    save: null,                // selected save {path, name, preview}
+    npvName: "", outputDir: "",
+    build: { running: false, stages: [], log: "", error: null, outputDir: null },
+  },
+  _subs: [],
+  set(patch) {
+    Object.assign(this.state, patch);
+    for (const fn of this._subs) fn(this.state);
+  },
+  subscribe(fn) { this._subs.push(fn); },
+};

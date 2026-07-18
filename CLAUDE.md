@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Install dependencies
+# Install dependencies (including GUI)
 uv sync --extra gui
 
 # Run tests
@@ -20,6 +20,13 @@ uv run pytest tests/test_save_parser.py::test_parse_save_binary
 
 # Run the CLI
 uv run npv-build <sav.dat> "My V" --output ./my_v_mod --game-dir "/path/to/Cyberpunk 2077" -v
+
+# Launch the web UI (pywebview)
+uv run npv-build-gui
+
+# Run Playwright smoke tests
+uv run playwright install chromium
+uv run pytest tests/webui_smoke/
 
 # Lint the codebase
 uv run ruff check .
@@ -43,6 +50,20 @@ Foundation modules used by the pipeline:
 - **`logging_setup.py`** — Logging initialization; writes one combined log per build (see `cli.py`'s `_default_log_file`, at `<output>/logs/build-<timestamp>.log`); `--log-file` overrides the path.
 - **`platform.py`** — Cross-platform discovery of save directories and game installs: `steam_root_candidates()`, `steam_libraries()`, `candidate_save_dirs()` (native path plus Proton `compatdata` prefixes), `is_valid_game_dir()`, `find_game_dirs()`.
 - **`pipeline.py`** — `PipelineService`: checkpoint tracking, resumable stage execution, error recovery.
+
+### GUI layer
+
+The GUI is a **pywebview shell** with a vanilla HTML/CSS/JS frontend that communicates via JSON API:
+
+- **`webui_shell.py`** — Pywebview window host; launches the static HTML frontend and bridges to the JSON API. Entry point: `npv-build-gui` (or `npv-build --gui`).
+- **`webui_api.py`** — JSON-RPC bridge over `gui_logic` and `gui_backend`. Exposes save inspection, appearance preview, and build orchestration to the frontend. Errors are returned as JSON with structured codes.
+- **`webui/`** — Static vanilla HTML/CSS/JS frontend:
+  - `index.html` — Single-page app shell.
+  - `app.css` — Styling (light/dark theme aware).
+  - `js/` — Frontend logic modules: state, UI handlers, API calls.
+  - Flow: left-rail workflow (Source → Appearance → Build → Install), My NPVs library, and Settings with onboarding.
+
+**Dependency:** Linux requires `gir1.2-webkit2-4.1` (WebKitGTK); Windows uses built-in WebView2 (preinstalled on Win 10/11).
 
 ### Module pipeline (in execution order)
 

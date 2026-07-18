@@ -17,23 +17,24 @@ dependencies = [
 
 [project.optional-dependencies]
 gui = [
-    "customtkinter>=6.0.0",
-    "tkinterdnd2>=0.5.0",
     "py7zr>=0.20.0",
-    "pillow>=10.0.0"
+    "pillow>=10.0.0",
+    "pywebview>=5.0"
 ]
 
 [project.scripts]
 npv-build = "npv_build.cli:main"
 
 [project.gui-scripts]
-npv-build-gui = "npv_build.gui:main"
+npv-build-gui = "npv_build.webui_shell:main"
 
 [dependency-groups]
 dev = [
     "pytest",
     "ruff",
     "pyinstaller",
+    "playwright>=1.61.0",
+    "pytest-playwright>=0.8.0",
 ]
 
 [tool.hatch.build.targets.wheel]

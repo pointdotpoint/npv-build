@@ -82,6 +82,7 @@ You point the tool at a save and a name; it hands you an installable mod. The
 | Python | ≥ 3.9 | `tomli` / `tomli-w` are installed automatically. |
 | .NET 8 SDK | 8.x | Needed to build `npv-inject` (the component injector). **Not shipped pre-built** — you build it once. |
 | [AMM](https://www.nexusmods.com/cyberpunk2077/mods/790) | any | Required in-game to spawn the NPC. |
+| WebKitGTK (Linux only) | 2.4.x+ | Required for the GUI. On Debian/Ubuntu: `sudo apt install gir1.2-webkit2-4.1`. Windows uses WebView2 (preinstalled). |
 
 > **Flatpak Blender:** if you use the Flatpak (`org.blender.Blender`), grant it
 > filesystem access once so it can read the staged mesh files:
@@ -132,9 +133,11 @@ uv run npv-build --help
 
 When you [package this as a frozen exe](packaging/) (Windows `.exe`, Linux AppImage, or macOS bundle), a **single executable serves both the GUI and CLI**:
 
-- **Double-click** (or run with no args) → launches the **GUI** for interactive mode
+- **Double-click** (or run with no args) → launches the **web UI** (pywebview) for interactive mode
 - **From a terminal with arguments** → runs the **CLI**: `./npv-build /path/to/sav.dat "My V" --output ./my_v_mod --game-dir "..."`
-- **`--gui` flag** → forces the GUI even if other arguments look CLI-ish: `./npv-build --gui`
+- **`--gui` flag** → forces the web UI even if other arguments look CLI-ish: `./npv-build --gui`
+
+The **web UI** provides a left-rail workflow: select a save file, preview the appearance, configure build options, monitor the build with a stage timeline, and manage your NPV library. Settings include onboarding for first-time setup.
 
 Example (Linux/macOS):
 ```bash
