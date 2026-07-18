@@ -30,8 +30,8 @@ window.__mockApi = {
     if (this._polls === 2) return [{ kind: "done", output_dir: "/out/v" }];
     return [];
   },
-  list_mods: async () => [{ mod_id: "v_abc", archive_path: "/out/v/v_abc.archive",
-                            installed: false }],
+  list_mods: async () => ({ ok: true, mods: [{ mod_id: "v_abc", archive_path: "/out/v/v_abc.archive",
+                            installed: false }] }),
   install_mod: async () => ({ ok: true }),
   cancel_build: async () => ({ ok: true }),
 };

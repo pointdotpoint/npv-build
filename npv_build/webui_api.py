@@ -90,13 +90,18 @@ class WebUiApi:
                            remediation="Set it in Settings.")
         return output_root, Path(s.game_dir)
 
-    def list_mods(self) -> list[dict]:
-        output_root, game_dir = self._settings_for_mods()
-        return [
-            {"mod_id": m.mod_id, "archive_path": str(m.archive_path),
-             "installed": m.installed}
-            for m in mm_list_mods(output_root, game_dir)
-        ]
+    def list_mods(self) -> dict:
+        try:
+            output_root, game_dir = self._settings_for_mods()
+            mods = [
+                {"mod_id": m.mod_id, "archive_path": str(m.archive_path),
+                 "installed": m.installed}
+                for m in mm_list_mods(output_root, game_dir)
+            ]
+        except NpvError as e:
+            return {"ok": False, "error": e.user_message,
+                    "remediation": e.remediation or ""}
+        return {"ok": True, "mods": mods}
 
     def _find_mod(self, mod_id: str):
         output_root, game_dir = self._settings_for_mods()

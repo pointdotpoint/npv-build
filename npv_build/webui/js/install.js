@@ -25,7 +25,8 @@ window.screens.install = {
     install.onclick = async () => {
       install.disabled = true;
       try {
-        const mods = await Api.call("list_mods");
+        const modsOut = await Api.call("list_mods");
+        const mods = modsOut.ok ? modsOut.mods : [];
         const mine = mods.find((m) => s.build.outputDir &&
           m.archive_path.startsWith(s.build.outputDir));
         const out = mine ? await Api.call("install_mod", mine.mod_id)

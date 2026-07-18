@@ -9,7 +9,18 @@ function esc(s) {
 window.screens = window.screens || {};
 window.screens.library = {
   mods: null,
-  async load() { this.mods = await Api.call("list_mods"); store.set({}); },
+  error: null,
+  async load() {
+    const out = await Api.call("list_mods");
+    if (!out.ok) {
+      this.mods = [];
+      this.error = out.error + (out.remediation ? " — " + out.remediation : "");
+    } else {
+      this.mods = out.mods;
+      this.error = null;
+    }
+    store.set({});
+  },
   render(el) {
     if (this.mods === null) {
       el.innerHTML = "<h1>My NPVs</h1><p class='subtitle'>Loading…</p>";
@@ -18,6 +29,12 @@ window.screens.library = {
     }
     el.innerHTML = "<h1>My NPVs</h1>" +
       "<p class='subtitle'>Built NPVs found in your output directory.</p>";
+    if (this.error) {
+      const err = document.createElement("p");
+      err.className = "err";
+      err.textContent = this.error;
+      el.appendChild(err);
+    }
     const grid = document.createElement("div");
     grid.className = "grid";
     for (const mod of this.mods) {
@@ -36,7 +53,7 @@ window.screens.library = {
           const out = await Api.call(method, mod.mod_id);
           if (out.ok) this.load();
           else {
-            btn.textContent = esc(out.error);
+            btn.textContent = out.error;
             btn.classList.add("err");
           }
         } finally {

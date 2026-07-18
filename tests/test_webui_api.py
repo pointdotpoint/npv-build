@@ -111,12 +111,25 @@ def test_mod_roundtrip(monkeypatch, tmp_path):
                         lambda e, gd: installed.append(e.mod_id))
     api = WebUiApi()
     api._settings_for_mods = lambda: (tmp_path, tmp_path)  # test seam
-    mods = api.list_mods()
-    assert mods == [{"mod_id": "v_abc",
+    result = api.list_mods()
+    assert result == {"ok": True, "mods": [{"mod_id": "v_abc",
                      "archive_path": str(tmp_path / "v_abc.archive"),
-                     "installed": False}]
+                     "installed": False}]}
     assert api.install_mod("v_abc") == {"ok": True}
     assert installed == ["v_abc"]
+
+
+def test_list_mods_without_game_dir_is_structured_error(monkeypatch):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=None, output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    out = WebUiApi().list_mods()
+    assert out["ok"] is False
+    assert "Game directory" in out["error"]
 
 
 def test_poll_events_translates_queue(monkeypatch, tmp_path):

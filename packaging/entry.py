@@ -14,15 +14,14 @@ def run() -> None:
     if args == ["--gui"]:
         from npv_build.webui_shell import main as gui_main
 
-        gui_main()
-        return
+        sys.exit(gui_main())
     if args:
         from npv_build.cli import main as cli_main
 
         sys.exit(cli_main())
     from npv_build.webui_shell import main as gui_main
 
-    gui_main()
+    sys.exit(gui_main())
 
 
 if __name__ == "__main__":
