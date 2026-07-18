@@ -8,6 +8,8 @@ from tkinter import filedialog
 import customtkinter as ctk
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
+import npv_build.gui_theme as theme
+
 from .config import get_cache_dir, load_config, save_config
 from .core.errors import NpvError
 from .core.platform import open_folder
@@ -21,16 +23,6 @@ from .gui_views.wizard_view import WizardView
 from .save_parser import SaveParserError
 
 logger = logging.getLogger(__name__)
-
-# Styling Constants
-BG_DARK = "#0b0c10"
-BG_CARD = "#1f2833"
-ACCENT_CYAN = "#66fcf1"
-ACCENT_PINK = "#ff007f"
-STATUS_GREEN = "#2ecc71"
-STATUS_RED = "#e74c3c"
-TEXT_WHITE = "#ffffff"
-TEXT_MUTED = "#c5c6c7"
 
 
 class App(ctk.CTk, TkinterDnD.DnDWrapper):
@@ -47,11 +39,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.title("NPV Build - Cyberpunk 2077 NPC Creator")
         self.geometry("1100x750")
         self.minsize(1050, 700)
-        self.configure(fg_color=BG_DARK)
+        self.configure(fg_color=theme.BG)
 
         # Set default ctk theme/mode
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        theme.apply_theme()
 
         # Load persisted configuration
         self.config = load_config()
@@ -131,7 +122,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.show_build_tab()
 
     def show_wizard(self):
-        self._wizard_overlay = ctk.CTkFrame(self, fg_color=BG_DARK)
+        self._wizard_overlay = ctk.CTkFrame(self, fg_color=theme.BG)
         self._wizard_overlay.grid(row=0, column=0, sticky="nsew")
         self._wizard_overlay.grid_rowconfigure(0, weight=1)
         self._wizard_overlay.grid_columnconfigure(0, weight=1)
@@ -164,13 +155,13 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.tabview = ctk.CTkTabview(
             self,
-            fg_color=BG_DARK,
-            segmented_button_selected_color=ACCENT_CYAN,
-            segmented_button_selected_hover_color=ACCENT_CYAN,
-            segmented_button_unselected_color=BG_CARD,
-            text_color=BG_DARK,
+            fg_color=theme.BG,
+            segmented_button_selected_color=theme.ACCENT,
+            segmented_button_selected_hover_color=theme.ACCENT_HOVER,
+            segmented_button_unselected_color=theme.SURFACE,
+            text_color=theme.BG,
         )
-        self.tabview.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.tabview.grid(row=0, column=0, sticky="nsew", padx=theme.PAD_M, pady=theme.PAD_M)
 
         tab_build = self.tabview.add("Build")
         tab_saves = self.tabview.add("Save Browser")
@@ -206,35 +197,48 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.scroll_config = ctk.CTkScrollableFrame(
             parent,
             label_text="Configuration Panel",
-            label_text_color=ACCENT_CYAN,
-            label_font=("Arial", 16, "bold"),
-            fg_color=BG_DARK,
-            scrollbar_button_color=ACCENT_CYAN,
+            label_text_color=theme.ACCENT,
+            label_font=theme.title_font(),
+            fg_color=theme.BG,
+            border_color=theme.BORDER,
+            border_width=1,
+            corner_radius=8,
+            scrollbar_button_color=theme.ACCENT,
         )
-        self.scroll_config.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
+        self.scroll_config.grid(row=0, column=0, sticky="nsew", padx=theme.PAD_L, pady=theme.PAD_L)
         self.scroll_config.grid_columnconfigure(0, weight=1)
 
         # --- Section 1: System Status & Game Dir ---
-        self.frame_system = ctk.CTkFrame(self.scroll_config, fg_color=BG_CARD)
-        self.frame_system.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
+        self.frame_system = ctk.CTkFrame(
+            self.scroll_config,
+            fg_color=theme.SURFACE,
+            border_color=theme.BORDER,
+            border_width=1,
+            corner_radius=8,
+        )
+        self.frame_system.grid(row=0, column=0, sticky="ew", padx=theme.PAD_M, pady=theme.PAD_M)
         self.frame_system.grid_columnconfigure(0, weight=1)
 
         lbl_sys_title = ctk.CTkLabel(
             self.frame_system,
             text="System Dependencies",
-            font=("Arial", 14, "bold"),
-            text_color=ACCENT_CYAN,
+            font=theme.header_font(),
+            text_color=theme.ACCENT,
         )
-        lbl_sys_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=15, pady=10)
+        lbl_sys_title.grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=theme.PAD_L, pady=theme.PAD_M
+        )
 
         # Game Directory Input
         lbl_game_dir = ctk.CTkLabel(
             self.frame_system,
             text="Cyberpunk 2077 Game Directory:",
-            font=("Arial", 12, "bold"),
-            text_color=TEXT_WHITE,
+            font=theme.label_font(),
+            text_color=theme.TEXT,
         )
-        lbl_game_dir.grid(row=1, column=0, columnspan=2, sticky="w", padx=15, pady=2)
+        lbl_game_dir.grid(
+            row=1, column=0, columnspan=2, sticky="w", padx=theme.PAD_L, pady=theme.PAD_XS
+        )
 
         _gd_placeholder = (
             "e.g. C:\\Steam\\steamapps\\common\\Cyberpunk 2077"
@@ -244,11 +248,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.entry_game_dir = ctk.CTkEntry(
             self.frame_system,
             placeholder_text=_gd_placeholder,
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_game_dir.grid(row=2, column=0, sticky="ew", padx=(15, 5), pady=5)
+        self.entry_game_dir.grid(
+            row=2, column=0, sticky="ew", padx=(theme.PAD_L, theme.PAD_S), pady=theme.PAD_S
+        )
         if self.config.get("game_dir"):
             self.entry_game_dir.insert(0, self.config["game_dir"])
         self.entry_game_dir.bind("<KeyRelease>", lambda e: self.run_checks())
@@ -257,14 +264,17 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.frame_system,
             text="Browse",
             width=80,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
+            font=theme.body_font(),
             command=self.browse_game_dir,
         )
-        btn_game_browse.grid(row=2, column=1, sticky="w", padx=(5, 15), pady=5)
+        btn_game_browse.grid(
+            row=2, column=1, sticky="w", padx=(theme.PAD_S, theme.PAD_L), pady=theme.PAD_S
+        )
 
         # Status Lamps
         # Note: no .NET/npv-inject lamp here. Per ADR 0001 (Branch A'),
@@ -272,65 +282,91 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # the Build button must not gate on it and it is not user-relevant
         # to surface. See run_checks() below.
         self.frame_lamps = ctk.CTkFrame(self.frame_system, fg_color="transparent")
-        self.frame_lamps.grid(row=3, column=0, columnspan=2, sticky="ew", padx=15, pady=(5, 5))
+        self.frame_lamps.grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=theme.PAD_L,
+            pady=(theme.PAD_S, theme.PAD_S),
+        )
         self.frame_lamps.grid_columnconfigure((0, 1), weight=1)
 
         self.lamp_wkit = ctk.CTkLabel(
-            self.frame_lamps, text="● WolvenKit CLI", font=("Arial", 11, "bold")
+            self.frame_lamps, text="● WolvenKit CLI", font=theme.label_font()
         )
-        self.lamp_wkit.grid(row=0, column=0, padx=5, pady=2, sticky="w")
+        self.lamp_wkit.grid(row=0, column=0, padx=theme.PAD_XS, pady=theme.PAD_XS, sticky="w")
 
         self.lamp_blender = ctk.CTkLabel(
-            self.frame_lamps, text="● Blender", font=("Arial", 11, "bold")
+            self.frame_lamps, text="● Blender", font=theme.label_font()
         )
-        self.lamp_blender.grid(row=0, column=1, padx=5, pady=2, sticky="w")
+        self.lamp_blender.grid(row=0, column=1, padx=theme.PAD_XS, pady=theme.PAD_XS, sticky="w")
 
         # Auto-install Button
         self.btn_auto_install = ctk.CTkButton(
             self.frame_system,
             text="Auto-Install Missing Dependencies",
-            fg_color=BG_DARK,
-            hover_color="#1f2833",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
             height=30,
+            font=theme.body_font(),
             command=self.start_auto_install,
         )
         self.btn_auto_install.grid(
-            row=4, column=0, columnspan=2, sticky="ew", padx=15, pady=(5, 15)
+            row=4,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=theme.PAD_L,
+            pady=(theme.PAD_S, theme.PAD_L),
         )
 
         # --- Section 2: Character Creation Save Input ---
-        self.frame_char = ctk.CTkFrame(self.scroll_config, fg_color=BG_CARD)
-        self.frame_char.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+        self.frame_char = ctk.CTkFrame(
+            self.scroll_config,
+            fg_color=theme.SURFACE,
+            border_color=theme.BORDER,
+            border_width=1,
+            corner_radius=8,
+        )
+        self.frame_char.grid(row=1, column=0, sticky="ew", padx=theme.PAD_M, pady=theme.PAD_M)
         self.frame_char.grid_columnconfigure(0, weight=1)
 
         lbl_char_title = ctk.CTkLabel(
             self.frame_char,
             text="Character & Input Data",
-            font=("Arial", 14, "bold"),
-            text_color=ACCENT_CYAN,
+            font=theme.header_font(),
+            text_color=theme.ACCENT,
         )
-        lbl_char_title.grid(row=0, column=0, columnspan=2, sticky="w", padx=15, pady=10)
+        lbl_char_title.grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=theme.PAD_L, pady=theme.PAD_M
+        )
 
         # Save File
         lbl_save_file = ctk.CTkLabel(
             self.frame_char,
             text="Save File (sav.dat) - Drag & Drop here:",
-            font=("Arial", 12, "bold"),
-            text_color=TEXT_WHITE,
+            font=theme.label_font(),
+            text_color=theme.TEXT,
         )
-        lbl_save_file.grid(row=1, column=0, columnspan=2, sticky="w", padx=15, pady=2)
+        lbl_save_file.grid(
+            row=1, column=0, columnspan=2, sticky="w", padx=theme.PAD_L, pady=theme.PAD_XS
+        )
 
         self.entry_save = ctk.CTkEntry(
             self.frame_char,
             placeholder_text="Drop save file or click Browse...",
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_save.grid(row=2, column=0, sticky="ew", padx=(15, 5), pady=5)
+        self.entry_save.grid(
+            row=2, column=0, sticky="ew", padx=(theme.PAD_L, theme.PAD_S), pady=theme.PAD_S
+        )
         self.entry_save.bind("<KeyRelease>", lambda e: self.update_save_preview())
 
         # Enable Drag and Drop on Entry
@@ -342,89 +378,137 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.frame_char,
             text="Browse",
             width=80,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
+            font=theme.body_font(),
             command=self.browse_save_file,
         )
-        btn_save_browse.grid(row=2, column=1, sticky="w", padx=(5, 15), pady=5)
+        btn_save_browse.grid(
+            row=2, column=1, sticky="w", padx=(theme.PAD_S, theme.PAD_L), pady=theme.PAD_S
+        )
 
         # Preview Details Frame
-        self.frame_preview = ctk.CTkFrame(self.frame_char, fg_color="#121212")
-        self.frame_preview.grid(row=3, column=0, columnspan=2, sticky="ew", padx=15, pady=10)
+        self.frame_preview = ctk.CTkFrame(
+            self.frame_char,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            border_width=1,
+            corner_radius=6,
+        )
+        self.frame_preview.grid(
+            row=3, column=0, columnspan=2, sticky="ew", padx=theme.PAD_L, pady=theme.PAD_M
+        )
         self.frame_preview.grid_columnconfigure((0, 1), weight=1)
 
         self.lbl_prev_rig = ctk.CTkLabel(
-            self.frame_preview, text="Rig: None", font=("Arial", 11), text_color=TEXT_MUTED
+            self.frame_preview,
+            text="Rig: None",
+            font=theme.hint_font(),
+            text_color=theme.TEXT_MUTED,
         )
-        self.lbl_prev_rig.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.lbl_prev_rig.grid(row=0, column=0, padx=theme.PAD_S, pady=theme.PAD_XS, sticky="w")
 
         self.lbl_prev_skin = ctk.CTkLabel(
-            self.frame_preview, text="Skin: None", font=("Arial", 11), text_color=TEXT_MUTED
+            self.frame_preview,
+            text="Skin: None",
+            font=theme.hint_font(),
+            text_color=theme.TEXT_MUTED,
         )
-        self.lbl_prev_skin.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+        self.lbl_prev_skin.grid(row=0, column=1, padx=theme.PAD_S, pady=theme.PAD_XS, sticky="w")
 
         self.lbl_prev_hair = ctk.CTkLabel(
-            self.frame_preview, text="Hair: None", font=("Arial", 11), text_color=TEXT_MUTED
+            self.frame_preview,
+            text="Hair: None",
+            font=theme.hint_font(),
+            text_color=theme.TEXT_MUTED,
         )
-        self.lbl_prev_hair.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        self.lbl_prev_hair.grid(row=1, column=0, padx=theme.PAD_S, pady=theme.PAD_XS, sticky="w")
 
         self.lbl_prev_selections = ctk.CTkLabel(
-            self.frame_preview, text="Selections: None", font=("Arial", 11), text_color=TEXT_MUTED
+            self.frame_preview,
+            text="Selections: None",
+            font=theme.hint_font(),
+            text_color=theme.TEXT_MUTED,
         )
-        self.lbl_prev_selections.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+        self.lbl_prev_selections.grid(
+            row=1, column=1, padx=theme.PAD_S, pady=theme.PAD_XS, sticky="w"
+        )
 
         # NPV Name
         lbl_npv_name = ctk.CTkLabel(
             self.frame_char,
             text="NPV Name (AMM spawn label):",
-            font=("Arial", 12, "bold"),
-            text_color=TEXT_WHITE,
+            font=theme.label_font(),
+            text_color=theme.TEXT,
         )
-        lbl_npv_name.grid(row=4, column=0, columnspan=2, sticky="w", padx=15, pady=(10, 2))
+        lbl_npv_name.grid(
+            row=4,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            padx=theme.PAD_L,
+            pady=(theme.PAD_M, theme.PAD_XS),
+        )
 
         self.entry_npv_name = ctk.CTkEntry(
             self.frame_char,
             placeholder_text="e.g. My V NPC",
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_npv_name.grid(row=5, column=0, columnspan=2, sticky="ew", padx=15, pady=5)
+        self.entry_npv_name.grid(
+            row=5, column=0, columnspan=2, sticky="ew", padx=theme.PAD_L, pady=theme.PAD_S
+        )
         self.entry_npv_name.bind("<KeyRelease>", lambda e: self.update_default_output())
 
         # Output Folder
         lbl_output = ctk.CTkLabel(
             self.frame_char,
             text="Output Directory:",
-            font=("Arial", 12, "bold"),
-            text_color=TEXT_WHITE,
+            font=theme.label_font(),
+            text_color=theme.TEXT,
         )
-        lbl_output.grid(row=6, column=0, columnspan=2, sticky="w", padx=15, pady=(10, 2))
+        lbl_output.grid(
+            row=6,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            padx=theme.PAD_L,
+            pady=(theme.PAD_M, theme.PAD_XS),
+        )
 
         self.entry_output = ctk.CTkEntry(
             self.frame_char,
             placeholder_text="Directory where the mod will be built",
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_output.grid(row=7, column=0, sticky="ew", padx=(15, 5), pady=5)
+        self.entry_output.grid(
+            row=7, column=0, sticky="ew", padx=(theme.PAD_L, theme.PAD_S), pady=theme.PAD_S
+        )
 
         btn_output_browse = ctk.CTkButton(
             self.frame_char,
             text="Browse",
             width=80,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
+            font=theme.body_font(),
             command=self.browse_output_dir,
         )
-        btn_output_browse.grid(row=7, column=1, sticky="w", padx=(5, 15), pady=5)
+        btn_output_browse.grid(
+            row=7, column=1, sticky="w", padx=(theme.PAD_S, theme.PAD_L), pady=theme.PAD_S
+        )
 
         # --- Section 3: Advanced Overrides (Collapsible Style) ---
         self.adv_expanded = False
@@ -432,14 +516,20 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.scroll_config,
             text="▶ Show Advanced Overrides",
             fg_color="transparent",
-            hover_color="#161920",
-            text_color=ACCENT_CYAN,
-            font=("Arial", 12, "bold"),
+            hover_color=theme.SURFACE_ALT,
+            text_color=theme.ACCENT,
+            font=theme.label_font(),
             command=self.toggle_advanced,
         )
-        self.btn_toggle_adv.grid(row=2, column=0, sticky="w", padx=15, pady=10)
+        self.btn_toggle_adv.grid(row=2, column=0, sticky="w", padx=theme.PAD_L, pady=theme.PAD_M)
 
-        self.frame_adv = ctk.CTkFrame(self.scroll_config, fg_color=BG_CARD)
+        self.frame_adv = ctk.CTkFrame(
+            self.scroll_config,
+            fg_color=theme.SURFACE,
+            border_color=theme.BORDER,
+            border_width=1,
+            corner_radius=8,
+        )
         # We don't grid it initially, shown when adv_expanded = True
 
         self.setup_advanced_fields()
@@ -447,8 +537,14 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # ==========================================
         # RIGHT COLUMN: Build Status & Console Log
         # ==========================================
-        self.frame_console = ctk.CTkFrame(parent, fg_color=BG_CARD)
-        self.frame_console.grid(row=0, column=1, sticky="nsew", padx=15, pady=15)
+        self.frame_console = ctk.CTkFrame(
+            parent,
+            fg_color=theme.SURFACE,
+            border_color=theme.BORDER,
+            border_width=1,
+            corner_radius=8,
+        )
+        self.frame_console.grid(row=0, column=1, sticky="nsew", padx=theme.PAD_L, pady=theme.PAD_L)
         self.frame_console.grid_rowconfigure(2, weight=1)
         self.frame_console.grid_columnconfigure(0, weight=1)
 
@@ -456,10 +552,10 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         lbl_console_title = ctk.CTkLabel(
             self.frame_console,
             text="Build Progress & Output",
-            font=("Arial", 16, "bold"),
-            text_color=ACCENT_CYAN,
+            font=theme.title_font(),
+            text_color=theme.ACCENT,
         )
-        lbl_console_title.grid(row=0, column=0, sticky="w", padx=15, pady=15)
+        lbl_console_title.grid(row=0, column=0, sticky="w", padx=theme.PAD_L, pady=theme.PAD_L)
 
         # BUILD trigger button (BuildView itself only owns Cancel/Retry, not
         # the initial trigger -- that stays here since it needs the Build
@@ -467,16 +563,16 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.btn_build = ctk.CTkButton(
             self.frame_console,
             text="BUILD NPV MOD",
-            font=("Arial", 16, "bold"),
-            fg_color=BG_DARK,
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
-            border_width=2,
-            hover_color="#1f2833",
+            font=theme.title_font(),
+            fg_color=theme.ACCENT,
+            text_color=theme.BG,
+            hover_color=theme.ACCENT_HOVER,
+            border_width=0,
+            corner_radius=8,
             height=45,
             command=self.start_build,
         )
-        self.btn_build.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 10))
+        self.btn_build.grid(row=1, column=0, sticky="ew", padx=theme.PAD_L, pady=(0, theme.PAD_M))
 
         # Stage progress, live log, Cancel + Retry-from-failed-stage (GUI-4,
         # CORE-3/4) -- delegates entirely to the Task 3 BuildView widget.
@@ -488,17 +584,34 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             is_worker_alive=lambda: self.worker.is_alive,
             on_done=self._on_build_done,
         )
-        self._build_view.grid(row=2, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        self._build_view.grid(
+            row=2, column=0, sticky="nsew", padx=theme.PAD_L, pady=(0, theme.PAD_L)
+        )
+
+        # Empty-state placeholder shown over the output area until a build
+        # starts (Task 2 card-framing spec). BuildView owns the actual log
+        # box; this sits on top of frame_console so it's visible before any
+        # build activity exists.
+        self.lbl_output_placeholder = ctk.CTkLabel(
+            self.frame_console,
+            text="Select a save and click Build NPV Mod",
+            font=theme.hint_font(),
+            text_color=theme.TEXT_MUTED,
+            fg_color="transparent",
+        )
+        self.lbl_output_placeholder.grid(row=2, column=0, sticky="n", pady=(theme.PAD_XL, 0))
 
         # Auto-install banner: separate from BuildView, drives InstallerWorker
         # via its own queue (see start_auto_install/install_finished below).
         self.frame_actions = ctk.CTkFrame(self.frame_console, fg_color="transparent")
-        self.frame_actions.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 15))
+        self.frame_actions.grid(
+            row=3, column=0, sticky="ew", padx=theme.PAD_L, pady=(0, theme.PAD_L)
+        )
         self.frame_actions.grid_columnconfigure(0, weight=1)
 
         # Progress Indicator (auto-install only)
         self.progress_bar = ctk.CTkProgressBar(
-            self.frame_actions, fg_color="#121212", progress_color=ACCENT_CYAN
+            self.frame_actions, fg_color=theme.SURFACE_ALT, progress_color=theme.ACCENT
         )
         # Hidden initially
 
@@ -508,7 +621,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.lbl_banner = ctk.CTkLabel(
             self.frame_actions,
             text="",
-            font=("Arial", 13, "bold"),
+            font=theme.label_font(),
             height=30,
             corner_radius=4,
         )
@@ -521,49 +634,75 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         lbl_cc_json = ctk.CTkLabel(
             self.frame_adv,
             text="CET Appearance JSON (--cc-json):",
-            font=("Arial", 11, "bold"),
-            text_color=TEXT_WHITE,
+            font=theme.system_font(11, "bold"),
+            text_color=theme.TEXT,
         )
-        lbl_cc_json.grid(row=0, column=0, columnspan=2, sticky="w", padx=15, pady=(10, 2))
+        lbl_cc_json.grid(
+            row=0,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            padx=theme.PAD_L,
+            pady=(theme.PAD_M, theme.PAD_XS),
+        )
         self.entry_cc_json = ctk.CTkEntry(
             self.frame_adv,
             placeholder_text="Path to cc_dump.json",
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_cc_json.grid(row=1, column=0, sticky="ew", padx=(15, 5), pady=5)
+        self.entry_cc_json.grid(
+            row=1, column=0, sticky="ew", padx=(theme.PAD_L, theme.PAD_S), pady=theme.PAD_S
+        )
         btn_cc_browse = ctk.CTkButton(
             self.frame_adv,
             text="Browse",
             width=80,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
+            font=theme.body_font(),
             command=self.browse_cc_json,
         )
-        btn_cc_browse.grid(row=1, column=1, sticky="w", padx=(5, 15), pady=5)
+        btn_cc_browse.grid(
+            row=1, column=1, sticky="w", padx=(theme.PAD_S, theme.PAD_L), pady=theme.PAD_S
+        )
 
         # Hair Override
         lbl_hair_ovr = ctk.CTkLabel(
-            self.frame_adv, text="Hair Override:", font=("Arial", 11, "bold"), text_color=TEXT_WHITE
+            self.frame_adv,
+            text="Hair Override:",
+            font=theme.system_font(11, "bold"),
+            text_color=theme.TEXT,
         )
-        lbl_hair_ovr.grid(row=2, column=0, columnspan=2, sticky="w", padx=15, pady=(5, 2))
+        lbl_hair_ovr.grid(
+            row=2,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            padx=theme.PAD_L,
+            pady=(theme.PAD_S, theme.PAD_XS),
+        )
 
         frame_hair_input = ctk.CTkFrame(self.frame_adv, fg_color="transparent")
-        frame_hair_input.grid(row=3, column=0, columnspan=2, sticky="ew", padx=15, pady=5)
+        frame_hair_input.grid(
+            row=3, column=0, columnspan=2, sticky="ew", padx=theme.PAD_L, pady=theme.PAD_S
+        )
         frame_hair_input.grid_columnconfigure(0, weight=1)
 
         self.entry_hair_ovr = ctk.CTkEntry(
             frame_hair_input,
             placeholder_text="e.g. zara, none, 12, or select/drop a mod file...",
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_hair_ovr.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        self.entry_hair_ovr.grid(row=0, column=0, sticky="ew", padx=(0, theme.PAD_S))
 
         if self.TkdndVersion:
             self.entry_hair_ovr.register_drop_target(DND_FILES)
@@ -573,172 +712,223 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             frame_hair_input,
             text="Browse",
             width=80,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
+            font=theme.body_font(),
             command=self.browse_hair_mod,
         )
-        btn_hair_browse.grid(row=0, column=1, sticky="w", padx=(5, 5))
+        btn_hair_browse.grid(row=0, column=1, sticky="w", padx=(theme.PAD_S, theme.PAD_S))
 
         btn_hair_clear = ctk.CTkButton(
             frame_hair_input,
             text="Clear",
             width=60,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=TEXT_MUTED,
-            border_color=TEXT_MUTED,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.TEXT_MUTED,
+            border_color=theme.TEXT_MUTED,
             border_width=1,
+            font=theme.body_font(),
             command=self.clear_hair_mod,
         )
-        btn_hair_clear.grid(row=0, column=2, sticky="w", padx=(5, 0))
+        btn_hair_clear.grid(row=0, column=2, sticky="w", padx=(theme.PAD_S, 0))
 
         # Skin Override
         lbl_skin_ovr = ctk.CTkLabel(
             self.frame_adv,
             text="Skin Tone Override:",
-            font=("Arial", 11, "bold"),
-            text_color=TEXT_WHITE,
+            font=theme.system_font(11, "bold"),
+            text_color=theme.TEXT,
         )
-        lbl_skin_ovr.grid(row=4, column=0, columnspan=2, sticky="w", padx=15, pady=(5, 2))
+        lbl_skin_ovr.grid(
+            row=4,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            padx=theme.PAD_L,
+            pady=(theme.PAD_S, theme.PAD_XS),
+        )
         self.entry_skin_ovr = ctk.CTkEntry(
             self.frame_adv,
             placeholder_text="e.g. 01_ca_pale, 02_ca_limestone",
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_skin_ovr.grid(row=5, column=0, columnspan=2, sticky="ew", padx=15, pady=5)
+        self.entry_skin_ovr.grid(
+            row=5, column=0, columnspan=2, sticky="ew", padx=theme.PAD_L, pady=theme.PAD_S
+        )
 
         # Garment Overrides (Multiple items)
         lbl_garments = ctk.CTkLabel(
             self.frame_adv,
             text="Garment Override Depot Paths (Double click to remove):",
-            font=("Arial", 11, "bold"),
-            text_color=TEXT_WHITE,
+            font=theme.system_font(11, "bold"),
+            text_color=theme.TEXT,
         )
-        lbl_garments.grid(row=6, column=0, columnspan=2, sticky="w", padx=15, pady=(5, 2))
+        lbl_garments.grid(
+            row=6,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            padx=theme.PAD_L,
+            pady=(theme.PAD_S, theme.PAD_XS),
+        )
 
         self.garment_list = tk.Listbox(
             self.frame_adv,
-            bg="#121212",
-            fg=TEXT_WHITE,
-            selectbackground=ACCENT_CYAN,
-            selectforeground=BG_DARK,
+            bg=theme.SURFACE_ALT,
+            fg=theme.TEXT,
+            selectbackground=theme.ACCENT,
+            selectforeground=theme.BG,
             font=("Courier New", 10),
             borderwidth=1,
-            highlightcolor=ACCENT_CYAN,
+            highlightcolor=theme.ACCENT,
         )
-        self.garment_list.grid(row=7, column=0, sticky="ew", padx=(15, 5), pady=5)
+        self.garment_list.grid(
+            row=7, column=0, sticky="ew", padx=(theme.PAD_L, theme.PAD_S), pady=theme.PAD_S
+        )
         self.garment_list.bind("<Double-Button-1>", self.remove_selected_garment)
 
         btn_add_garment = ctk.CTkButton(
             self.frame_adv,
             text="+ Add",
             width=80,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
+            font=theme.body_font(),
             command=self.add_garment_override,
         )
-        btn_add_garment.grid(row=7, column=1, sticky="w", padx=(5, 15), pady=5)
+        btn_add_garment.grid(
+            row=7, column=1, sticky="w", padx=(theme.PAD_S, theme.PAD_L), pady=theme.PAD_S
+        )
 
         # Custom Head GLB / Mesh / Heb Mesh
         lbl_custom_head = ctk.CTkLabel(
             self.frame_adv,
             text="BYO Head Options (Custom Mesh/GLB):",
-            font=("Arial", 11, "bold"),
-            text_color=TEXT_WHITE,
+            font=theme.system_font(11, "bold"),
+            text_color=theme.TEXT,
         )
-        lbl_custom_head.grid(row=8, column=0, columnspan=2, sticky="w", padx=15, pady=(10, 2))
+        lbl_custom_head.grid(
+            row=8,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            padx=theme.PAD_L,
+            pady=(theme.PAD_M, theme.PAD_XS),
+        )
 
         self.entry_head_glb = ctk.CTkEntry(
             self.frame_adv,
             placeholder_text="Path to user_head.glb",
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_head_glb.grid(row=9, column=0, sticky="ew", padx=(15, 5), pady=5)
+        self.entry_head_glb.grid(
+            row=9, column=0, sticky="ew", padx=(theme.PAD_L, theme.PAD_S), pady=theme.PAD_S
+        )
         btn_glb_browse = ctk.CTkButton(
             self.frame_adv,
             text="Browse GLB",
             width=80,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
+            font=theme.body_font(),
             command=self.browse_head_glb,
         )
-        btn_glb_browse.grid(row=9, column=1, sticky="w", padx=(5, 15), pady=5)
+        btn_glb_browse.grid(
+            row=9, column=1, sticky="w", padx=(theme.PAD_S, theme.PAD_L), pady=theme.PAD_S
+        )
 
         self.entry_head_mesh = ctk.CTkEntry(
             self.frame_adv,
             placeholder_text="Path to user_head.mesh",
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_head_mesh.grid(row=10, column=0, sticky="ew", padx=(15, 5), pady=5)
+        self.entry_head_mesh.grid(
+            row=10, column=0, sticky="ew", padx=(theme.PAD_L, theme.PAD_S), pady=theme.PAD_S
+        )
         btn_mesh_browse = ctk.CTkButton(
             self.frame_adv,
             text="Browse Mesh",
             width=80,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
+            font=theme.body_font(),
             command=self.browse_head_mesh,
         )
-        btn_mesh_browse.grid(row=10, column=1, sticky="w", padx=(5, 15), pady=5)
+        btn_mesh_browse.grid(
+            row=10, column=1, sticky="w", padx=(theme.PAD_S, theme.PAD_L), pady=theme.PAD_S
+        )
 
         self.entry_heb_mesh = ctk.CTkEntry(
             self.frame_adv,
             placeholder_text="Path to user_heb.mesh (details)",
-            fg_color="#121212",
-            border_color=TEXT_MUTED,
-            text_color=TEXT_WHITE,
+            fg_color=theme.SURFACE_ALT,
+            border_color=theme.BORDER,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self.entry_heb_mesh.grid(row=11, column=0, sticky="ew", padx=(15, 5), pady=5)
+        self.entry_heb_mesh.grid(
+            row=11, column=0, sticky="ew", padx=(theme.PAD_L, theme.PAD_S), pady=theme.PAD_S
+        )
         btn_heb_browse = ctk.CTkButton(
             self.frame_adv,
             text="Browse HEB",
             width=80,
-            fg_color=BG_DARK,
-            hover_color="#333",
-            text_color=ACCENT_CYAN,
-            border_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            border_color=theme.ACCENT,
             border_width=1,
+            font=theme.body_font(),
             command=self.browse_heb_mesh,
         )
-        btn_heb_browse.grid(row=11, column=1, sticky="w", padx=(5, 15), pady=5)
+        btn_heb_browse.grid(
+            row=11, column=1, sticky="w", padx=(theme.PAD_S, theme.PAD_L), pady=theme.PAD_S
+        )
 
         # Clear Cache / Restore Head Toggles
         self.switch_clear_cache = ctk.CTkSwitch(
             self.frame_adv,
             text="Clear cache before build",
-            font=("Arial", 11),
-            text_color=TEXT_WHITE,
-            progress_color=ACCENT_CYAN,
+            font=theme.body_font(),
+            text_color=theme.TEXT,
+            progress_color=theme.ACCENT,
         )
-        self.switch_clear_cache.grid(row=12, column=0, columnspan=2, sticky="w", padx=15, pady=10)
+        self.switch_clear_cache.grid(
+            row=12, column=0, columnspan=2, sticky="w", padx=theme.PAD_L, pady=theme.PAD_M
+        )
 
         self.switch_restore_head = ctk.CTkSwitch(
             self.frame_adv,
             text="Restore head materials",
-            font=("Arial", 11),
-            text_color=TEXT_WHITE,
-            progress_color=ACCENT_CYAN,
+            font=theme.body_font(),
+            text_color=theme.TEXT,
+            progress_color=theme.ACCENT,
         )
         self.switch_restore_head.select()
         self.switch_restore_head.grid(
-            row=13, column=0, columnspan=2, sticky="w", padx=15, pady=(0, 15)
+            row=13, column=0, columnspan=2, sticky="w", padx=theme.PAD_L, pady=(0, theme.PAD_L)
         )
 
     # --- Toggle Advanced Frame ---
@@ -748,7 +938,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             self.btn_toggle_adv.configure(text="▶ Show Advanced Overrides")
             self.adv_expanded = False
         else:
-            self.frame_adv.grid(row=3, column=0, sticky="ew", padx=10, pady=10)
+            self.frame_adv.grid(row=3, column=0, sticky="ew", padx=theme.PAD_M, pady=theme.PAD_M)
             self.btn_toggle_adv.configure(text="▼ Hide Advanced Overrides")
             self.adv_expanded = True
 
@@ -768,9 +958,9 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         def update_lamp(lamp, found):
             if found:
-                lamp.configure(text_color=STATUS_GREEN)
+                lamp.configure(text_color=theme.SUCCESS)
             else:
-                lamp.configure(text_color=STATUS_RED)
+                lamp.configure(text_color=theme.ERROR)
 
         update_lamp(self.lamp_wkit, status["wolvenkit"])
         update_lamp(self.lamp_blender, status["blender"])
@@ -780,25 +970,25 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         # Game Dir validation feedback
         if game_path_str:
             if status["game_dir_valid"]:
-                self.entry_game_dir.configure(border_color=STATUS_GREEN)
+                self.entry_game_dir.configure(border_color=theme.SUCCESS)
                 # Persist valid path
                 self.config["game_dir"] = str(game_path.resolve())
                 save_config(self.config)
             else:
-                self.entry_game_dir.configure(border_color=STATUS_RED)
+                self.entry_game_dir.configure(border_color=theme.ERROR)
         else:
-            self.entry_game_dir.configure(border_color=TEXT_MUTED)
+            self.entry_game_dir.configure(border_color=theme.TEXT_MUTED)
 
         # Disable/Enable Build button based on checks. Deliberately does not
         # gate on status["npv_inject"] -- ADR 0001 (Branch A') retires
         # npv-inject, so its absence must not block the Build button.
         ready = status["wolvenkit"] and status["blender"] and status["game_dir_valid"]
         if ready:
-            self.btn_build.configure(
-                state="normal", border_color=ACCENT_CYAN, text_color=ACCENT_CYAN
-            )
+            self.btn_build.configure(state="normal", fg_color=theme.ACCENT, text_color=theme.BG)
         else:
-            self.btn_build.configure(state="disabled", border_color="#333", text_color="#555")
+            self.btn_build.configure(
+                state="disabled", fg_color=theme.SURFACE_ALT, text_color=theme.TEXT_MUTED
+            )
 
     # --- Browse Helpers ---
     def browse_game_dir(self):
@@ -846,32 +1036,32 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
 
         try:
             prev = preview_save(path)
-            self.lbl_prev_rig.configure(text=f"Rig: {prev['body_rig']}", text_color=TEXT_WHITE)
-            self.lbl_prev_skin.configure(text=f"Skin: {prev['skin_tone']}", text_color=TEXT_WHITE)
+            self.lbl_prev_rig.configure(text=f"Rig: {prev['body_rig']}", text_color=theme.TEXT)
+            self.lbl_prev_skin.configure(text=f"Skin: {prev['skin_tone']}", text_color=theme.TEXT)
             self.lbl_prev_hair.configure(
                 text=f"Hair: {prev['hair_style']} (col: {prev['hair_color']})",
-                text_color=TEXT_WHITE,
+                text_color=theme.TEXT,
             )
             self.lbl_prev_selections.configure(
-                text=f"Selections: {prev['selections_count']}", text_color=TEXT_WHITE
+                text=f"Selections: {prev['selections_count']}", text_color=theme.TEXT
             )
             self.update_default_output()
         except SaveParserError as e:
-            self.lbl_prev_rig.configure(text="Rig: Error", text_color=STATUS_RED)
-            self.lbl_prev_skin.configure(text="Skin: Error", text_color=STATUS_RED)
-            self.lbl_prev_hair.configure(text=f"Err: {str(e)[:25]}", text_color=STATUS_RED)
-            self.lbl_prev_selections.configure(text="Selections: Error", text_color=STATUS_RED)
+            self.lbl_prev_rig.configure(text="Rig: Error", text_color=theme.ERROR)
+            self.lbl_prev_skin.configure(text="Skin: Error", text_color=theme.ERROR)
+            self.lbl_prev_hair.configure(text=f"Err: {str(e)[:25]}", text_color=theme.ERROR)
+            self.lbl_prev_selections.configure(text="Selections: Error", text_color=theme.ERROR)
         except NpvError as e:
-            self.lbl_prev_rig.configure(text="Rig: Error", text_color=STATUS_RED)
-            self.lbl_prev_skin.configure(text="Skin: Error", text_color=STATUS_RED)
-            self.lbl_prev_hair.configure(text=f"Err: {e.user_message[:25]}", text_color=STATUS_RED)
-            self.lbl_prev_selections.configure(text="Selections: Error", text_color=STATUS_RED)
+            self.lbl_prev_rig.configure(text="Rig: Error", text_color=theme.ERROR)
+            self.lbl_prev_skin.configure(text="Skin: Error", text_color=theme.ERROR)
+            self.lbl_prev_hair.configure(text=f"Err: {e.user_message[:25]}", text_color=theme.ERROR)
+            self.lbl_prev_selections.configure(text="Selections: Error", text_color=theme.ERROR)
 
     def clear_preview(self):
-        self.lbl_prev_rig.configure(text="Rig: None", text_color=TEXT_MUTED)
-        self.lbl_prev_skin.configure(text="Skin: None", text_color=TEXT_MUTED)
-        self.lbl_prev_hair.configure(text="Hair: None", text_color=TEXT_MUTED)
-        self.lbl_prev_selections.configure(text="Selections: None", text_color=TEXT_MUTED)
+        self.lbl_prev_rig.configure(text="Rig: None", text_color=theme.TEXT_MUTED)
+        self.lbl_prev_skin.configure(text="Skin: None", text_color=theme.TEXT_MUTED)
+        self.lbl_prev_hair.configure(text="Hair: None", text_color=theme.TEXT_MUTED)
+        self.lbl_prev_selections.configure(text="Selections: None", text_color=theme.TEXT_MUTED)
 
     def update_default_output(self):
         name = self.entry_npv_name.get().strip()
@@ -1076,6 +1266,7 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             "restore_head_materials": self.switch_restore_head.get() == 1,
         }
 
+        self.lbl_output_placeholder.grid_forget()
         self._build_view.log(f"Starting NPV Build mod generation for V '{npv_name}'...\n")
         self._build_view.start(**kwargs)
 
@@ -1085,12 +1276,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
         self.btn_open_out = ctk.CTkButton(
             self.frame_console,
             text="Open Output Folder",
-            fg_color="#333",
-            hover_color="#444",
-            text_color=ACCENT_CYAN,
+            fg_color=theme.SURFACE_ALT,
+            hover_color=theme.BORDER,
+            text_color=theme.ACCENT,
+            font=theme.body_font(),
             command=self.open_output_folder,
         )
-        self.btn_open_out.grid(row=4, column=0, sticky="ew", padx=15, pady=(0, 10))
+        self.btn_open_out.grid(
+            row=4, column=0, sticky="ew", padx=theme.PAD_L, pady=(0, theme.PAD_M)
+        )
 
     def start_auto_install(self):
         # Ask for confirmation before downloading
@@ -1152,15 +1346,15 @@ class App(ctk.CTk, TkinterDnD.DnDWrapper):
             )
             self.lbl_banner.configure(
                 text="✓ Dependencies Installed Successfully!",
-                fg_color=STATUS_GREEN,
-                text_color=BG_DARK,
+                fg_color=theme.SUCCESS,
+                text_color=theme.BG,
             )
         else:
             self._build_view.log(f"\n[Error] Dependency installation failed: {error_msg}\n")
             self.lbl_banner.configure(
                 text="✗ Installation Failed. Check logs above.",
-                fg_color=STATUS_RED,
-                text_color=TEXT_WHITE,
+                fg_color=theme.ERROR,
+                text_color=theme.TEXT,
             )
 
         self.lbl_banner.grid(row=1, column=0, sticky="ew", pady=5)
