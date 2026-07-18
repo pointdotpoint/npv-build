@@ -77,6 +77,8 @@ class WebUiApi:
         except NpvError as e:
             return {"ok": False, "error": e.user_message,
                     "remediation": e.remediation or ""}
+        except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
+            return {"ok": False, "error": str(e), "remediation": ""}
         return {"ok": True, **info}
 
     def _settings_for_mods(self) -> tuple[Path, Path]:

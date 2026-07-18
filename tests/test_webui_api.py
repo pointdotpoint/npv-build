@@ -90,6 +90,15 @@ def test_preview_save_error_is_structured(monkeypatch):
                    "remediation": "Update mappings"}
 
 
+def test_preview_save_real_parser_error_is_structured(tmp_path):
+    bad = tmp_path / "sav.dat"
+    bad.write_bytes(b"not a save file")
+    out = WebUiApi().preview_save(str(bad))
+    assert out["ok"] is False
+    assert isinstance(out["error"], str) and out["error"]
+    assert "remediation" in out
+
+
 def test_mod_roundtrip(monkeypatch, tmp_path):
     from npv_build.gui_logic.modmanager import ModEntry
 
