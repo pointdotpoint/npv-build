@@ -53,3 +53,58 @@ def test_save_config_returns_validation_errors(monkeypatch):
                         lambda s: ["game_dir does not exist"])
     result = WebUiApi().save_config({"game_dir": "/nope"})
     assert result == {"ok": False, "errors": ["game_dir does not exist"]}
+
+
+def test_list_saves_serializes(monkeypatch, tmp_path):
+    from npv_build.gui_logic.discovery import SaveEntry
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.discover_saves",
+        lambda: [SaveEntry(path=tmp_path / "sav.dat", name="AutoSave-0",
+                           mtime=123.0, thumbnail=None)],
+    )
+    saves = WebUiApi().list_saves()
+    assert saves == [{"path": str(tmp_path / "sav.dat"), "name": "AutoSave-0",
+                      "mtime": 123.0, "thumbnail": None}]
+
+
+def test_preview_save_ok(monkeypatch):
+    monkeypatch.setattr(
+        "npv_build.webui_api.preview_save_file",
+        lambda p: {"body_rig": "pwa", "skin_tone": "03", "hair_style": "bob",
+                   "hair_color": "copper", "selections_count": 152},
+    )
+    out = WebUiApi().preview_save("/s/sav.dat")
+    assert out["ok"] is True and out["body_rig"] == "pwa"
+
+
+def test_preview_save_error_is_structured(monkeypatch):
+    from npv_build.core.errors import NpvError
+
+    def boom(p):
+        raise NpvError("Unsupported patch", remediation="Update mappings")
+
+    monkeypatch.setattr("npv_build.webui_api.preview_save_file", boom)
+    out = WebUiApi().preview_save("/s/sav.dat")
+    assert out == {"ok": False, "error": "Unsupported patch",
+                   "remediation": "Update mappings"}
+
+
+def test_mod_roundtrip(monkeypatch, tmp_path):
+    from npv_build.gui_logic.modmanager import ModEntry
+
+    entry = ModEntry(mod_id="v_abc", archive_path=tmp_path / "v_abc.archive",
+                     lua_path=tmp_path / "v_abc.lua", installed=False)
+    installed = []
+    monkeypatch.setattr("npv_build.webui_api.mm_list_mods",
+                        lambda root, gd: [entry])
+    monkeypatch.setattr("npv_build.webui_api.mm_install_mod",
+                        lambda e, gd: installed.append(e.mod_id))
+    api = WebUiApi()
+    api._settings_for_mods = lambda: (tmp_path, tmp_path)  # test seam
+    mods = api.list_mods()
+    assert mods == [{"mod_id": "v_abc",
+                     "archive_path": str(tmp_path / "v_abc.archive"),
+                     "installed": False}]
+    assert api.install_mod("v_abc") == {"ok": True}
+    assert installed == ["v_abc"]
