@@ -121,5 +121,20 @@ to the .app file in WolvenKit GUI.
 - The `meshAppearance` controls skin tone, eye colour, makeup colour etc.
 - After packing, test in-game: AMM → Custom Entities → your NPV name
 """
+    text += f"""
+## Photo Mode (Photomode NPCs Extended)
+
+This build also emits Photo Mode registration files so your NPV can be posed
+in the game's native Photo Mode:
+
+| File | What it is |
+|------|-----------|
+| `r6/tweaks/npv_build/{mod_id}_photomode.yaml` | TweakXL record registering the puppet |
+| `archive/pc/mod/{mod_id}_photomode.archive.xl` | ArchiveXL control file |
+
+**Required mods** (install from Nexus): Photomode NPCs Extended, PhotoMode-EX,
+ArchiveXL, TweakXL, Codeware. After installing, select your NPV in Photo Mode's
+character picker.
+"""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text, encoding="utf-8")

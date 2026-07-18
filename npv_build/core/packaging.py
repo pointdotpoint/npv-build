@@ -13,7 +13,7 @@ from pathlib import Path
 from .errors import PackagingError
 
 #: Top-level directories inside output_dir that make up the installable tree.
-_INSTALL_DIRS = ("archive", "bin")
+_INSTALL_DIRS = ("archive", "bin", "r6")
 
 
 def package_mod(output_dir: Path, mod_id: str, zip_path: Path | None = None) -> Path:
