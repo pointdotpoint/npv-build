@@ -10,6 +10,8 @@ from tkinter import filedialog
 
 import customtkinter as ctk
 
+import npv_build.gui_theme as theme
+
 from ..gui_logic.discovery import SaveEntry, list_saves
 
 logger = logging.getLogger(__name__)
@@ -50,11 +52,27 @@ class SaveBrowserView(ctk.CTkFrame):
         self._on_select = on_select
         self._save_dirs = save_dirs
 
-        self._scroll = ctk.CTkScrollableFrame(self)
-        self._scroll.pack(fill="both", expand=True, padx=8, pady=(8, 4))
+        self.configure(fg_color=theme.BG)
 
-        self._browse_button = ctk.CTkButton(self, text="Browse…", command=self._on_browse_clicked)
-        self._browse_button.pack(fill="x", padx=8, pady=(0, 8))
+        self._scroll = ctk.CTkScrollableFrame(
+            self,
+            fg_color=theme.BG,
+            scrollbar_button_color=theme.ACCENT,
+        )
+        self._scroll.pack(
+            fill="both", expand=True, padx=theme.PAD_S, pady=(theme.PAD_S, theme.PAD_XS)
+        )
+
+        self._browse_button = ctk.CTkButton(
+            self,
+            text="Browse…",
+            command=self._on_browse_clicked,
+            fg_color=theme.ACCENT,
+            hover_color=theme.ACCENT_HOVER,
+            text_color=theme.BG,
+            font=theme.body_font(),
+        )
+        self._browse_button.pack(fill="x", padx=theme.PAD_S, pady=(0, theme.PAD_S))
 
         self._image_refs: list[ctk.CTkImage] = []
 
@@ -70,27 +88,70 @@ class SaveBrowserView(ctk.CTkFrame):
         rows = build_rows(entries)
 
         if not rows:
-            ctk.CTkLabel(self._scroll, text="No saves found.").pack(pady=8)
+            ctk.CTkLabel(
+                self._scroll,
+                text="No saves found — use Browse…",
+                font=theme.hint_font(),
+                text_color=theme.TEXT_MUTED,
+            ).pack(pady=theme.PAD_S)
             return
 
         for entry, row in zip(entries, rows, strict=True):
             self._build_row(entry, row)
 
     def _build_row(self, entry: SaveEntry, row: dict) -> None:
-        row_frame = ctk.CTkFrame(self._scroll)
-        row_frame.pack(fill="x", padx=4, pady=2)
+        row_frame = ctk.CTkFrame(
+            self._scroll,
+            fg_color=theme.SURFACE,
+            border_color=theme.BORDER,
+            border_width=1,
+            corner_radius=6,
+        )
+        row_frame.pack(fill="x", padx=theme.PAD_XS, pady=theme.PAD_XS)
 
         image = self._load_thumbnail(entry.thumbnail)
 
+        name_label = ctk.CTkLabel(
+            row_frame,
+            text=row["name"],
+            font=theme.label_font(),
+            text_color=theme.TEXT,
+            anchor="w",
+        )
+        timestamp_label = ctk.CTkLabel(
+            row_frame,
+            text=row["timestamp"],
+            font=theme.hint_font(),
+            text_color=theme.TEXT_MUTED,
+            anchor="w",
+        )
+
+        def _on_enter(_event=None, frame=row_frame):
+            frame.configure(border_color=theme.ACCENT)
+
+        def _on_leave(_event=None, frame=row_frame):
+            frame.configure(border_color=theme.BORDER)
+
         button = ctk.CTkButton(
             row_frame,
-            text=f"{row['name']}\n{row['timestamp']}",
+            text="",
             image=image,
             compound="left",
             anchor="w",
+            fg_color="transparent",
+            hover_color=theme.SURFACE_ALT,
             command=lambda p=entry.path: self._on_select(p),
         )
-        button.pack(fill="x", padx=4, pady=4)
+        button.grid(row=0, column=0, rowspan=2, sticky="nsw", padx=theme.PAD_XS, pady=theme.PAD_XS)
+        name_label.grid(row=0, column=1, sticky="w", padx=(0, theme.PAD_S), pady=(theme.PAD_XS, 0))
+        timestamp_label.grid(
+            row=1, column=1, sticky="w", padx=(0, theme.PAD_S), pady=(0, theme.PAD_XS)
+        )
+        row_frame.grid_columnconfigure(1, weight=1)
+
+        for widget in (row_frame, button, name_label, timestamp_label):
+            widget.bind("<Enter>", _on_enter)
+            widget.bind("<Leave>", _on_leave)
 
     def _load_thumbnail(self, thumbnail: Path | None) -> ctk.CTkImage | None:
         if thumbnail is None:

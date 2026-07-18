@@ -8,6 +8,8 @@ from collections.abc import Callable
 
 import customtkinter as ctk
 
+import npv_build.gui_theme as theme
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,25 +78,61 @@ class BuildView(ctk.CTkFrame):
         self._on_done = on_done
         self.vm = BuildViewModel()
 
-        self._progress_bar = ctk.CTkProgressBar(self)
-        self._progress_bar.set(0)
-        self._progress_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=8, pady=(8, 4))
+        self.configure(fg_color=theme.BG)
 
-        self._log_box = ctk.CTkTextbox(self, state="disabled")
-        self._log_box.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=8, pady=4)
+        self._progress_bar = ctk.CTkProgressBar(self, progress_color=theme.ACCENT)
+        self._progress_bar.set(0)
+        self._progress_bar.grid(
+            row=0,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            padx=theme.PAD_S,
+            pady=(theme.PAD_S, theme.PAD_XS),
+        )
+
+        self._log_box = ctk.CTkTextbox(
+            self,
+            state="disabled",
+            fg_color=theme.SURFACE_ALT,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
+        )
+        self._log_box.grid(
+            row=1, column=0, columnspan=2, sticky="nsew", padx=theme.PAD_S, pady=theme.PAD_XS
+        )
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
-        self._error_label = ctk.CTkLabel(self, text="", text_color="#e74c3c", wraplength=400)
+        self._error_label = ctk.CTkLabel(
+            self, text="", text_color=theme.ERROR, font=theme.body_font(), wraplength=400
+        )
 
         self._cancel_button = ctk.CTkButton(
-            self, text="Cancel", command=self._on_cancel_clicked, state="disabled"
+            self,
+            text="Cancel",
+            command=self._on_cancel_clicked,
+            state="disabled",
+            fg_color=theme.SURFACE,
+            hover_color=theme.BORDER,
+            border_color=theme.BORDER,
+            border_width=1,
+            text_color=theme.TEXT,
+            font=theme.body_font(),
         )
-        self._cancel_button.grid(row=3, column=0, sticky="ew", padx=(8, 4), pady=8)
+        self._cancel_button.grid(
+            row=3, column=0, sticky="ew", padx=(theme.PAD_S, theme.PAD_XS), pady=theme.PAD_S
+        )
 
         self._retry_button = ctk.CTkButton(
-            self, text="Retry from failed stage", command=self._on_retry_clicked
+            self,
+            text="Retry from failed stage",
+            command=self._on_retry_clicked,
+            fg_color=theme.ACCENT,
+            hover_color=theme.ACCENT_HOVER,
+            text_color=theme.BG,
+            font=theme.body_font(),
         )
         # Gridded only when vm.can_retry (see _sync_widgets).
 
@@ -162,12 +200,16 @@ class BuildView(ctk.CTkFrame):
         self._progress_bar.set(self.vm.stage_progress)
 
         if self.vm.can_retry:
-            self._retry_button.grid(row=3, column=1, sticky="ew", padx=(4, 8), pady=8)
+            self._retry_button.grid(
+                row=3, column=1, sticky="ew", padx=(theme.PAD_XS, theme.PAD_S), pady=theme.PAD_S
+            )
         else:
             self._retry_button.grid_forget()
 
         if self.vm.state == "failed" and self.vm.last_error:
             self._error_label.configure(text=self.vm.last_error)
-            self._error_label.grid(row=2, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 4))
+            self._error_label.grid(
+                row=2, column=0, columnspan=2, sticky="ew", padx=theme.PAD_S, pady=(0, theme.PAD_XS)
+            )
         else:
             self._error_label.grid_forget()
