@@ -9,6 +9,7 @@ function esc(s) {
 window.screens = window.screens || {};
 window.screens.source = {
   saves: null,
+  _pickToken: 0,
   async load() {
     this.saves = await Api.call("list_saves");
     store.set({});
@@ -49,6 +50,13 @@ window.screens.source = {
       <input type="text" id="output-dir" value="${esc(s.outputDir || "")}">`;
     el.appendChild(form);
 
+    form.querySelector("#npv-name").addEventListener("input", (e) => {
+      store.state.npvName = e.target.value;
+    });
+    form.querySelector("#output-dir").addEventListener("input", (e) => {
+      store.state.outputDir = e.target.value;
+    });
+
     const cont = document.createElement("button");
     cont.textContent = "Continue →";
     cont.style.marginTop = "16px";
@@ -66,8 +74,10 @@ window.screens.source = {
     el.appendChild(cont);
   },
   async pick(save, card) {
+    const token = (this._pickToken = (this._pickToken || 0) + 1);
     card.querySelector(".preview").textContent = "Parsing…";
     const preview = await Api.call("preview_save", save.path);
+    if (token !== this._pickToken) return; // superseded by a newer click
     if (!preview.ok) {
       store.set({ save: null });
       card.classList.add("error-card");
