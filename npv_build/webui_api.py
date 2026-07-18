@@ -12,9 +12,9 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
-from .config import load_config
+from .config import get_cache_dir, load_config
 from .core.errors import NpvError
-from .gui_backend import check_dependencies
+from .gui_backend import BuildWorker, check_dependencies
 from .gui_backend import preview_save as preview_save_file
 from .gui_logic.discovery import list_saves as discover_saves
 from .gui_logic.modmanager import (
@@ -42,6 +42,7 @@ def _app_version() -> str:
 class WebUiApi:
     def __init__(self) -> None:
         self._queue: queue.Queue = queue.Queue()
+        self._worker: BuildWorker | None = None
 
     def get_state(self) -> dict:
         s = load_settings()
@@ -122,3 +123,43 @@ class WebUiApi:
             return {"ok": False, "error": e.user_message,
                     "remediation": e.remediation or ""}
         return {"ok": True}
+
+    def start_build(self, req: dict) -> dict:
+        s = load_settings()
+        if not s.game_dir:
+            return {"ok": False, "error": "Game directory not configured.",
+                    "remediation": "Set it in Settings."}
+        self._worker = BuildWorker(self._queue)
+        self._worker.start(
+            save_path=Path(req["save_path"]),
+            npv_name=req["npv_name"],
+            output_dir=Path(req["output_dir"]),
+            game_dir=Path(s.game_dir),
+            template_cache=get_cache_dir() / "templates",
+            clear_cache=bool(req.get("clear_cache", False)),
+            resume=bool(req.get("resume", False)),
+        )
+        return {"ok": True}
+
+    def cancel_build(self) -> dict:
+        if self._worker is not None:
+            self._worker.cancel()
+        return {"ok": True}
+
+    def poll_events(self) -> list[dict]:
+        events: list[dict] = []
+        while True:
+            try:
+                kind, val = self._queue.get_nowait()
+            except queue.Empty:
+                return events
+            if kind == "log":
+                events.append({"kind": "log", "text": val})
+            elif kind == "progress":
+                events.append({"kind": "progress", "value": val})
+            elif kind == "stage":
+                events.append({"kind": "stage", **val})
+            elif kind == "done":
+                events.append({"kind": "done", "output_dir": val})
+            elif kind == "error":
+                events.append({"kind": "error", "message": val})

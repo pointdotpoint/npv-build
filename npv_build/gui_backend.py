@@ -69,13 +69,20 @@ class BuildWorker:
             # log them but leave the progress bar where the last real stage put it.
             if ev.kind == "stage_started":
                 self.queue.put(("log", f"[{ev.stage}] {ev.message}\n"))
+                self.queue.put(("stage", {"stage": ev.stage, "status": "started",
+                                          "message": ev.message}))
                 if ev.stage in stages:
                     self.queue.put(("progress", stages.index(ev.stage) / len(stages)))
             elif ev.kind in ("stage_completed", "stage_skipped"):
+                status = "completed" if ev.kind == "stage_completed" else "skipped"
+                self.queue.put(("stage", {"stage": ev.stage, "status": status,
+                                          "message": ev.message}))
                 if ev.stage in stages:
                     self.queue.put(("progress", (stages.index(ev.stage) + 1) / len(stages)))
             elif ev.kind == "failed":
                 self.queue.put(("log", f"[{ev.stage}] FAILED: {ev.message}\n"))
+                self.queue.put(("stage", {"stage": ev.stage, "status": "failed",
+                                          "message": ev.message}))
 
         handler = CallbackHandler(lambda line: self.queue.put(("log", line + "\n")))
         configure_logging(verbosity=2, extra_handler=handler)

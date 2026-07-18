@@ -117,3 +117,67 @@ def test_mod_roundtrip(monkeypatch, tmp_path):
                      "installed": False}]
     assert api.install_mod("v_abc") == {"ok": True}
     assert installed == ["v_abc"]
+
+
+def test_poll_events_translates_queue(monkeypatch, tmp_path):
+    api = WebUiApi()
+    api._queue.put(("log", "[assemble] baking\n"))
+    api._queue.put(("progress", 0.6))
+    api._queue.put(("stage", {"stage": "assemble", "status": "started",
+                              "message": "Assembling"}))
+    api._queue.put(("done", "/out"))
+    events = api.poll_events()
+    assert events == [
+        {"kind": "log", "text": "[assemble] baking\n"},
+        {"kind": "progress", "value": 0.6},
+        {"kind": "stage", "stage": "assemble", "status": "started",
+         "message": "Assembling"},
+        {"kind": "done", "output_dir": "/out"},
+    ]
+    assert api.poll_events() == []
+
+
+def test_start_build_fills_context_and_starts_worker(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    started = {}
+
+    class FakeWorker:
+        def __init__(self, q):
+            started["queue"] = q
+
+        def start(self, **kwargs):
+            started["kwargs"] = kwargs
+
+        @property
+        def is_alive(self):
+            return False
+
+    monkeypatch.setattr("npv_build.webui_api.BuildWorker", FakeWorker)
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None,
+                         log_verbosity=1, patch_override=None, check_updates=True),
+    )
+    api = WebUiApi()
+    out = api.start_build({"save_path": str(tmp_path / "sav.dat"),
+                           "npv_name": "V", "output_dir": str(tmp_path / "o"),
+                           "clear_cache": False, "resume": False})
+    assert out == {"ok": True}
+    kw = started["kwargs"]
+    assert kw["game_dir"] == tmp_path
+    assert kw["npv_name"] == "V"
+    assert str(kw["template_cache"]).endswith("templates")
+
+
+def test_start_build_without_game_dir_errors(monkeypatch):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=None, output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    out = WebUiApi().start_build({"save_path": "/s", "npv_name": "V",
+                                  "output_dir": "/o"})
+    assert out["ok"] is False and "Game directory" in out["error"]
