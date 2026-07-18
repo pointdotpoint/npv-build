@@ -1,3 +1,4 @@
+import os
 import struct
 from pathlib import Path
 
@@ -15,26 +16,17 @@ def fixture_path(name: str) -> Path:
 @pytest.fixture(autouse=True)
 def _isolate_user_dirs(tmp_path, monkeypatch):
     """Tests must never touch the real ~/.config/npv or ~/.cache/npv."""
+    # Playwright also resolves its browser binaries under XDG_CACHE_HOME
+    # (~/.cache/ms-playwright by default). Pin its lookup to the real,
+    # already-installed location before we redirect XDG_CACHE_HOME below,
+    # so tests/webui_smoke still finds the browser under this isolation.
+    if "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
+        real_cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
+        monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(Path(real_cache) / "ms-playwright"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg-cache"))
     monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "localappdata"))
-
-
-@pytest.fixture
-def gui_root():
-    # Create a real Tk root for tests that resolve fonts. Skip cleanly wherever
-    # Tk can't initialize — no X display (headless Linux) or a headless Windows
-    # runner whose Tcl install can't find init.tcl — rather than erroring.
-    import customtkinter as ctk
-
-    try:
-        root = ctk.CTk()
-    except Exception as exc:  # noqa: BLE001 - any Tk init failure means "no usable GUI here"
-        pytest.skip(f"no usable Tk root: {exc}")
-    root.withdraw()
-    yield root
-    root.destroy()
 
 
 def _on_disk(tag: str) -> bytes:

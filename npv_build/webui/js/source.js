@@ -25,12 +25,23 @@ window.screens.source = {
     const list = document.createElement("div");
     for (const save of this.saves) {
       const card = document.createElement("div");
-      card.className = "card selectable" +
-        (s.save && s.save.path === save.path ? " selected" : "");
+      const isSelected = s.save && s.save.path === save.path;
+      card.className = "card selectable" + (isSelected ? " selected" : "");
       const date = new Date(save.mtime * 1000).toLocaleString();
+      let previewHtml = "…";
+      if (isSelected && s.save.preview) {
+        const preview = s.save.preview;
+        if (preview.ok) {
+          previewHtml = esc(`${preview.body_rig} · skin ${preview.skin_tone} · ${preview.hair_style}`);
+        } else {
+          card.classList.add("error-card");
+          previewHtml = `<span class="err">${esc(preview.error)}</span>` +
+            `<div class="remediation">${esc(preview.remediation)}</div>`;
+        }
+      }
       card.innerHTML = `<div class="row"><strong>${esc(save.name)}</strong>` +
         `<span class="muted">${date}</span></div>` +
-        `<div class="muted preview">…</div>`;
+        `<div class="muted preview">${previewHtml}</div>`;
       card.onclick = () => this.pick(save, card);
       list.appendChild(card);
     }
