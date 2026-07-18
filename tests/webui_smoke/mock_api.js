@@ -8,10 +8,16 @@ window.__mockApi = {
     needs_onboarding: false, version: "test",
   }),
   list_saves: async () => [
-    { path: "/saves/a/sav.dat", name: "ManualSave-3", mtime: 1752800000, thumbnail: null },
+    { path: "/saves/good/sav.dat", name: "ManualSave-3", mtime: 1752800000, thumbnail: null },
+    { path: "/saves/bad/sav.dat", name: "BadSave-1", mtime: 1752700000, thumbnail: null },
   ],
-  preview_save: async () => ({ ok: true, body_rig: "pwa", skin_tone: "03",
-    hair_style: "bob", hair_color: "copper", selections_count: 152 }),
+  preview_save: async (path) => {
+    if (path === "/saves/bad/sav.dat") {
+      return { ok: false, error: "Unsupported patch", remediation: "Update npv-build" };
+    }
+    return { ok: true, body_rig: "pwa", skin_tone: "03",
+      hair_style: "bob", hair_color: "copper", selections_count: 152 };
+  },
   start_build: async () => ({ ok: true }),
   _polls: 0,
   poll_events: async function () {

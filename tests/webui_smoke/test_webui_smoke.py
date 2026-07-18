@@ -25,6 +25,31 @@ def webui_server():
     server.shutdown()
 
 
+def test_error_path_recovery(webui_server):
+    """Click bad save → expect error card; click good save → expect preview and Continue works."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        expect(page.locator(".rail-title")).to_have_text("NPV BUILD")
+        # Click bad save card
+        cards = page.locator(".card.selectable")
+        expect(cards).to_have_count(2)
+        cards.nth(1).click()  # BadSave-1
+        bad_card = cards.nth(1)
+        expect(bad_card.locator(".preview")).to_contain_text("Unsupported patch")
+        # Click good save card
+        cards.nth(0).click()  # ManualSave-3
+        good_card = cards.nth(0)
+        expect(good_card.locator(".preview")).to_contain_text("pwa · skin 03 · bob")
+        page.fill("#npv-name", "TestV")
+        page.fill("#output-dir", "/out/v")
+        page.click("text=Continue →")
+        expect(page.locator("h1")).to_have_text("Appearance")
+        browser.close()
+
+
 def test_full_flow_source_to_install(webui_server):
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -32,8 +57,9 @@ def test_full_flow_source_to_install(webui_server):
         page.add_init_script(path=str(MOCK))
         page.goto(webui_server)
         expect(page.locator(".rail-title")).to_have_text("NPV BUILD")
-        page.locator(".card.selectable").click()
-        expect(page.locator(".preview")).to_contain_text("pwa")
+        good_card = page.locator(".card.selectable").first
+        good_card.click()
+        expect(good_card.locator(".preview")).to_contain_text("pwa")
         page.fill("#npv-name", "TestV")
         page.fill("#output-dir", "/out/v")
         page.click("text=Continue →")

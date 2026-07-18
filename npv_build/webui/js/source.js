@@ -90,19 +90,13 @@ window.screens.source = {
     const preview = await Api.call("preview_save", save.path);
     if (token !== this._pickToken) return; // superseded by a newer click
     if (!preview.ok) {
-      store.set({ save: null });
-      card.classList.add("error-card");
-      card.querySelector(".preview").innerHTML =
-        `<span class="err">${esc(preview.error)}</span>` +
-        `<div class="remediation">${esc(preview.remediation)}</div>`;
+      store.set({ save: { ...save, preview } });
       return;
     }
     const defaults = {};
     if (!store.state.npvName) defaults.npvName = save.name;
     if (!store.state.outputDir && store.state.appState.settings.output_dir)
       defaults.outputDir = store.state.appState.settings.output_dir + "/" + save.name;
-    card.querySelector(".preview").textContent =
-      `${preview.body_rig} · skin ${preview.skin_tone} · ${preview.hair_style}`;
     store.set({ save: { ...save, preview }, ...defaults });
   },
 };
