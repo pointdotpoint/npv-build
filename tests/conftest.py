@@ -1,3 +1,4 @@
+import os
 import struct
 from pathlib import Path
 
@@ -19,6 +20,18 @@ def _isolate_user_dirs(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg-cache"))
     monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "localappdata"))
+
+
+@pytest.fixture
+def gui_root():
+    if not os.environ.get("DISPLAY") and os.name != "nt":
+        pytest.skip("no display for Tk root")
+    import customtkinter as ctk
+
+    root = ctk.CTk()
+    root.withdraw()
+    yield root
+    root.destroy()
 
 
 def _on_disk(tag: str) -> bytes:
