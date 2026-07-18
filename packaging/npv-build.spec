@@ -1,5 +1,6 @@
 # PyInstaller one-dir build of npv-build (GUI + CLI in one executable).
 import glob
+import sys
 import sysconfig
 
 from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_dynamic_libs
@@ -26,11 +27,13 @@ binaries += collect_dynamic_libs("tkinter")
 
 # Belt-and-suspenders: explicitly locate libtcl9*.so / libtk9*.so next to the
 # Python installation in case collect_dynamic_libs misses them (e.g. they're
-# dlopen'd by _tkinter rather than being direct link dependencies).
+# dlopen'd by _tkinter rather than being direct link dependencies). LIBDIR
+# covers uv-managed interpreters; sys.base_prefix + "/lib" covers system
+# Python / venv installs where LIBDIR doesn't point at the actual libdir.
 _libdir = sysconfig.get_config_var("LIBDIR") or ""
 _found = set()
 for _pattern in ("libtcl9*.so*", "libtk9*.so*"):
-    for _base in (_libdir, sysconfig.get_config_var("prefix") + "/lib" if sysconfig.get_config_var("prefix") else ""):
+    for _base in (_libdir, f"{sys.base_prefix}/lib" if sys.base_prefix else ""):
         if not _base:
             continue
         for _path in glob.glob(f"{_base}/{_pattern}"):
