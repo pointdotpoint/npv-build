@@ -40,3 +40,33 @@ def test_no_thumbnail_is_none(tmp_path):
 def test_ignores_dirs_without_savdat(tmp_path):
     (tmp_path / "not_a_save").mkdir()
     assert list_saves([tmp_path]) == []
+
+
+def test_patch_detected_from_header(tmp_path):
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parents[1]))
+    from conftest import _build_synth_save_bytes
+
+    d = tmp_path / "RealSave"
+    d.mkdir()
+    (d / "sav.dat").write_bytes(_build_synth_save_bytes(build=2310))
+    [e] = list_saves([tmp_path])
+    assert e.patch == "2.31"
+
+
+def test_patch_none_for_unreadable_header(tmp_path):
+    # Garbage sav.dat: still listed (preview will explain), badge just absent.
+    _make_save(tmp_path, "Broken")
+    [e] = list_saves([tmp_path])
+    assert e.patch is None
+
+
+def test_entry_for_path_builds_single_entry(tmp_path):
+    from npv_build.gui_logic.discovery import entry_for_path
+
+    d = _make_save(tmp_path, "PickedSave")
+    e = entry_for_path(d / "sav.dat")
+    assert e.name == "PickedSave"
+    assert e.path == d / "sav.dat"
+    assert e.patch is None  # garbage header -> no badge, still usable

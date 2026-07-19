@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from .core.errors import NpvError
+from .save_parser import hair_color_from_selections
 
 logger = logging.getLogger(__name__)
 
@@ -267,25 +268,7 @@ def resolve_assets(
     asset_paths["face_morphs"] = cc_settings.get("face_morphs", {})
     asset_paths["_game_dir"] = str(game_dir) if game_dir else None
 
-    # Hair colour: V's save stores the colour as e.g. "62_molten_marmalade"
-    # (CC option index + meshAppearance name). Strip the numeric prefix.
-    import re as _re
-
-    hair_color_raw = ""
-    for s in selections:
-        if s.get("slot") == "character_customization":
-            lbl = (s.get("label") or "").lower()
-            if lbl.startswith("fhair_") or lbl.startswith("mhair_"):
-                hair_color_raw = s.get("raw", "")
-                break
-    if not hair_color_raw:
-        for s in selections:
-            if s.get("slot") in ("character_customization", "hairs"):
-                lbl = (s.get("label") or "").lower()
-                if "hair" in lbl and "fpp" not in lbl and s.get("raw", "") != "default":
-                    hair_color_raw = s.get("raw", "")
-                    break
-    hair_color = _re.sub(r"^\d+_", "", hair_color_raw)
+    hair_color = hair_color_from_selections(selections)
     asset_paths["hair_color"] = hair_color
 
     # Hair resolution.

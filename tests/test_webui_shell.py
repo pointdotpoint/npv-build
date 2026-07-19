@@ -44,6 +44,42 @@ def test_linux_env_defaults_noop_elsewhere(monkeypatch):
     assert "PYWEBVIEW_GUI" not in os.environ
 
 
+def test_check_webview_runtime_linux_missing(monkeypatch):
+    from npv_build import webui_shell
+
+    def boom():
+        raise ImportError("cannot import gi")
+
+    monkeypatch.setattr(webui_shell, "_probe_webkitgtk", boom)
+    hint = webui_shell.check_webview_runtime("linux")
+    assert hint is not None
+    assert "gir1.2-webkit2-4.1" in hint
+
+
+def test_check_webview_runtime_linux_present(monkeypatch):
+    from npv_build import webui_shell
+
+    monkeypatch.setattr(webui_shell, "_probe_webkitgtk", lambda: None)
+    assert webui_shell.check_webview_runtime("linux") is None
+
+
+def test_check_webview_runtime_windows_is_none():
+    from npv_build.webui_shell import check_webview_runtime
+
+    assert check_webview_runtime("win32") is None
+
+
+def test_main_reports_missing_webkitgtk(monkeypatch, capsys):
+    from npv_build import webui_shell
+
+    monkeypatch.setattr(webui_shell.sys, "platform", "linux")
+    monkeypatch.setattr(webui_shell, "check_webview_runtime",
+                        lambda: "WebKitGTK runtime not found.\n"
+                                "sudo apt install gir1.2-webkit2-4.1")
+    assert webui_shell.main() == 1
+    assert "gir1.2-webkit2-4.1" in capsys.readouterr().err
+
+
 def test_main_reports_missing_webview(monkeypatch, capsys):
     import builtins
 

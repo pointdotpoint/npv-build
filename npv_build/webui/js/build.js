@@ -15,9 +15,11 @@ const STAGE_DEFS = [
 window.screens.build = {
   timer: null,
   _polling: false,
+  _ticks: 0,
   starts: {},
   async start(resume) {
     if (this.timer) clearInterval(this.timer);
+    this._logPinned = true;
     const s = store.state;
     store.set({ build: { running: true, stages: {}, log: "", error: null,
                          outputDir: null, progress: 0 } });
@@ -38,7 +40,16 @@ window.screens.build = {
     this._polling = true;
     try {
       const events = await Api.call("poll_events");
-      if (!events.length) return;
+      if (!events.length) {
+        // No pipeline events, but keep the elapsed-time display ticking
+        // (~1s) for any stage that is still running.
+        if (store.state.build.running && ++this._ticks >= 5) {
+          this._ticks = 0;
+          store.set({});
+        }
+        return;
+      }
+      this._ticks = 0;
       const b = { ...store.state.build };
       for (const ev of events) {
         if (ev.kind === "log") b.log += ev.text;
@@ -74,6 +85,8 @@ window.screens.build = {
     const left = document.createElement("div");
     for (const [key, label] of STAGE_DEFS) {
       const st = (b.stages || {})[key];
+      if (st && st.status === "started" && this.starts[key])
+        st.time = ((Date.now() - this.starts[key]) / 1000).toFixed(0) + "s";
       const cls = !st ? "pending"
         : st.status === "started" ? "running"
         : st.status === "failed" ? "failed"
@@ -110,10 +123,32 @@ window.screens.build = {
       startBtn.onclick = () => this.start(false);
       left.appendChild(startBtn);
     }
+    const logWrap = document.createElement("div");
+    logWrap.className = "log-wrap";
+    const copy = document.createElement("button");
+    copy.className = "secondary log-copy";
+    copy.textContent = "Copy log";
+    copy.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(store.state.build.log || "");
+        copy.textContent = "Copied ✓";
+        setTimeout(() => { copy.textContent = "Copy log"; }, 1500);
+      } catch {
+        copy.textContent = "Copy failed";
+      }
+    };
     const log = document.createElement("div");
     log.className = "log"; log.textContent = b.log || "";
-    grid.appendChild(left); grid.appendChild(log);
+    logWrap.appendChild(log); logWrap.appendChild(copy);
+    grid.appendChild(left); grid.appendChild(logWrap);
     el.appendChild(grid);
-    log.scrollTop = log.scrollHeight;
+    // Auto-scroll only while the user is pinned to the bottom; scrolling up
+    // pauses it, scrolling back down resumes it.
+    log.onscroll = () => {
+      this._logPinned = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
+      if (!this._logPinned) this._logScrollTop = log.scrollTop;
+    };
+    if (this._logPinned === false) log.scrollTop = this._logScrollTop || 0;
+    else log.scrollTop = log.scrollHeight;
   },
 };

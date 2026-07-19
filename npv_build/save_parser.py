@@ -323,6 +323,30 @@ def _resolve_decoder(v3: int) -> Callable[[SaveContainer], dict]:
     return decoder
 
 
+def hair_color_from_selections(selections: list[dict]) -> str:
+    """Extract V's hair colour from CC selections.
+
+    The save stores the colour as e.g. "62_molten_marmalade" (CC option index
+    + meshAppearance name) on a hair-labelled selection. Strips the numeric
+    prefix. Returns "" when no colour selection is present (e.g. bald).
+    """
+    hair_color_raw = ""
+    for s in selections:
+        if s.get("slot") == "character_customization":
+            lbl = (s.get("label") or "").lower()
+            if lbl.startswith("fhair_") or lbl.startswith("mhair_"):
+                hair_color_raw = s.get("raw", "")
+                break
+    if not hair_color_raw:
+        for s in selections:
+            if s.get("slot") in ("character_customization", "hairs"):
+                lbl = (s.get("label") or "").lower()
+                if "hair" in lbl and "fpp" not in lbl and s.get("raw", "") != "default":
+                    hair_color_raw = s.get("raw", "")
+                    break
+    return re.sub(r"^\d+_", "", hair_color_raw)
+
+
 def parse_save(save_path: Path) -> dict:
     if not save_path.exists():
         raise SaveParserError(f"Save file not found: {save_path}")

@@ -5,9 +5,11 @@ archive stem (the mod_id): ``<output_root>/<mod_id>/archive/pc/mod/<mod_id>.arch
 with a matching AMM lua file under
 ``<output_root>/<mod_id>/bin/x64/plugins/cyber_engine_tweaks/mods/AppearanceMenuMod/Collabs/Custom Entities/<mod_id>.lua``.
 
-Installing copies the archive + lua (+ any sibling ``.xl`` file, for
-forward-compat with an ArchiveXL-based pipeline) into the game's own
-mod directories. Uninstalling removes them. Both are idempotent.
+The mod root's ``archive/``, ``bin/`` and ``r6/`` trees mirror the game
+directory layout and together form the install payload (main .archive, AMM
+lua, photomode .archive.xl, TweakXL yaml, ...). Installing copies every
+payload file into the same relative path under the game directory;
+uninstalling removes them. Both are idempotent.
 """
 
 from __future__ import annotations
@@ -29,18 +31,25 @@ class ModEntry:
     archive_path: Path
     lua_path: Path
     installed: bool
+    built_at: float = 0.0  # archive mtime; 0.0 when unknown
 
 
 def game_mod_dir(game_dir: Path) -> Path:
     return Path(game_dir) / "archive" / "pc" / "mod"
 
 
-def _game_lua_dir(game_dir: Path) -> Path:
-    return Path(game_dir) / _LUA_SUBPATH
+_PAYLOAD_TREES = ("archive", "bin", "r6")
 
 
-def _xl_path(archive_path: Path) -> Path:
-    return archive_path.with_suffix(".xl")
+def _payload_files(entry: ModEntry) -> list[Path]:
+    """Every payload file as a path relative to the mod root (= game dir layout)."""
+    mod_root = entry.archive_path.parents[3]
+    files = []
+    for tree in _PAYLOAD_TREES:
+        root = mod_root / tree
+        if root.is_dir():
+            files.extend(p.relative_to(mod_root) for p in sorted(root.rglob("*")) if p.is_file())
+    return files
 
 
 def list_mods(output_root: Path, game_dir: Path) -> list[ModEntry]:
@@ -61,13 +70,14 @@ def list_mods(output_root: Path, game_dir: Path) -> list[ModEntry]:
                 archive_path=archive_path,
                 lua_path=lua_path,
                 installed=installed,
+                built_at=archive_path.stat().st_mtime,
             )
         )
     return entries
 
 
 def install_mod(entry: ModEntry, game_dir: Path) -> None:
-    """Copy the mod's archive + lua (+ .xl if present) into game_dir. Idempotent."""
+    """Copy every payload file into the same relative path under game_dir. Idempotent."""
     if not entry.archive_path.is_file():
         raise InstallError(
             f"Cannot install '{entry.mod_id}': archive not found.",
@@ -79,19 +89,13 @@ def install_mod(entry: ModEntry, game_dir: Path) -> None:
             remediation=f"Expected lua at {entry.lua_path}. Rebuild the mod.",
         )
 
-    mod_dir = game_mod_dir(game_dir)
-    lua_dir = _game_lua_dir(game_dir)
-
+    mod_root = entry.archive_path.parents[3]
+    game_dir = Path(game_dir)
     try:
-        mod_dir.mkdir(parents=True, exist_ok=True)
-        lua_dir.mkdir(parents=True, exist_ok=True)
-
-        shutil.copy2(entry.archive_path, mod_dir / entry.archive_path.name)
-        shutil.copy2(entry.lua_path, lua_dir / entry.lua_path.name)
-
-        xl_src = _xl_path(entry.archive_path)
-        if xl_src.is_file():
-            shutil.copy2(xl_src, mod_dir / xl_src.name)
+        for rel in _payload_files(entry):
+            dest = game_dir / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(mod_root / rel, dest)
     except OSError as e:
         raise InstallError(
             f"Could not write to the game directory: {game_dir}",
@@ -100,15 +104,29 @@ def install_mod(entry: ModEntry, game_dir: Path) -> None:
         ) from e
 
 
+def delete_mod(entry: ModEntry, game_dir: Path) -> None:
+    """Uninstall from the game (if installed), then remove the whole build
+    output directory for this mod. Idempotent."""
+    uninstall_mod(entry, game_dir)
+    mod_root = entry.archive_path.parents[3]
+    try:
+        if mod_root.is_dir():
+            shutil.rmtree(mod_root)
+    except OSError as e:
+        raise InstallError(
+            f"Could not delete the build output: {mod_root}",
+            remediation="Check permissions, or remove the folder manually.",
+            details=str(e),
+        ) from e
+
+
 def uninstall_mod(entry: ModEntry, game_dir: Path) -> None:
-    """Remove the mod's archive + lua (+ .xl if present) from game_dir. Idempotent."""
-    mod_dir = game_mod_dir(game_dir)
-    lua_dir = _game_lua_dir(game_dir)
+    """Remove every payload file from game_dir. Idempotent."""
+    game_dir = Path(game_dir)
 
     try:
-        (mod_dir / entry.archive_path.name).unlink(missing_ok=True)
-        (lua_dir / entry.lua_path.name).unlink(missing_ok=True)
-        (mod_dir / _xl_path(entry.archive_path).name).unlink(missing_ok=True)
+        for rel in _payload_files(entry):
+            (game_dir / rel).unlink(missing_ok=True)
     except OSError as e:
         raise InstallError(
             f"Could not remove files from the game directory: {game_dir}",

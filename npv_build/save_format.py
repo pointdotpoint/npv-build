@@ -88,6 +88,34 @@ class _Reader:
         return ""
 
 
+def probe_save_version(save_path) -> tuple[int, int, int]:
+    """Read only the sav.dat header and return the (v1, v2, v3) version tuple.
+
+    Cheap enough to run on every discovered save (no chunk decompression, no
+    node table). Raises SaveFormatError on unreadable/foreign headers.
+    """
+    try:
+        with open(save_path, "rb") as f:
+            head = f.read(4096)
+        r = _Reader(head)
+        magic = r.magic()
+        if magic not in (b"CSAV", b"SAVE"):
+            raise SaveFormatError(f"bad header magic: {magic!r}")
+        v1 = r.u32()
+        v2 = r.u32()
+        r.read_str_lpfxd()  # suk
+        r.u32()  # uk0
+        r.u32()  # uk1
+        v3 = 192
+        if v1 >= 83:
+            v3 = r.u32()
+        return (v1, v2, v3)
+    except SaveFormatError:
+        raise
+    except (OSError, struct.error, IndexError) as e:
+        raise SaveFormatError(f"unreadable save header: {e}") from e
+
+
 XLZ4_CHUNK_SIZE = 0x40000
 
 

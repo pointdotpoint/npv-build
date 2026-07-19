@@ -40,9 +40,15 @@ window.screens.library = {
     for (const mod of this.mods) {
       const card = document.createElement("div");
       card.className = "card";
-      card.innerHTML = `<strong>${esc(mod.mod_id)}</strong>` +
+      const built = mod.built_at
+        ? new Date(mod.built_at * 1000).toLocaleString() : "";
+      card.innerHTML = `<strong>${esc(mod.npv_name || mod.mod_id)}</strong>` +
+        (mod.npv_name
+          ? `<div class="muted" style="font-size:12px">${esc(mod.mod_id)}</div>` : "") +
         `<div style="margin:8px 0"><span class="badge">` +
-        `${mod.installed ? "installed" : "built"}</span></div>`;
+        `${mod.installed ? "installed" : "built"}</span>` +
+        (built ? ` <span class="muted" style="font-size:12px">built ${esc(built)}</span>` : "") +
+        `</div>`;
       const btn = document.createElement("button");
       btn.className = mod.installed ? "secondary" : "";
       btn.textContent = mod.installed ? "Uninstall" : "Install";
@@ -61,6 +67,49 @@ window.screens.library = {
         }
       };
       card.appendChild(btn);
+
+      const rebuild = document.createElement("button");
+      rebuild.className = "secondary";
+      rebuild.style.marginLeft = "8px";
+      rebuild.textContent = "Rebuild";
+      if (mod.save_path && mod.npv_name) {
+        rebuild.onclick = () => {
+          const outputDir = mod.archive_path
+            .replace(/[\\/]archive[\\/]pc[\\/]mod[\\/][^\\/]+$/, "");
+          store.set({
+            save: { path: mod.save_path, name: mod.npv_name, preview: null },
+            npvName: mod.npv_name, outputDir,
+            stepsDone: { source: true, appearance: true, build: false },
+            build: { running: false, stages: {}, log: "", error: null, outputDir: null },
+            screen: "build",
+          });
+        };
+      } else {
+        rebuild.disabled = true;
+        rebuild.title = "Built before rebuild metadata existed — build from the save instead.";
+      }
+      card.appendChild(rebuild);
+
+      const del = document.createElement("button");
+      del.className = "secondary";
+      del.style.marginLeft = "8px";
+      del.textContent = "Delete";
+      del.onclick = async () => {
+        if (del.textContent === "Delete") {
+          del.textContent = "Really delete?";
+          del.classList.add("err");
+          return;
+        }
+        del.disabled = true;
+        try {
+          const out = await Api.call("delete_mod", mod.mod_id);
+          if (out.ok) this.load();
+          else { del.textContent = out.error; }
+        } finally {
+          del.disabled = false;
+        }
+      };
+      card.appendChild(del);
       grid.appendChild(card);
     }
     if (!this.mods.length) {

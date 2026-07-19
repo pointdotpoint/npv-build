@@ -28,6 +28,8 @@ class Settings:
       - log_verbosity: Verbosity level (0=quiet, 1=normal, 2=verbose).
       - patch_override: Force a specific patch version, or None to auto-detect.
       - check_updates: Whether to check for npv-build updates on startup.
+      - clothing_images_dir: Folder with clothing thumbnails for the catalog
+        picker, or None to disable thumbnails.
     """
 
     game_dir: str | None
@@ -35,6 +37,7 @@ class Settings:
     log_verbosity: int
     patch_override: str | None
     check_updates: bool
+    clothing_images_dir: str | None = None
 
 
 def load_settings() -> Settings:
@@ -52,6 +55,7 @@ def load_settings() -> Settings:
         log_verbosity=config.get("log_verbosity", 0),
         patch_override=config.get("patch_override"),
         check_updates=config.get("check_updates", True),
+        clothing_images_dir=config.get("clothing_images_dir"),
     )
 
 
@@ -65,11 +69,19 @@ def save_settings(s: Settings) -> None:
         s: Settings instance to save.
     """
     config = load_config()
-    config["game_dir"] = s.game_dir
-    config["output_dir"] = s.output_dir
-    config["log_verbosity"] = s.log_verbosity
-    config["patch_override"] = s.patch_override
-    config["check_updates"] = s.check_updates
+    # TOML has no null: a None field means "unset" and its key is removed.
+    for key, value in (
+        ("game_dir", s.game_dir),
+        ("output_dir", s.output_dir),
+        ("log_verbosity", s.log_verbosity),
+        ("patch_override", s.patch_override),
+        ("check_updates", s.check_updates),
+        ("clothing_images_dir", s.clothing_images_dir),
+    ):
+        if value is None:
+            config.pop(key, None)
+        else:
+            config[key] = value
     save_config(config)
 
 
@@ -94,5 +106,11 @@ def validate(s: Settings) -> list[str]:
     if s.game_dir is not None:
         if not is_valid_game_dir(Path(s.game_dir)):
             problems.append(f"Game directory is not valid: {s.game_dir}")
+
+    if s.clothing_images_dir is not None:
+        if not Path(s.clothing_images_dir).is_dir():
+            problems.append(
+                f"Clothing images directory does not exist: {s.clothing_images_dir}"
+            )
 
     return problems

@@ -10,7 +10,7 @@ from .core.cancel import CancelToken
 from .core.errors import NpvError, PipelineCancelled
 from .core.logging_setup import CallbackHandler, configure_logging
 from .core.pipeline import BuildRequest, PipelineService
-from .save_parser import parse_save
+from .save_parser import hair_color_from_selections, parse_save
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +183,32 @@ def check_dependencies(game_dir: Path | None) -> dict:
     }
 
 
+def resolve_tool_paths() -> dict:
+    """Resolved absolute path per external tool, or None when not found.
+    Mirrors check_dependencies' lookup order (PATH first, then the tool cache)."""
+    tools_dir = get_cache_dir() / "tools"
+    ext = ".exe" if sys.platform == "win32" else ""
+
+    wolvenkit = shutil.which("WolvenKit.CLI")
+    if not wolvenkit:
+        for candidate in (tools_dir / "wolvenkit" / f"WolvenKit.CLI{ext}",
+                          tools_dir / "wolvenkit" / "cp77tools"):
+            if candidate.exists():
+                wolvenkit = str(candidate)
+                break
+
+    blender = shutil.which("blender") or shutil.which("org.blender.Blender")
+    if not blender:
+        local_blender_dir = tools_dir / "blender"
+        if local_blender_dir.exists():
+            for path in local_blender_dir.rglob(f"blender{ext}"):
+                if path.is_file() and not path.is_symlink():
+                    blender = str(path)
+                    break
+
+    return {"wolvenkit": wolvenkit, "blender": blender}
+
+
 def preview_save(save_path: Path) -> dict:
     """Parse save file and return summary.
 
@@ -197,6 +223,8 @@ def preview_save(save_path: Path) -> dict:
         "body_rig": cc_settings.get("body_rig", "Unknown"),
         "skin_tone": skin.get("tone_id") or "Unknown",
         "hair_style": hair.get("style_id") or "Unknown",
-        "hair_color": hair.get("color") or "Unknown",
+        "hair_color": (hair.get("color")
+                       or hair_color_from_selections(cc_settings.get("selections", []))
+                       or "Unknown"),
         "selections_count": len(cc_settings.get("selections", [])),
     }

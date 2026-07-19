@@ -11,6 +11,6 @@ store.subscribe(renderApp);
 (async function init() {
   const appState = await Api.call("get_state");
   const patch = { appState };
-  if (appState.needs_onboarding) patch.screen = "settings";
+  if (appState.needs_onboarding) patch.screen = "onboarding";
   store.set(patch);
 })();

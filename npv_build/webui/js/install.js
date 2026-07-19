@@ -18,6 +18,31 @@ window.screens.install = {
       `<div class="muted">The mod zip inside is ready for AMM: spawn it from ` +
       `Appearance Menu Mod → Custom Entities after installing.</div>`;
     el.appendChild(card);
+
+    const zipCard = document.createElement("div");
+    zipCard.className = "card zip-summary";
+    zipCard.innerHTML = `<div class="muted">Reading mod zip…</div>`;
+    el.appendChild(zipCard);
+    if (s.build.outputDir) {
+      Api.call("zip_info", s.build.outputDir).then((out) => {
+        if (!out.ok) {
+          zipCard.innerHTML = `<span class="err">${esc(out.error)}</span>`;
+          return;
+        }
+        const mb = (out.zip.size / (1024 * 1024)).toFixed(1) + " MB";
+        const name = out.zip.path.split(/[\\/]/).pop();
+        zipCard.innerHTML =
+          `<div class="row"><strong>${esc(name)}</strong>` +
+          `<span class="muted">${esc(mb)}</span></div>` +
+          out.zip.files.map((f) =>
+            `<div class="row muted" style="font-size:12px">` +
+            `<span>${esc(f.name)}</span><span>${(f.size / 1024).toFixed(0)} KB</span></div>`
+          ).join("");
+      });
+    } else {
+      zipCard.style.display = "none";
+    }
+
     const row = document.createElement("div");
     row.className = "row"; row.style.marginTop = "16px";
     const install = document.createElement("button");
@@ -37,6 +62,12 @@ window.screens.install = {
         install.disabled = false;
       }
     };
+    const openBtn = document.createElement("button");
+    openBtn.className = "secondary"; openBtn.textContent = "Open folder";
+    openBtn.onclick = async () => {
+      const out = await Api.call("open_folder", s.build.outputDir || "");
+      if (!out.ok) { openBtn.textContent = "Failed"; openBtn.classList.add("err"); }
+    };
     const again = document.createElement("button");
     again.className = "secondary"; again.textContent = "Build another";
     again.onclick = () => store.set({
@@ -45,7 +76,7 @@ window.screens.install = {
       build: { running: false, stages: {}, log: "", error: null, outputDir: null },
       screen: "source",
     });
-    row.appendChild(install); row.appendChild(again);
+    row.appendChild(install); row.appendChild(openBtn); row.appendChild(again);
     el.appendChild(row);
   },
 };

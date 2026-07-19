@@ -67,6 +67,31 @@ def test_preview_save(monkeypatch):
     assert res["selections_count"] == 3
 
 
+def test_preview_save_hair_color_from_selections(monkeypatch):
+    # Real saves have no hair.color key; the colour lives in the selections
+    # (e.g. label "winona_2_hair", raw "51_succulent"). Regression: GUI QA
+    # showed "(Unknown)" for every save.
+    def mock_parse_save(save_path):
+        return {
+            "body_rig": "pwa",
+            "skin": {"tone_id": "01_ca_pale"},
+            "hair": {"style_id": "winona_2", "raw": "winona_2_hair"},
+            "selections": [
+                {"slot": "character_customization", "label": "eyes_color",
+                 "raw": "he_000_pwa__basehead__11_gradient_blue"},
+                {"slot": "character_customization", "label": "winona_2_hair",
+                 "raw": "51_succulent"},
+                {"slot": "character_customization", "label": "winona_2_hair_fpp",
+                 "raw": "default"},
+            ],
+        }
+
+    monkeypatch.setattr(gui_backend, "parse_save", mock_parse_save)
+
+    res = gui_backend.preview_save(Path("dummy.sav.dat"))
+    assert res["hair_color"] == "succulent"
+
+
 def test_preview_save_empty_optionals_fall_back_to_unknown(monkeypatch):
     # A save with empty hair/skin entries must preview as "Unknown", not "".
     def mock_parse_save(save_path):

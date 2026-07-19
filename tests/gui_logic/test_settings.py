@@ -18,6 +18,44 @@ def test_roundtrip_preserves_unknown_keys(monkeypatch):
     assert store["log_verbosity"] == 2
 
 
+def test_save_settings_with_none_fields_is_toml_serializable(monkeypatch):
+    """None fields (unset game_dir/output_dir/patch_override) must be dropped,
+    not written: TOML has no null. Regression: GUI QA hit a TypeError crash in
+    save_config when saving settings with an empty output directory."""
+    import tomli_w
+
+    import npv_build.gui_logic.settings as st
+
+    store = {}
+    monkeypatch.setattr(st, "load_config", lambda: dict(store))
+    monkeypatch.setattr(st, "save_config", lambda c: store.clear() or store.update(c))
+
+    save_settings(Settings(
+        game_dir="/g",
+        output_dir=None,
+        log_verbosity=1,
+        patch_override=None,
+        check_updates=True,
+    ))
+    assert store["game_dir"] == "/g"
+    assert "output_dir" not in store and "patch_override" not in store
+    tomli_w.dumps(store)  # must not raise
+
+
+def test_save_settings_none_unsets_previous_value(monkeypatch):
+    """Clearing a field in the GUI (value -> None) must remove the stored key."""
+    import npv_build.gui_logic.settings as st
+
+    store = {"output_dir": "/old"}
+    monkeypatch.setattr(st, "load_config", lambda: dict(store))
+    monkeypatch.setattr(st, "save_config", lambda c: store.clear() or store.update(c))
+
+    s = load_settings()
+    s.output_dir = None
+    save_settings(s)
+    assert "output_dir" not in store
+
+
 def test_validate_flags_bad_verbosity():
     """Validate should flag verbosity outside 0-2 range."""
     s = Settings(
@@ -29,6 +67,25 @@ def test_validate_flags_bad_verbosity():
     )
     problems = validate(s)
     assert any("verbosity" in p.lower() for p in problems)
+
+
+def test_clothing_images_dir_roundtrip_and_validation(monkeypatch, tmp_path):
+    import npv_build.gui_logic.settings as st
+
+    store = {"clothing_images_dir": str(tmp_path)}
+    monkeypatch.setattr(st, "load_config", lambda: dict(store))
+    monkeypatch.setattr(st, "save_config", lambda c: store.clear() or store.update(c))
+
+    s = load_settings()
+    assert s.clothing_images_dir == str(tmp_path)
+    assert validate(s) == []
+
+    s.clothing_images_dir = str(tmp_path / "missing")
+    assert any("clothing images" in p.lower() for p in validate(s))
+
+    s.clothing_images_dir = None
+    save_settings(s)
+    assert "clothing_images_dir" not in store
 
 
 def test_load_settings_defaults(monkeypatch):

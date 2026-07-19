@@ -39,7 +39,8 @@ window.screens.source = {
             `<div class="remediation">${esc(preview.remediation)}</div>`;
         }
       }
-      card.innerHTML = `<div class="row"><strong>${esc(save.name)}</strong>` +
+      const badge = save.patch ? `<span class="badge">${esc(save.patch)}</span>` : "";
+      card.innerHTML = `<div class="row"><span><strong>${esc(save.name)}</strong>${badge}</span>` +
         `<span class="muted">${date}</span></div>` +
         `<div class="muted preview">${previewHtml}</div>`;
       card.onclick = () => this.pick(save, card);
@@ -53,40 +54,63 @@ window.screens.source = {
     list.appendChild(scratch);
     el.appendChild(list);
 
-    const form = document.createElement("div");
-    form.innerHTML = `
-      <label>NPV name (AMM spawn label)</label>
-      <input type="text" id="npv-name" value="${esc(s.npvName || "")}">
-      <label>Output directory</label>
-      <input type="text" id="output-dir" value="${esc(s.outputDir || "")}">`;
-    el.appendChild(form);
+    const sourceError = document.createElement("div");
+    sourceError.className = "form-error err";
+    sourceError.style.display = "none";
+    sourceError.style.marginTop = "12px";
+    el.appendChild(sourceError);
+    const showError = (msg) => {
+      sourceError.textContent = msg;
+      sourceError.style.display = "";
+    };
 
-    form.querySelector("#npv-name").addEventListener("input", (e) => {
-      store.state.npvName = e.target.value;
-    });
-    form.querySelector("#output-dir").addEventListener("input", (e) => {
-      store.state.outputDir = e.target.value;
-    });
+    const browse = document.createElement("button");
+    browse.className = "secondary";
+    browse.textContent = "Browse…";
+    browse.style.marginTop = "12px";
+    browse.onclick = async () => {
+      const out = await Api.call("browse_for_save");
+      if (out.cancelled) return;
+      if (!out.ok) { showError(out.error + " " + (out.remediation || "")); return; }
+      this.addSave(out.save);
+    };
+    el.appendChild(browse);
+
+    // Drag & drop a sav.dat (or its folder) anywhere on the screen. Full
+    // paths are only exposed by the pywebview desktop shell.
+    el.ondragover = (e) => e.preventDefault();
+    el.ondrop = async (e) => {
+      e.preventDefault();
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      const path = f && (f.pywebviewFullPath || f.path);
+      if (!path) {
+        showError("Drag & drop needs the desktop app — use Browse… instead.");
+        return;
+      }
+      const out = await Api.call("add_save_path", path);
+      if (!out.ok) { showError(out.error + " " + (out.remediation || "")); return; }
+      this.addSave(out.save);
+    };
 
     const cont = document.createElement("button");
     cont.textContent = "Continue →";
     cont.style.marginTop = "16px";
     cont.disabled = !(s.save && s.save.preview && s.save.preview.ok);
     cont.onclick = () => {
-      const npvName = document.getElementById("npv-name").value.trim();
-      const outputDir = document.getElementById("output-dir").value.trim();
-      if (!npvName || !outputDir) return;
       store.set({
-        npvName, outputDir,
         stepsDone: { ...store.state.stepsDone, source: true },
         screen: "appearance",
       });
     };
     el.appendChild(cont);
   },
+  addSave(save) {
+    this.saves = [save, ...this.saves.filter((s) => s.path !== save.path)];
+    this.pick(save);
+  },
   async pick(save, card) {
     const token = (this._pickToken = (this._pickToken || 0) + 1);
-    card.querySelector(".preview").textContent = "Parsing…";
+    if (card) card.querySelector(".preview").textContent = "Parsing…";
     const preview = await Api.call("preview_save", save.path);
     if (token !== this._pickToken) return; // superseded by a newer click
     if (!preview.ok) {
@@ -95,8 +119,10 @@ window.screens.source = {
     }
     const defaults = {};
     if (!store.state.npvName) defaults.npvName = save.name;
-    if (!store.state.outputDir && store.state.appState.settings.output_dir)
-      defaults.outputDir = store.state.appState.settings.output_dir + "/" + save.name;
+    const outRoot = store.state.appState.default_output_root ||
+      store.state.appState.settings.output_dir;
+    if (!store.state.outputDir && outRoot)
+      defaults.outputDir = outRoot + "/" + save.name;
     store.set({ save: { ...save, preview }, ...defaults });
   },
 };
