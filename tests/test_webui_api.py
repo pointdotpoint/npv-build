@@ -509,9 +509,13 @@ def test_add_hair_mod_installs_probes_and_returns_token(monkeypatch, tmp_path):
     monkeypatch.setattr("npv_build.webui_api.install_hair_mod",
                         lambda src, gd: ("edie", [tmp_path / "edie_hair.archive"]))
     monkeypatch.setattr(
+        "npv_build.webui_api.list_mod_archive_apps",
+        lambda wk, archive_path: ["base\\x\\fhair_edie.app"],
+    )
+    monkeypatch.setattr(
         "npv_build.webui_api.extract_hair_components",
         lambda gd, token, rig, verbosity=0, wk=None:
-            ([{"name": "c"}], "edie_hair.archive", "base\\x\\edie.app", "edie"),
+            ([{"name": "c"}], "edie_hair.archive", "base\\x\\fhair_edie.app", "edie"),
     )
     out = WebUiApi().add_hair_mod(str(tmp_path / "edie_hair.zip"))
     assert out["ok"] is True
@@ -528,7 +532,11 @@ def test_add_hair_mod_no_hair_app_is_structured_error(monkeypatch, tmp_path):
                          patch_override=None, check_updates=True),
     )
     monkeypatch.setattr("npv_build.webui_api.install_hair_mod",
-                        lambda src, gd: ("notahair", []))
+                        lambda src, gd: ("notahair", [tmp_path / "notahair.archive"]))
+    monkeypatch.setattr(
+        "npv_build.webui_api.list_mod_archive_apps",
+        lambda wk, archive_path: ["base\\x\\not_a_hair_thing.app"],
+    )
     monkeypatch.setattr(
         "npv_build.webui_api.extract_hair_components",
         lambda gd, token, rig, verbosity=0, wk=None: ([], None, None, None),
@@ -536,6 +544,70 @@ def test_add_hair_mod_no_hair_app_is_structured_error(monkeypatch, tmp_path):
     out = WebUiApi().add_hair_mod(str(tmp_path / "notahair.zip"))
     assert out["ok"] is False
     assert "hair" in out["error"].lower()
+    assert out["remediation"]
+
+
+def test_add_hair_mod_token_from_app_basename_not_filename(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    archive_path = tmp_path / "ANRUI_MiyaviHair_Fluffypony_CCXL.archive"
+    monkeypatch.setattr(
+        "npv_build.webui_api.install_hair_mod",
+        lambda src, gd: ("anrui_miyavihair_fluffypony_ccxl", [archive_path]),
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.list_mod_archive_apps",
+        lambda wk, archive_path_arg: [
+            "anruimurasaki\\ccxl\\miyavihair_fluffytail\\appearances\\fhair_miyavi_fluffytail.app",
+            "anruimurasaki\\ccxl\\miyavihair_fluffytail\\appearances\\fpp\\"
+            "fhair_miyavi_fluffytail_fpp.app",
+            "anruimurasaki\\ccxl\\miyavihair_fluffytail\\appearances\\mhair_miyavi_fluffytail.app",
+        ],
+    )
+    seen_tokens = []
+
+    def fake_extract(gd, token, rig, verbosity=0, wk=None):
+        seen_tokens.append(token)
+        return ([{"name": "c"}], archive_path.name, "base\\x\\fhair_miyavi_fluffytail.app", token)
+
+    monkeypatch.setattr("npv_build.webui_api.extract_hair_components", fake_extract)
+    out = WebUiApi().add_hair_mod(str(tmp_path / "ANRUI_MiyaviHair_Fluffypony_CCXL.archive"))
+    assert out["ok"] is True
+    assert out["token"] == "miyavi_fluffytail"
+    assert seen_tokens == ["miyavi_fluffytail"]
+    assert out["source"] == archive_path.name
+
+
+def test_add_hair_mod_roundtrip_failure_is_structured(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    archive_path = tmp_path / "weird_hair.archive"
+    monkeypatch.setattr(
+        "npv_build.webui_api.install_hair_mod",
+        lambda src, gd: ("weird_hair", [archive_path]),
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.list_mod_archive_apps",
+        lambda wk, archive_path_arg: ["base\\x\\fhair_something_else.app"],
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.extract_hair_components",
+        lambda gd, token, rig, verbosity=0, wk=None: ([], None, None, None),
+    )
+    out = WebUiApi().add_hair_mod(str(tmp_path / "weird_hair.archive"))
+    assert out["ok"] is False
+    assert "could not be resolved" in out["error"].lower()
+    assert "something_else" in out["error"]
     assert out["remediation"]
 
 

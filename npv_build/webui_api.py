@@ -46,6 +46,11 @@ from .wk_cli import WolvenKit, WolvenKitConfig
 logger = logging.getLogger(__name__)
 
 
+def list_mod_archive_apps(wk: WolvenKit, archive_path: Path) -> list[str]:
+    """List depot paths of every .app file inside a specific mod archive."""
+    return wk.list_archive(r".*\.app$", archive=archive_path)
+
+
 def _app_version() -> str:
     try:
         return pkg_version("npv-build")
@@ -242,18 +247,68 @@ class WebUiApi:
                     "remediation": "Set it in Settings."}
         game_dir = Path(s.game_dir)
         try:
-            token, _installed = install_hair_mod(Path(path), game_dir)
+            _filename_token, installed = install_hair_mod(Path(path), game_dir)
         except NpvError as e:
             return {"ok": False, "error": e.user_message,
                     "remediation": e.remediation or ""}
         except (ValueError, OSError) as e:
             return {"ok": False, "error": str(e),
                     "remediation": "Pick a hair mod file: .archive, .zip, .7z or .rar."}
-        # Probe: does the installed mod actually carry a findable hair .app?
-        # extract_hair_components pre-filters candidates by filename/.xl
-        # sidecar, so this lists ~1 archive, not the whole mod dir.
+        archive_path = next(
+            (p for p in installed if str(p).lower().endswith(".archive")), None)
+        if archive_path is None:
+            return {"ok": False,
+                    "error": f"No hair appearance found in '{Path(path).name}'.",
+                    "remediation": "This does not look like a CCXL/hair mod — "
+                                   "pick the mod's main .archive (or its zip/7z/rar)."}
+        archive_path = Path(archive_path)
+        # Probe: list the *installed archive's own* .app files rather than
+        # trusting a token derived from the archive filename — mod filenames
+        # (e.g. "ANRUI_MiyaviHair_Fluffypony_CCXL.archive") frequently have no
+        # relationship to the internal depot paths, so a filename-derived token
+        # can never match anything inside extract_hair_components' tokenizer.
         try:
             wk = WolvenKit(WolvenKitConfig(game_dir=game_dir, verbosity=0))
+            app_paths = list_mod_archive_apps(wk, archive_path)
+        except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
+            logger.exception("hair mod probe failed")
+            return {"ok": False, "error": f"Could not inspect the hair mod: {e}",
+                    "remediation": "Check the file and try again."}
+        gender_pref = "fhair_" if body_rig == "pwa" else "mhair_"
+        candidates = []
+        for p in app_paths:
+            if "\\fpp\\" in p.lower():
+                continue
+            bn = p.replace("\\", "/").rsplit("/", 1)[-1]
+            bn_low = bn.lower()
+            if bn_low.startswith("fhair_") or bn_low.startswith("mhair_") or "hair" in bn_low:
+                candidates.append((p, bn))
+        if not candidates:
+            return {"ok": False,
+                    "error": f"No hair appearance found in '{Path(path).name}'.",
+                    "remediation": "This does not look like a CCXL/hair mod — "
+                                   "pick the mod's main .archive (or its zip/7z/rar)."}
+
+        def score(item: tuple[str, str]) -> int:
+            _p, bn = item
+            bn_low = bn.lower()
+            s = 0
+            if bn_low.startswith(gender_pref):
+                s += 4
+            if "cyb" not in bn_low and "shaved" not in bn_low:
+                s += 1
+            return s
+
+        _best_path, best_basename = max(candidates, key=score)
+        token = best_basename
+        if token.lower().endswith(".app"):
+            token = token[: -len(".app")]
+        for pre in ("fhair_", "mhair_"):
+            if token.lower().startswith(pre):
+                token = token[len(pre):]
+                break
+
+        try:
             _comps, src, app_depot, _app_name = extract_hair_components(
                 game_dir, token, body_rig, verbosity=0, wk=wk)
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
@@ -262,10 +317,11 @@ class WebUiApi:
                     "remediation": "Check the file and try again."}
         if not app_depot:
             return {"ok": False,
-                    "error": f"No hair appearance found in '{Path(path).name}'.",
-                    "remediation": "This does not look like a CCXL/hair mod — "
-                                   "pick the mod's main .archive (or its zip/7z/rar)."}
-        return {"ok": True, "token": token, "source": src or "",
+                    "error": f"Hair mod installed but its hair could not be resolved "
+                             f"(token '{token}').",
+                    "remediation": "Open an issue with the mod name — its naming "
+                                   "defeats token matching."}
+        return {"ok": True, "token": token, "source": src or archive_path.name,
                 "warning": "The NPV needs this hair mod to stay installed."}
 
     def browse_for_hair_mod(self) -> dict:
