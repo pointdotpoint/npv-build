@@ -6,7 +6,23 @@ Design spec for the GUI items: `docs/superpowers/specs/2026-07-18-gui-redesign-w
 
 ## GUI redesign — remaining plans
 
-### Plan 2 — Appearance inspector with overrides *(next up; implementation plan not yet written)*
+Dispatchable implementation plans exist for everything in this section and the
+perf item (written 2026-07-19, superpowers plan format — executable task-by-task
+via subagent-driven-development or executing-plans):
+
+| Work | Plan file |
+| --- | --- |
+| Plan 2 — Appearance inspector | `docs/superpowers/plans/2026-07-19-webui-appearance-inspector.md` |
+| Plan 3 — From-scratch builds | `docs/superpowers/plans/2026-07-19-from-scratch-presets.md` |
+| Plan 4 — Clothing catalog | `docs/superpowers/plans/2026-07-19-clothing-catalog.md` |
+| Assemble scan cache (perf) | `docs/superpowers/plans/2026-07-19-assemble-scan-cache.md` |
+
+Execution order: plan 2 → plan 4 (depends on plan 2's row/override contract);
+plan 3 and the scan cache are independent and can run any time. Plan 3's preset
+data and plan 4's in-game garment check are user-gated; everything else is
+agent-dispatchable as-is.
+
+### Plan 2 — Appearance inspector with overrides *(next up)*
 
 Two-pane inspector (categories + searchable settings table), dropdowns from mapping tables,
 sliders for face morphs, amber override badges + one-click revert, "Reset all", overrides dict
@@ -16,6 +32,10 @@ applied to a copy of `cc_settings`, persisted per-save, dry-run resolve on Conti
 - New pure module `gui_logic/appearance.py` + vendored `data/display_names.json`
 - Subsumes CLI `--garment` in the GUI
 - Also moves NPV name + output dir from Source to this step (per spec)
+- **Added 2026-07-19:** modded hair (CCXL) input — pick a hair mod file
+  (.archive/.zip/.7z/.rar), it installs into the game dir and overrides the
+  NPV's hair via the existing CCXL pipeline branch
+  (research: `docs/research/2026-07-19-ccxl-hair-input.md`)
 
 ### Plan 3 — From-scratch builds
 
@@ -35,7 +55,7 @@ Replaces the greyed-out "From scratch — coming soon" card on Source:
 - Browse… picker grid per clothing slot (name search, slot filter, rig-buildable only)
 - **Front-loaded spike:** dump TweakDB and measure real join coverage per rig before wiring UI
 
-## Smaller spec items missing from the current shell
+## Smaller spec items missing from the current shell — ✅ ALL SHIPPED 2026-07-19 (`77f1309`)
 
 - **Source:** manual browse + drag-drop; patch badge on save cards
 - **Build:** log copy button; pause-on-scroll-up
@@ -62,4 +82,5 @@ Replaces the greyed-out "From scratch — coming soon" card on Source:
 ## Known perf improvement (from 2026-07-19 GUI QA)
 
 - Assemble stage rescans every installed mod archive per head-mesh layer (~6s per archive per
-  layer); caching the scan result per build would cut minutes off large mod setups
+  layer); caching the scan result per build would cut minutes off large mod setups.
+  Plan: `docs/superpowers/plans/2026-07-19-assemble-scan-cache.md`
