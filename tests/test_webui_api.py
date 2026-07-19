@@ -124,6 +124,29 @@ def test_browse_for_save_without_webview_is_structured_error():
     assert out["error"]
 
 
+def test_browse_for_hair_mod_passes_body_rig_through(monkeypatch):
+    import sys
+    import types
+
+    fake_window = types.SimpleNamespace(
+        create_file_dialog=lambda *a, **k: ["/x/h.archive"])
+    fake_webview = types.SimpleNamespace(windows=[fake_window], OPEN_DIALOG="open")
+    monkeypatch.setitem(sys.modules, "webview", fake_webview)
+
+    recorded = {}
+
+    def fake_add_hair_mod(self, path, body_rig="pwa"):
+        recorded["path"] = path
+        recorded["body_rig"] = body_rig
+        return {"ok": True}
+
+    monkeypatch.setattr(WebUiApi, "add_hair_mod", fake_add_hair_mod)
+
+    out = WebUiApi().browse_for_hair_mod("pma")
+    assert out == {"ok": True}
+    assert recorded == {"path": "/x/h.archive", "body_rig": "pma"}
+
+
 def test_zip_info_reports_contents(tmp_path):
     import zipfile
 
@@ -422,3 +445,219 @@ def test_start_build_without_game_dir_errors(monkeypatch):
     out = WebUiApi().start_build({"save_path": "/s", "npv_name": "V",
                                   "output_dir": "/o"})
     assert out["ok"] is False and "Game directory" in out["error"]
+
+
+def test_appearance_data_rows_and_overrides(monkeypatch, tmp_path):
+    cc = {
+        "patch": "2.31", "body_rig": "pwa", "selections": [],
+        "head": {}, "eyes": {"raw": "he_000_pwa__basehead__11_gradient_blue"},
+        "teeth": {"raw": ""}, "skin": {"tone_id": "01_ca_pale"},
+        "hair": {"style_id": "winona_2", "raw": ""}, "overlays": [],
+        "face_morphs": {"eyes": "h091"},
+    }
+    monkeypatch.setattr("npv_build.webui_api.parse_save_for_inspector", lambda p: cc)
+    monkeypatch.setattr("npv_build.webui_api.load_part_index", lambda patch: {})
+    monkeypatch.setattr("npv_build.webui_api.load_overrides",
+                        lambda p: {"skin_tone": "03_ca_medium"})
+    out = WebUiApi().appearance_data("/s/sav.dat")
+    assert out["ok"] is True
+    ids = [r["slot_id"] for r in out["rows"]]
+    assert "skin_tone" in ids and "face_morph_eyes" in ids
+    assert out["overrides"] == {"skin_tone": "03_ca_medium"}
+
+
+def test_set_overrides_validates_and_persists(monkeypatch):
+    saved = {}
+    monkeypatch.setattr("npv_build.webui_api.save_overrides",
+                        lambda p, o: saved.update({p: o}))
+    monkeypatch.setattr("npv_build.webui_api.load_part_index", lambda patch: {})
+    monkeypatch.setattr("npv_build.webui_api.parse_save_for_inspector",
+                        lambda p: {"patch": "2.31", "body_rig": "pwa"})
+    api = WebUiApi()
+    # no option list available -> value accepted (validated at build)
+    assert api.set_overrides("/s/sav.dat", {"skin_tone": "x"}) == {"ok": True}
+    assert saved["/s/sav.dat"] == {"skin_tone": "x"}
+    # unknown slot always rejected
+    out = api.set_overrides("/s/sav.dat", {"bogus": "x"})
+    assert out["ok"] is False and "bogus" in out["error"]
+
+
+def test_start_build_passes_stored_overrides(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    started = {}
+
+    class FakeWorker:
+        def __init__(self, q): pass
+        def start(self, **kwargs): started.update(kwargs)
+
+    monkeypatch.setattr("npv_build.webui_api.BuildWorker", FakeWorker)
+    monkeypatch.setattr("npv_build.webui_api.load_overrides",
+                        lambda p: {"skin_tone": "03_ca_medium"})
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    WebUiApi().start_build({"save_path": "/s/sav.dat", "npv_name": "V",
+                            "output_dir": str(tmp_path / "o")})
+    assert started["cc_overrides"] == {"skin_tone": "03_ca_medium"}
+
+
+def test_load_part_index_resolves_table_key(monkeypatch, tmp_path):
+    from npv_build import webui_api
+
+    calls = []
+
+    def spy(patch):
+        calls.append(patch)
+        return tmp_path / f"{patch}.json"
+
+    (tmp_path / "2.13.json").write_text('{"part_ents": {}}', encoding="utf-8")
+
+    monkeypatch.setattr(webui_api, "get_index_path", spy)
+    result = webui_api.load_part_index("2.31")
+    assert result == {"part_ents": {}}
+    assert calls == ["2.13"]
+
+
+def test_add_hair_mod_installs_probes_and_returns_token(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    monkeypatch.setattr("npv_build.webui_api.install_hair_mod",
+                        lambda src, gd: ("edie", [tmp_path / "edie_hair.archive"]))
+    monkeypatch.setattr(
+        "npv_build.webui_api.list_mod_archive_apps",
+        lambda wk, archive_path: ["base\\x\\fhair_edie.app"],
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.extract_hair_components",
+        lambda gd, token, rig, verbosity=0, wk=None:
+            ([{"name": "c"}], "edie_hair.archive", "base\\x\\fhair_edie.app", "edie"),
+    )
+    out = WebUiApi().add_hair_mod(str(tmp_path / "edie_hair.zip"))
+    assert out["ok"] is True
+    assert out["token"] == "edie"
+    assert out["source"] == "edie_hair.archive"
+
+
+def test_add_hair_mod_no_hair_app_is_structured_error(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    monkeypatch.setattr("npv_build.webui_api.install_hair_mod",
+                        lambda src, gd: ("notahair", [tmp_path / "notahair.archive"]))
+    monkeypatch.setattr(
+        "npv_build.webui_api.list_mod_archive_apps",
+        lambda wk, archive_path: ["base\\x\\not_a_hair_thing.app"],
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.extract_hair_components",
+        lambda gd, token, rig, verbosity=0, wk=None: ([], None, None, None),
+    )
+    out = WebUiApi().add_hair_mod(str(tmp_path / "notahair.zip"))
+    assert out["ok"] is False
+    assert "hair" in out["error"].lower()
+    assert out["remediation"]
+
+
+def test_add_hair_mod_token_from_app_basename_not_filename(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    archive_path = tmp_path / "ANRUI_MiyaviHair_Fluffypony_CCXL.archive"
+    monkeypatch.setattr(
+        "npv_build.webui_api.install_hair_mod",
+        lambda src, gd: ("anrui_miyavihair_fluffypony_ccxl", [archive_path]),
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.list_mod_archive_apps",
+        lambda wk, archive_path_arg: [
+            "anruimurasaki\\ccxl\\miyavihair_fluffytail\\appearances\\fhair_miyavi_fluffytail.app",
+            "anruimurasaki\\ccxl\\miyavihair_fluffytail\\appearances\\fpp\\"
+            "fhair_miyavi_fluffytail_fpp.app",
+            "anruimurasaki\\ccxl\\miyavihair_fluffytail\\appearances\\mhair_miyavi_fluffytail.app",
+        ],
+    )
+    seen_tokens = []
+
+    def fake_extract(gd, token, rig, verbosity=0, wk=None):
+        seen_tokens.append(token)
+        return ([{"name": "c"}], archive_path.name, "base\\x\\fhair_miyavi_fluffytail.app", token)
+
+    monkeypatch.setattr("npv_build.webui_api.extract_hair_components", fake_extract)
+    out = WebUiApi().add_hair_mod(str(tmp_path / "ANRUI_MiyaviHair_Fluffypony_CCXL.archive"))
+    assert out["ok"] is True
+    assert out["token"] == "miyavi_fluffytail"
+    assert seen_tokens == ["miyavi_fluffytail"]
+    assert out["source"] == archive_path.name
+
+
+def test_add_hair_mod_roundtrip_failure_is_structured(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    archive_path = tmp_path / "weird_hair.archive"
+    monkeypatch.setattr(
+        "npv_build.webui_api.install_hair_mod",
+        lambda src, gd: ("weird_hair", [archive_path]),
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.list_mod_archive_apps",
+        lambda wk, archive_path_arg: ["base\\x\\fhair_something_else.app"],
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.extract_hair_components",
+        lambda gd, token, rig, verbosity=0, wk=None: ([], None, None, None),
+    )
+    out = WebUiApi().add_hair_mod(str(tmp_path / "weird_hair.archive"))
+    assert out["ok"] is False
+    assert "could not be resolved" in out["error"].lower()
+    assert "something_else" in out["error"]
+    assert out["remediation"]
+
+
+def test_add_hair_mod_without_game_dir_is_structured(monkeypatch):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=None, output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    out = WebUiApi().add_hair_mod("/x/hair.zip")
+    assert out["ok"] is False and "Game directory" in out["error"]
+
+
+def test_add_hair_mod_bad_package_is_structured(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+
+    def boom(src, gd):
+        raise ValueError("No .archive file found inside the mod package.")
+
+    monkeypatch.setattr("npv_build.webui_api.install_hair_mod", boom)
+    out = WebUiApi().add_hair_mod(str(tmp_path / "empty.zip"))
+    assert out["ok"] is False and "No .archive" in out["error"]

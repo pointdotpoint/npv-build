@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from ..gui_logic.appearance import apply_overrides
 from ..mapping import resolve_assets
 from ..save_parser import parse_save
 from ..wk_cli import WolvenKit, WolvenKitConfig
@@ -36,6 +37,7 @@ class BuildRequest:
     hair_override: str | None = None
     skin_override: str | None = None
     garments: list[str] = field(default_factory=list)
+    cc_overrides: dict = field(default_factory=dict)
     user_head_glb: Path | None = None
     user_head_mesh: Path | None = None
     user_heb_mesh: Path | None = None
@@ -201,6 +203,11 @@ class PipelineService:
                 _write_manifest(req.output_dir, manifest)
                 stages_run.append(current_stage)
                 emit("stage_completed", current_stage, "Parsed CC settings.")
+
+            # Apply GUI overrides to a copy; the checkpoint above stored the
+            # raw parse so a later overrides change still resumes parse_save.
+            if req.cc_overrides:
+                cc_settings = apply_overrides(cc_settings, req.cc_overrides)
 
             # WolvenKit adapter is needed from here on.
             wk = _make_wolvenkit(req, cancel)

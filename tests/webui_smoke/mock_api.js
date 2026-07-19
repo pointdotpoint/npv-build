@@ -84,4 +84,38 @@ window.__mockApi = {
   } }),
   _opened: [],
   open_folder: async function (path) { this._opened.push(path); return { ok: true }; },
+  appearance_data: async () => ({
+    ok: true,
+    categories: ["Skin", "Hair", "Eyes", "Body", "Face morphs"],
+    overrides: {},
+    rows: [
+      { category: "Skin", slot_id: "skin_tone", label: "Skin tone",
+        value_label: "01_ca_pale", value_raw: "01_ca_pale", editable: true,
+        options: ["01_ca_pale", "03_ca_medium"] },
+      { category: "Hair", slot_id: "hair_style", label: "Hair style",
+        value_label: "winona_2", value_raw: "winona_2", editable: true,
+        options: ["winona_2", "hh_041_pwa__bob"] },
+      { category: "Hair", slot_id: "hair_color", label: "Hair color",
+        value_label: "51_succulent", value_raw: "51_succulent", editable: true,
+        options: ["51_succulent", "06_black_carbon"] },
+      { category: "Face morphs", slot_id: "face_morph_eyes",
+        label: "Eyes (morph preset)", value_label: "h091", value_raw: "h091",
+        editable: false, options: [] },
+    ],
+  }),
+  _overrides: {},
+  set_overrides: async function (path, overrides) {
+    if (overrides.skin_tone === "reject_me")
+      return { ok: false, error: "skin_tone: not a known option", remediation: "" };
+    this._overrides = overrides;
+    return { ok: true };
+  },
+  browse_for_hair_mod: async () => ({
+    ok: true, token: "edie", source: "edie_hair.archive",
+    warning: "The NPV needs this hair mod to stay installed.",
+  }),
+  add_hair_mod: async (path) => ({
+    ok: true, token: "edie", source: "edie_hair.archive",
+    warning: "The NPV needs this hair mod to stay installed.",
+  }),
 };

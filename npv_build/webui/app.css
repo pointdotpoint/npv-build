@@ -79,3 +79,10 @@ label { display: block; color: var(--muted); font-size: 12px;
   transition: width .3s; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--pad-m); }
+.inspector { display: grid; grid-template-columns: 200px 1fr; gap: var(--pad-l); }
+.inspector-cats .cat { display: flex; gap: 8px; padding: 6px 8px; align-items: center; }
+.irow { display: flex; justify-content: space-between; align-items: center;
+        gap: var(--pad-m); padding: 6px 0; border-left: 2px solid transparent; }
+.irow.overridden { border-left-color: #e0a83c; padding-left: 8px; }
+.override-count { border-color: #e0a83c; color: #e0a83c; }
+#inspector-search { margin-right: 8px; }

@@ -1,0 +1,13 @@
+{
+  "skin_tone": "Skin tone",
+  "hair_style": "Hair style",
+  "hair_color": "Hair color",
+  "eye_color": "Eye color",
+  "body_rig": "Body rig",
+  "teeth": "Teeth",
+  "face_morph_ear": "Ears (morph preset)",
+  "face_morph_eyes": "Eyes (morph preset)",
+  "face_morph_jaw": "Jaw (morph preset)",
+  "face_morph_mouth": "Mouth (morph preset)",
+  "face_morph_nose": "Nose (morph preset)"
+}

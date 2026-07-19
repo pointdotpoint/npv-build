@@ -2,6 +2,7 @@
 
 Requires: uv run playwright install chromium
 """
+import re
 import threading
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -284,4 +285,84 @@ def test_full_flow_source_to_install(webui_server):
         assert page.evaluate("() => window.__mockApi._opened.length") == 1
         page.click("text=Install to game")
         expect(page.locator("text=Installed ✓")).to_be_visible()
+        browser.close()
+
+
+def test_appearance_inspector_override_flow(webui_server):
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.locator(".card.selectable").first.click()
+        page.click("text=Continue →")
+        expect(page.locator("h1")).to_have_text("Appearance")
+        rows = page.locator(".irow")
+        expect(rows).to_have_count(5)  # 4 mock rows + appended hair-mod row
+        # Read-only row has no select
+        morph = page.locator(".irow", has_text="Eyes (morph preset)")
+        expect(morph.locator("select")).to_have_count(0)
+        # Override skin tone -> row marked, revert appears, category badge counts
+        skin = page.locator(".irow", has_text="Skin tone")
+        skin.locator("select").select_option("03_ca_medium")
+        expect(skin).to_have_class(re.compile("overridden"))
+        expect(skin.locator("button.revert")).to_be_visible()
+        expect(page.locator(".cat", has_text="Skin").locator(".override-count")
+               ).to_have_text("1")
+        # Search filters rows (hair style + hair color + modded-hair row)
+        page.fill("#inspector-search", "hair")
+        expect(page.locator(".irow")).to_have_count(3)
+        page.fill("#inspector-search", "")
+        # Revert clears it
+        skin.locator("button.revert").click()
+        expect(skin).not_to_have_class(re.compile("overridden"))
+        # Reset all after two overrides
+        skin.locator("select").select_option("03_ca_medium")
+        page.locator(".irow", has_text="Hair color").locator("select"
+            ).select_option("06_black_carbon")
+        page.click("#reset-all")
+        expect(page.locator(".irow.overridden")).to_have_count(0)
+        # Continue persists via set_overrides and advances
+        skin.locator("select").select_option("03_ca_medium")
+        page.click("text=Continue →")
+        expect(page.locator("h1")).to_have_text("Build")
+        assert page.evaluate("() => window.__mockApi._overrides") == {
+            "skin_tone": "03_ca_medium"}
+        browser.close()
+
+
+def test_appearance_modded_hair_flow(webui_server):
+    """Picking a CCXL hair mod file sets the hair_mod override, is mutually
+    exclusive with the vanilla hair_style dropdown, and shows the
+    stay-installed warning."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.locator(".card.selectable").first.click()
+        page.click("text=Continue →")
+        expect(page.locator("h1")).to_have_text("Appearance")
+        hair_mod_row = page.locator(".irow.hair-mod-row")
+        expect(hair_mod_row).to_contain_text("—")  # no mod hair yet
+        # First set a vanilla style override, then pick a mod file
+        style_row = page.locator(".irow", has_text="Hair style")
+        style_row.locator("select").select_option("hh_041_pwa__bob")
+        expect(style_row).to_have_class(re.compile("overridden"))
+        hair_mod_row.locator("button.browse-hair-mod").click()
+        expect(hair_mod_row).to_have_class(re.compile("overridden"))
+        expect(hair_mod_row).to_contain_text("edie")
+        expect(page.locator("main")).to_contain_text(
+            "needs this hair mod to stay installed")
+        # Mutual exclusion: the vanilla style override was cleared
+        expect(style_row).not_to_have_class(re.compile("overridden"))
+        # Re-picking a vanilla style clears the mod override
+        style_row.locator("select").select_option("hh_041_pwa__bob")
+        expect(hair_mod_row).not_to_have_class(re.compile("overridden"))
+        # Back to the mod, then Continue persists hair_mod
+        hair_mod_row.locator("button.browse-hair-mod").click()
+        page.click("text=Continue →")
+        expect(page.locator("h1")).to_have_text("Build")
+        assert page.evaluate("() => window.__mockApi._overrides") == {
+            "hair_mod": "edie"}
         browser.close()
