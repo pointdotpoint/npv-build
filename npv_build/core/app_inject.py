@@ -148,9 +148,13 @@ def build_component_json(spec: dict[str, Any]) -> dict[str, Any]:
         return {"Data": data}
 
     mesh_appearance = spec.get("meshAppearance") or "default"
+    # Per-style visibility mask from the CC recipe (which studs of an earring
+    # mesh render, iris-vs-lashes chunks of the stock eye). All-chunks-on
+    # unless the spec narrows it.
+    chunk_mask = str(spec.get("chunkMask") or "18446744073709551615")
     data = {
         "$type": comp_type,
-        "chunkMask": "18446744073709551615",
+        "chunkMask": chunk_mask,
         "meshAppearance": _cname(mesh_appearance),
         "name": _cname(name),
         "parentTransform": _handle_binding("entHardTransformBinding", bind_to),
@@ -278,11 +282,16 @@ def _copy_infrastructure(
     face_graph: str | None,
     skip_donor_hair_dangle: bool,
 ) -> None:
-    target_components = target_appearance.setdefault("components", [])
-    source_components = source_appearance.get("components", [])
+    # WolvenKit serializes empty CArrays as JSON null, not [] — every
+    # `or []`/`or {}` here covers a present-but-null key.
+    target_components = target_appearance.get("components") or []
+    target_appearance["components"] = target_components
+    source_components = source_appearance.get("components") or []
     # Parallel array, index-matched to source_components — see
     # _inline_handle_refs for why this is needed.
-    source_chunks = source_appearance.get("compiledData", {}).get("Data", {}).get("Chunks", [])
+    source_chunks = (
+        ((source_appearance.get("compiledData") or {}).get("Data") or {}).get("Chunks") or []
+    )
 
     for index, comp in enumerate(source_components):
         comp_type = comp.get("$type")
@@ -382,7 +391,10 @@ def inject_components(
                     skip_donor_hair_dangle=skip_hair_dangle,
                 )
 
-        components = appearance.setdefault("components", [])
+        # setdefault is not enough: WolvenKit serializes an empty
+        # components array as JSON null, and setdefault keeps that None.
+        components = appearance.get("components") or []
+        appearance["components"] = components
         for spec in specs:
             components.append(build_component_json(spec)["Data"])
 

@@ -37,6 +37,29 @@ def test_components_json_structure(tmp_path):
     assert "morphResource" not in c1
 
 
+def test_components_json_carries_chunk_mask(tmp_path):
+    specs = [
+        {
+            "comp_type": "entSkinnedMeshComponent",
+            "name": "i1_000_pwa__morphs_earring_01",
+            "mesh": "base\\x\\e1.mesh",
+            "appearance": "silver",
+            "chunk_mask": "18446744073709549572",
+        },
+        {
+            "comp_type": "entSkinnedMeshComponent",
+            "name": "no_mask",
+            "mesh": "base\\x\\e2.mesh",
+            "appearance": "default",
+        },
+    ]
+    out = tmp_path / "npv_components.json"
+    write_components_json(specs, "app", out)
+    data = json.loads(out.read_text())
+    assert data["components"][0]["chunkMask"] == "18446744073709549572"
+    assert "chunkMask" not in data["components"][1]
+
+
 def test_readme_contains_key_sections(tmp_path):
     out = tmp_path / "README_GUI_STEPS.md"
     write_readme("my_npv_abc", "my_npv_abc_appearance", out)

@@ -205,6 +205,7 @@ def _extract_part_components(
             else "default"
         )
 
+        morph_resource = ""
         if ctype == "entMorphTargetSkinnedMeshComponent":
             mr = (
                 c.get("morphResource", {}).get("DepotPath", {}).get("$value", "")
@@ -215,18 +216,25 @@ def _extract_part_components(
                 mesh = _resolve_morphtarget_to_mesh(wk, mr)
             if not mesh:
                 continue
+            # Demoted to the neutral base mesh (baked-head design), but keep
+            # the morphtarget path so eye components can be promoted back for
+            # blink support (_split_stock_eye_for_glow).
             ctype = "entSkinnedMeshComponent"
+            morph_resource = mr
         elif not mesh:
             continue
 
-        result.append(
-            {
-                "comp_type": ctype,
-                "name": name,
-                "mesh": mesh,
-                "appearance": ma,
-            }
-        )
+        entry = {
+            "comp_type": ctype,
+            "name": name,
+            "mesh": mesh,
+            "appearance": ma,
+        }
+        if morph_resource:
+            entry["morph_resource"] = morph_resource
+        if c.get("chunkMask"):
+            entry["chunk_mask"] = str(c["chunkMask"])
+        result.append(entry)
     return result
 
 
@@ -324,16 +332,79 @@ def _has_modded_ccxl_eyes(cc_selections: list[dict]) -> bool:
     return False
 
 
+def _ccxl_eye_components_from_app(
+    app_data: dict,
+    appearance_name: str,
+    comp_name: str,
+    mt_cache: dict[str, str],
+    source: str,
+) -> list[dict]:
+    """Parse one CCXL eye .app: components of the named appearance -> specs.
+
+    Carries the component's chunkMask — mod eye meshes bundle extra chunks
+    (e.g. a built-in eyeball under a glow overlay) that the mask hides;
+    rendering all chunks doubles the eyeball. An appearance name that doesn't
+    exist in the .app (e.g. Sedth's w_cyber_00 = option off) yields [].
+    """
+    appearances = app_data.get("Data", {}).get("RootChunk", {}).get("appearances", [])
+    components: list[dict] = []
+    for a in appearances:
+        name = a.get("Data", {}).get("name", {}).get("$value", "")
+        if name != appearance_name:
+            continue
+        for c in a.get("Data", {}).get("components", []):
+            ma = (
+                c.get("meshAppearance", {}).get("$value", "default")
+                if c.get("meshAppearance")
+                else "default"
+            )
+            mesh = ""
+            if c.get("mesh"):
+                mesh = c["mesh"].get("DepotPath", {}).get("$value", "")
+            mr = ""
+            if c.get("morphResource"):
+                mr = c["morphResource"].get("DepotPath", {}).get("$value", "")
+            if not mesh and mr:
+                mesh = mt_cache.get(mr, "")
+            if not mesh:
+                continue
+            entry = {
+                # Keep morph components as morph components: the morphtarget
+                # carries blink correctives — a plain skinned mesh stays in
+                # open-eye shape and pokes through closed eyelids.
+                "comp_type": "entMorphTargetSkinnedMeshComponent"
+                if mr
+                else "entSkinnedMeshComponent",
+                "name": comp_name,
+                "mesh": mesh,
+                "appearance": ma,
+                "source": source,
+            }
+            if mr:
+                entry["morph_resource"] = mr
+            if c.get("chunkMask"):
+                entry["chunk_mask"] = str(c["chunkMask"])
+            components.append(entry)
+        break
+    return components
+
+
 def _extract_ccxl_eye_components(
     game_dir: Path,
     cc_selections: list[dict],
     body_rig: str,
     verbosity: int,
-) -> list[dict]:
+) -> tuple[list[dict], bool]:
     """Extract modded CCXL eye components (e.g. Sedth 3D Eyes) from mod archives.
 
     Detects CC labels matching *_eyes_r, *_eyes_l, *_eyes_r_glow, *_eyes_l_glow
     and resolves them to mesh components via the mod's .app files.
+
+    Returns (components, iris_replaced). iris_replaced is True only when a
+    BASE (non-glow) eye selection actually produced components — a glow-only
+    overlay does not replace the stock iris (e.g. Sedth base option
+    w_cyber_00 = off, glow w_cyber_63 = on: the iris still comes from the
+    stock he_ component on the mod's replacer mesh).
     """
     eye_labels = {}
     for s in cc_selections:
@@ -345,7 +416,7 @@ def _extract_ccxl_eye_components(
             eye_labels[lbl] = raw
 
     if not eye_labels:
-        return []
+        return [], False
 
     suffix_to_app = {
         "_r": "eyes_r",
@@ -361,11 +432,11 @@ def _extract_ccxl_eye_components(
                 break
 
     if not label_to_app:
-        return []
+        return [], False
 
     mod_dir = game_dir / "archive" / "pc" / "mod"
     if not mod_dir.exists():
-        return []
+        return [], False
 
     # Find the archive containing these .app files by scanning .xl manifests
     # or checking archive contents. Use the first label's prefix as the mod name hint.
@@ -386,7 +457,7 @@ def _extract_ccxl_eye_components(
 
     if not target_archive:
         logger.info(f"[Eyes] modded eyes '{mod_prefix}' archive not found")
-        return []
+        return [], False
 
     logger.info(f"[Eyes] modded eyes from {target_archive.name}")
 
@@ -448,6 +519,7 @@ def _extract_ccxl_eye_components(
             mt_depot = str(mt_json.relative_to(td_path)).replace("/", "\\").replace(".json", "")
             mt_cache[mt_depot] = base_mesh
 
+        iris_replaced = False
         for lbl, app_file in label_to_app.items():
             appearance_name = eye_labels.get(lbl, "")
             if not appearance_name:
@@ -458,39 +530,87 @@ def _extract_ccxl_eye_components(
                 continue
 
             data = json.loads(app_jsons[0].read_text())
-            appearances = data.get("Data", {}).get("RootChunk", {}).get("appearances", [])
-            for a in appearances:
-                name = a.get("Data", {}).get("name", {}).get("$value", "")
-                if name != appearance_name:
-                    continue
-                for c in a.get("Data", {}).get("components", []):
-                    ma = (
-                        c.get("meshAppearance", {}).get("$value", "default")
-                        if c.get("meshAppearance")
-                        else "default"
-                    )
-                    mesh = ""
-                    if c.get("mesh"):
-                        mesh = c["mesh"].get("DepotPath", {}).get("$value", "")
-                    if not mesh and c.get("morphResource"):
-                        mr = c["morphResource"].get("DepotPath", {}).get("$value", "")
-                        mesh = mt_cache.get(mr, "")
-                    if not mesh:
-                        continue
-                    comp_name = lbl.replace("_glow", "_g")
-                    components.append(
-                        {
-                            "comp_type": "entSkinnedMeshComponent",
-                            "name": comp_name,
-                            "mesh": mesh,
-                            "appearance": ma,
-                            "source": f"modded eyes ({mod_prefix})",
-                        }
-                    )
-                    logger.info(f"[Eyes]   {comp_name}: {mesh.rsplit(chr(92), 1)[-1]} -> {ma}")
-                break
+            comp_name = lbl.replace("_glow", "_g")
+            comps = _ccxl_eye_components_from_app(
+                data, appearance_name, comp_name, mt_cache, f"modded eyes ({mod_prefix})"
+            )
+            for c in comps:
+                logger.info(
+                    f"[Eyes]   {c['name']}: {c['mesh'].rsplit(chr(92), 1)[-1]} -> {c['appearance']}"
+                )
+            if comps and not lbl.endswith("_glow"):
+                iris_replaced = True
+            components.extend(comps)
 
-    return components
+    return components, iris_replaced
+
+
+def _stock_eye_recipe_overrides(recipe_overrides: list[dict]) -> dict:
+    """Collect the stock he_ eye part's iris and eyelash override rows.
+
+    The player entity renders the he_ eye mesh via TWO component instances:
+    an iris one (V's eye-color appearance, mask hiding the lash chunk) and a
+    lash one (eyelashes__* appearance, mask hiding the iris chunks). Returns
+    {iris_appearance, iris_chunk_mask, eyelash_appearance, eyelash_chunk_mask}
+    ("" when a row is absent).
+    """
+    out = {
+        "iris_appearance": "",
+        "iris_chunk_mask": "",
+        "eyelash_appearance": "",
+        "eyelash_chunk_mask": "",
+    }
+    for ov in recipe_overrides:
+        pr = ov.get("partResource", {}).get("DepotPath", {}).get("$value", "").lower()
+        if "\\he_000_" not in pr and "/he_000_" not in pr:
+            continue
+        for co in ov.get("componentsOverrides", []):
+            ma = co.get("meshAppearance", {}).get("$value", "")
+            if not ma:
+                continue
+            mask = str(co.get("chunkMask") or "")
+            if ma.startswith("eyelashes__"):
+                if not out["eyelash_appearance"]:
+                    out["eyelash_appearance"] = ma
+                    out["eyelash_chunk_mask"] = mask
+            elif not out["iris_appearance"]:
+                out["iris_appearance"] = ma
+                out["iris_chunk_mask"] = mask
+    return out
+
+
+def _split_stock_eye_for_glow(comps: list[dict], eye_ov: dict) -> list[dict]:
+    """Split extracted stock-eye components into iris + lashes instances.
+
+    Used when modded eyes are a glow-only OVERLAY (base option off): the stock
+    he_ component must render both the iris (on the possibly mod-replaced
+    mesh) and the lashes, each with its recipe mask — mirroring the player
+    entity. Renamed with _iris/_lashes suffixes so the generic override_map
+    (keyed by the original component name) doesn't clobber them.
+    """
+    out = []
+    for c in comps:
+        # Promote back to a morph component when the source was one: blink
+        # correctives live in the morphtarget.
+        if c.get("morph_resource"):
+            c = dict(c)
+            c["comp_type"] = "entMorphTargetSkinnedMeshComponent"
+        iris = dict(c)
+        iris["name"] = c["name"] + "_iris"
+        if eye_ov.get("iris_appearance"):
+            iris["appearance"] = eye_ov["iris_appearance"]
+        if eye_ov.get("iris_chunk_mask"):
+            iris["chunk_mask"] = eye_ov["iris_chunk_mask"]
+        out.append(iris)
+
+        if eye_ov.get("eyelash_appearance"):
+            lashes = dict(c)
+            lashes["name"] = c["name"] + "_lashes"
+            lashes["appearance"] = eye_ov["eyelash_appearance"]
+            if eye_ov.get("eyelash_chunk_mask"):
+                lashes["chunk_mask"] = eye_ov["eyelash_chunk_mask"]
+            out.append(lashes)
+    return out
 
 
 def _apply_recipe_overrides(
@@ -512,7 +632,8 @@ def _apply_recipe_overrides(
     def _is_stock_eye(pr_lower: str) -> bool:
         return "\\he_000_" in pr_lower or "/he_000_" in pr_lower
 
-    # 1. First, build the direct override_map for components where we can set appearance directly
+    # 1. First, build the direct override_map for components where we can set
+    # appearance (and the recipe's chunkMask, when present) directly
     override_map = {}
     for ov in recipe_overrides:
         pr = ov.get("partResource", {}).get("DepotPath", {}).get("$value", "").lower()
@@ -525,6 +646,7 @@ def _apply_recipe_overrides(
         for co in ov.get("componentsOverrides", []):
             cn = co.get("componentName", {}).get("$value", "")
             ma = co.get("meshAppearance", {}).get("$value", "")
+            mask = co.get("chunkMask")
             if cn and ma:
                 if ma.startswith("eyelashes__"):
                     # With modded eyes the stock eye renders lashes only -> keep
@@ -543,15 +665,20 @@ def _apply_recipe_overrides(
                         comp["name"] for comp in components if comp["name"].endswith("_basehead")
                     ]
                     for hname in head_comp_names:
-                        override_map[hname] = ma
+                        override_map[hname] = (ma, mask)
 
-                override_map[cn] = ma
+                override_map[cn] = (ma, mask)
 
-    # Apply direct appearances to inlined components
+    # Apply direct appearances (and masks) to inlined components. The .app's
+    # partsOverrides don't reach inlined components at runtime (no partsValues),
+    # so the mask must live on the component itself.
     for comp in components:
         name = comp.get("name", "")
         if name in override_map:
-            comp["appearance"] = override_map[name]
+            ma, mask = override_map[name]
+            comp["appearance"] = ma
+            if mask:
+                comp["chunk_mask"] = str(mask)
 
     # 2. Prepare the partsOverrides list for the .app file.
     # We must preserve the original partResource paths and component overrides structure,
@@ -788,20 +915,26 @@ def build_project(
     if cc_file.exists():
         cc_settings_data = json.loads(cc_file.read_text())
     cc_selections = cc_settings_data.get("selections", [])
-    modded_eyes = _has_modded_ccxl_eyes(cc_selections)
 
-    # The eyelashes ride on the stock he_ eye mesh as an `eyelashes__*` appearance
-    # (CC's separate `eyelash_color` selection). Find that appearance so that when
-    # modded eyes replace the iris, we keep he_ rendering ONLY the lashes.
-    eyelash_appearance = ""
-    for ov in asset_paths.get("recipe_overrides", []):
-        for co in ov.get("componentsOverrides", []):
-            ma = co.get("meshAppearance", {}).get("$value", "")
-            if ma.startswith("eyelashes__"):
-                eyelash_appearance = ma
-                break
-        if eyelash_appearance:
-            break
+    # Extract modded CCXL eye components up front (injected in section 2d).
+    # modded_eyes is True only when the mod actually supplies a replacement
+    # IRIS (base selection produced components). A glow-only overlay (base
+    # option off, e.g. Sedth w_cyber_00) leaves the iris on the stock he_
+    # component — suppressing it would leave a bare glow ring.
+    ccxl_eye_comps: list[dict] = []
+    modded_eyes = False
+    if game_dir and cc_selections and _has_modded_ccxl_eyes(cc_selections):
+        ccxl_eye_comps, modded_eyes = _extract_ccxl_eye_components(
+            game_dir, cc_selections, body_rig, verbosity
+        )
+    ccxl_glow_only = bool(ccxl_eye_comps) and not modded_eyes
+
+    # The player entity renders the stock he_ eye mesh via two component
+    # instances — iris (eye-color appearance) and lashes (eyelashes__*) —
+    # each with a chunkMask hiding the other's chunks.
+    eye_ov = _stock_eye_recipe_overrides(asset_paths.get("recipe_overrides", []))
+    eyelash_appearance = eye_ov["eyelash_appearance"]
+    eyelash_chunk_mask = eye_ov["eyelash_chunk_mask"]
 
     # 2. Other part-ents (eyes, teeth, body, etc.)
     for dp in sorted(all_part_depots):
@@ -816,6 +949,8 @@ def build_project(
             if eyelash_appearance:
                 for c in comps:
                     c["appearance"] = eyelash_appearance
+                    if eyelash_chunk_mask:
+                        c["chunk_mask"] = eyelash_chunk_mask
                     c["source"] = dp.replace("\\", "/").rsplit("/", 1)[-1] + " (eyelashes only)"
                 logger.info(
                     f"[Eyes] stock eye -> eyelashes only ({eyelash_appearance}); iris from modded eyes"
@@ -825,6 +960,17 @@ def build_project(
                 logger.info(
                     f"[Eyes] skipping stock eye part {dp.rsplit(chr(92), 1)[-1]} (modded eyes, no eyelash appearance found)"
                 )
+            continue
+        if ccxl_glow_only and "\\he_000_" in dp:
+            split = _split_stock_eye_for_glow(comps, eye_ov)
+            for c in split:
+                c["source"] = dp.replace("\\", "/").rsplit("/", 1)[-1] + " (iris/lashes split)"
+            logger.info(
+                f"[Eyes] glow-only modded eyes: stock eye split into iris "
+                f"({eye_ov['iris_appearance'] or 'extracted'}) + lashes "
+                f"({eyelash_appearance or 'none'})"
+            )
+            component_specs.extend(split)
             continue
         for c in comps:
             c["source"] = dp.replace("\\", "/").rsplit("/", 1)[-1]
@@ -898,10 +1044,10 @@ def build_project(
             }
         )
 
-    # 2d. Modded CCXL eyes (e.g. Sedth 3D Eyes) — replace the stock eye skipped above
-    if game_dir and cc_selections:
-        eye_comps = _extract_ccxl_eye_components(game_dir, cc_selections, body_rig, verbosity)
-        component_specs.extend(eye_comps)
+    # 2d. Modded CCXL eyes (e.g. Sedth 3D Eyes) — extracted before section 2:
+    # full replacements suppress the stock iris; glow-only overlays layer on
+    # top of the iris/lashes split above.
+    component_specs.extend(ccxl_eye_comps)
 
     # 3. Hair components
     hair_components = asset_paths.get("hair_components", [])

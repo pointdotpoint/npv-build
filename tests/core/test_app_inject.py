@@ -59,6 +59,31 @@ def test_build_component_missing_name_raises():
         )
 
 
+def test_build_component_honors_spec_chunk_mask():
+    spec = {
+        "type": "entSkinnedMeshComponent",
+        "name": "i1_000_pwa__morphs_earring_01",
+        "mesh": "base\\x\\e1.mesh",
+        "meshAppearance": "silver",
+        "bindTo": "face_rig",
+        "chunkMask": "18446744073709549572",
+    }
+    comp = build_component_json(spec)
+    assert comp["Data"]["chunkMask"] == "18446744073709549572"
+
+
+def test_build_component_default_chunk_mask_all_on():
+    spec = {
+        "type": "entSkinnedMeshComponent",
+        "name": "head",
+        "mesh": "base\\x\\head.mesh",
+        "meshAppearance": "default",
+        "bindTo": "root",
+    }
+    comp = build_component_json(spec)
+    assert comp["Data"]["chunkMask"] == "18446744073709551615"
+
+
 def test_build_component_mesh_depot_path_set():
     spec = {
         "type": "entSkinnedMeshComponent",
@@ -296,6 +321,52 @@ def test_copy_infrastructure_skips_hair_dangle_when_requested():
 
     names = [c["name"]["$value"] for c in target_appearance["components"]]
     assert names == ["breasts"]
+
+
+def test_copy_infrastructure_tolerates_null_components():
+    # WolvenKit serializes an empty appearance components array as JSON
+    # null, not [] — the M5-T8 crash: 'NoneType' object has no attribute
+    # 'append' via setdefault returning the existing None.
+    source_appearance = {
+        "components": [
+            {
+                "$type": "entAnimatedComponent",
+                "name": {"$type": "CName", "$storage": "string", "$value": "face_rig"},
+            },
+        ],
+        "compiledData": {"Data": {"Chunks": [{}]}},
+    }
+    target_appearance: dict = {"components": None}
+
+    _copy_infrastructure(
+        source_appearance,
+        target_appearance,
+        face_rig=None,
+        facial_setup=None,
+        face_graph=None,
+        skip_donor_hair_dangle=False,
+    )
+
+    names = [c["name"]["$value"] for c in target_appearance["components"]]
+    assert names == ["face_rig"]
+
+
+def test_copy_infrastructure_tolerates_null_donor_fields():
+    # Same JSON-null hazard on the donor side: components/compiledData may
+    # be null rather than absent in WolvenKit-serialized JSON.
+    source_appearance = {"components": None, "compiledData": None}
+    target_appearance: dict = {"components": []}
+
+    _copy_infrastructure(
+        source_appearance,
+        target_appearance,
+        face_rig=None,
+        facial_setup=None,
+        face_graph=None,
+        skip_donor_hair_dangle=False,
+    )
+
+    assert target_appearance["components"] == []
 
 
 def test_copy_infrastructure_patches_face_rig_donor_overrides():

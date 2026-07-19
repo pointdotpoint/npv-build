@@ -62,6 +62,8 @@ def write_components_json(component_specs, appearance_name, out_path: Path):
             entry["mesh"] = spec.get("mesh", "")
             entry["meshAppearance"] = spec.get("appearance", "default")
             entry["bindTo"] = bind_to
+        if spec.get("chunk_mask"):
+            entry["chunkMask"] = str(spec["chunk_mask"])
         if spec.get("source"):
             entry["source"] = spec["source"]
         components.append(entry)
