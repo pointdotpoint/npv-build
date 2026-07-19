@@ -6,6 +6,7 @@ from npv_build.gui_logic.appearance import (
     EDITABLE_SLOTS,
     apply_overrides,
     inspector_rows,
+    option_lists,
     validate_overrides,
 )
 
@@ -130,3 +131,36 @@ def test_validate_overrides_hair_mod_token():
     # hair_mod has no options list — any non-empty token passes, empty fails.
     assert validate_overrides({"hair_mod": "edie"}, OPTIONS) == []
     assert validate_overrides({"hair_mod": ""}, OPTIONS)
+
+
+INDEX = {
+    "part_ents": {
+        "hh_040_pwa__morrigan": "base\\...\\hh_040_pwa__morrigan.ent",
+        "hh_041_pwa__bob": "base\\...\\hh_041_pwa__bob.ent",
+        "hh_044_pma__hairs_140": "base\\...\\hh_044_pma__hairs_140.ent",
+        "hh_044_pma__hairs_140_fpp": "base\\...\\hh_044_pma__hairs_140_fpp.ent",
+        "hx_000_pwa__tattoo_09": "base\\...\\hx_000_pwa__tattoo_09.ent",
+    },
+    "app_appearances": {
+        "base\\x\\he_000_pwa__basehead.app": [
+            "he_000_pwa__basehead__01_black", "he_000_pwa__basehead__11_gradient_blue"],
+        "base\\x\\h0_000_pwa__basehead.app": [
+            "h0_000_pwa__basehead__01_ca_pale", "h0_000_pwa__basehead__03_ca_medium"],
+        "base\\x\\hh_040_pwa.app": ["03_ginger_copper", "51_succulent"],
+    },
+}
+
+
+def test_option_lists_derivation():
+    opts = option_lists(INDEX, "pwa")
+    assert opts["hair_style"] == ["hh_040_pwa__morrigan", "hh_041_pwa__bob"]
+    assert opts["eye_color"] == ["01_black", "11_gradient_blue"]
+    assert opts["skin_tone"] == ["01_ca_pale", "03_ca_medium"]
+    assert opts["hair_color"] == ["03_ginger_copper", "51_succulent"]
+
+
+def test_option_lists_other_rig_and_empty_index():
+    opts = option_lists(INDEX, "pma")
+    assert opts["hair_style"] == ["hh_044_pma__hairs_140"]  # no _fpp
+    assert option_lists({}, "pwa") == {}
+    assert option_lists(None, "pwa") == {}

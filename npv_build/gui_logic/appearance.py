@@ -8,6 +8,7 @@ Row contract (consumed by webui/js/appearance.js and webui_api.appearance_data):
 from __future__ import annotations
 
 import copy
+import re
 
 EDITABLE_SLOTS = ("skin_tone", "hair_style", "hair_color", "eye_color")
 
@@ -129,3 +130,51 @@ def validate_overrides(overrides: dict, options: dict) -> list[str]:
         elif opts and value not in opts:
             problems.append(f"{slot_id}: '{value}' is not a known option")
     return problems
+
+
+def option_lists(index: dict | None, body_rig: str) -> dict[str, list[str]]:
+    """Derive per-slot option lists from the part-resolver index.
+    Returns {} when the index is unavailable (rows then render read-only)."""
+    if not index:
+        return {}
+    part_ents = index.get("part_ents", {})
+    app_appearances = index.get("app_appearances", {})
+
+    hair_re = re.compile(rf"^hh_\d+_{body_rig}__")
+    hair_style = sorted(
+        n for n in part_ents if hair_re.match(n) and not n.endswith("_fpp")
+    )
+
+    def app_suffixes(app_prefix: str) -> list[str]:
+        """Find app matching (with or without rig) and return suffixes for this rig."""
+        # Try direct match first (test case: he_000_pwa__basehead.app)
+        for app_path, names in app_appearances.items():
+            base = app_path.replace("\\", "/").rsplit("/", 1)[-1]
+            if base.startswith(app_prefix):
+                return sorted({n.split("__")[-1] for n in names if "__" in n})
+        # Fallback: match without rig suffix (real index: he_000__basehead.app)
+        # and filter names by rig. Prefer exact app.app over variants like _face_rig.app
+        app_prefix_no_rig = app_prefix.replace(f"_{body_rig}", "")
+        exact_match = f"{app_prefix_no_rig}.app"
+        for app_path, names in app_appearances.items():
+            base = app_path.replace("\\", "/").rsplit("/", 1)[-1]
+            if base == exact_match:
+                # Filter to appearances that include this rig
+                rig_names = [n for n in names if f"_{body_rig}__" in n]
+                return sorted({n.split("__")[-1] for n in rig_names if "__" in n})
+        return []
+
+    hair_color: set[str] = set()
+    hair_app_re = re.compile(rf"^hh_\d+_{body_rig}\b")
+    for app_path, names in app_appearances.items():
+        base = app_path.replace("\\", "/").rsplit("/", 1)[-1]
+        if hair_app_re.match(base):
+            hair_color.update(n for n in names if "__" not in n)
+
+    out = {
+        "hair_style": hair_style,
+        "eye_color": app_suffixes(f"he_000_{body_rig}__basehead"),
+        "skin_tone": app_suffixes(f"h0_000_{body_rig}__basehead"),
+        "hair_color": sorted(hair_color),
+    }
+    return {k: v for k, v in out.items() if v}
