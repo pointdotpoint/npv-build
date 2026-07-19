@@ -487,6 +487,80 @@ def test_extract_part_components_keeps_morph_resource():
     assert comps[0]["morph_resource"] == "base\\x\\he_000_pwa__morphs.morphtarget"
 
 
+def test_apply_body_tattoo_appearance():
+    """The extracted tx_ tattoo overlay carries meshAppearance 'default';
+    the save's raw selection (w__01_ca_pale) is the skin-tone-keyed
+    appearance that must be applied."""
+    from npv_build.wolvenkit import _apply_body_tattoo
+
+    specs = [
+        {"name": "tx_000_pwa_base__full_tattoo_02", "appearance": "default"},
+        {"name": "t0_000_pwa_base__full", "appearance": "01_ca_pale"},
+    ]
+    _apply_body_tattoo(specs, {"shape": "02", "appearance": "w__01_ca_pale"})
+    assert specs[0]["appearance"] == "w__01_ca_pale"
+    assert specs[1]["appearance"] == "01_ca_pale"
+
+    # No tattoo -> no-op
+    specs2 = [{"name": "tx_000_pwa_base__full_tattoo_02", "appearance": "default"}]
+    _apply_body_tattoo(specs2, None)
+    assert specs2[0]["appearance"] == "default"
+
+
+def test_bake_lips_overlays_repoints_mesh(monkeypatch, tmp_path):
+    """The makeup-lips overlay is a stock unmorphed mesh: over the morph-baked
+    head it renders a second pair of lips. Bake it with the same face morphs
+    (same design as the heb_ layer) and repoint the component."""
+    import npv_build.blender_module as blender_module
+    import npv_build.head_bake as head_bake
+    from npv_build.wolvenkit import _bake_lips_overlays
+
+    baked = {}
+
+    def fake_bake(game_dir, rig, morphs, out_fs, verbosity, wk=None, **kw):
+        baked["mt_depot"] = kw.get("mt_depot")
+        baked["mesh_depot"] = kw.get("mesh_depot")
+        out_fs.parent.mkdir(parents=True, exist_ok=True)
+        out_fs.write_bytes(b"MESH")
+        return True
+
+    monkeypatch.setattr(blender_module, "bake_face_mesh", fake_bake)
+    monkeypatch.setattr(head_bake, "_restore_part_materials", lambda *a, **k: None)
+
+    specs = [
+        {
+            "comp_type": "entSkinnedMeshComponent",
+            "name": "hx_000_pwa__basehead_makeup_lips_01",
+            "mesh": "base\\x\\hx_000_pwa_c__basehead_makeup_lips_01.mesh",
+            "appearance": "burgundy_06",
+            "morph_resource": "base\\x\\hx_000_pwa__morphs_makeup_lips_01.morphtarget",
+        },
+        {
+            "comp_type": "entSkinnedMeshComponent",
+            "name": "hx_000_pwa__morphs_makeup_freckles_01",
+            "mesh": "base\\x\\freckles.mesh",
+            "appearance": "frecles_brown_10",
+        },
+    ]
+
+    _bake_lips_overlays(
+        wk=object(),
+        game_dir=tmp_path,
+        source_dir=tmp_path,
+        mod_id="npv_test",
+        body_rig="pwa",
+        face_morphs={"mouth": "h013"},
+        component_specs=specs,
+        verbosity=0,
+    )
+
+    assert specs[0]["mesh"] == "base\\npv-build\\npv_test\\npv_test_lips.mesh"
+    assert baked["mt_depot"] == "base\\x\\hx_000_pwa__morphs_makeup_lips_01.morphtarget"
+    assert baked["mesh_depot"] == "base\\x\\hx_000_pwa_c__basehead_makeup_lips_01.mesh"
+    # untouched: no morph_resource -> not a bake candidate
+    assert specs[1]["mesh"] == "base\\x\\freckles.mesh"
+
+
 def test_extract_part_components_carries_chunk_mask():
     """Components extracted from a part .ent keep their own chunkMask."""
     from npv_build.wolvenkit import _extract_part_components

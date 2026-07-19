@@ -64,6 +64,78 @@ def test_resolve_assets_valid():
     assert assets["external_dependencies"][0]["selection"] == "fhair_miyavivi_twistup_soft"
 
 
+def test_resolve_assets_body_tattoo():
+    """A body_tattoo_NN selection (slot TPP_Body/character_creation, raw =
+    skin-tone-keyed appearance like w__01_ca_pale) must add the tx_ overlay
+    part and record the appearance for the assembler."""
+    cc_settings = {
+        "patch": "2.13",
+        "body_rig": "pwa",
+        "selections": [
+            {
+                "slot": "head",
+                "prefix": "h0",
+                "index": 0,
+                "rig": "pwa",
+                "group": "basehead",
+                "variant": "01_ca_pale",
+                "raw": "h0_000_pwa__basehead__01_ca_pale",
+                "cname_hash": 1,
+            },
+            {
+                "slot": "TPP_Body",
+                "prefix": "",
+                "index": 0,
+                "rig": "",
+                "group": "01_ca_pale",
+                "variant": "",
+                "raw": "w__01_ca_pale",
+                "label": "body_tattoo_02",
+                "cname_hash": 2,
+            },
+            {
+                "slot": "FPP_Body",
+                "prefix": "",
+                "index": 0,
+                "rig": "",
+                "group": "01_ca_pale",
+                "variant": "",
+                "raw": "w__01_ca_pale",
+                "label": "fpp_body_tattoo_02",
+                "cname_hash": 3,
+            },
+        ],
+    }
+
+    assets = resolve_assets(cc_settings)
+
+    assert assets["body_tattoo"] == {"shape": "02", "appearance": "w__01_ca_pale"}
+    tx = [p for p in assets["part_entities"] if "tx_000_pwa_base__full_tattoo_02.ent" in p]
+    assert len(tx) == 1, assets["part_entities"]
+
+
+def test_resolve_assets_no_body_tattoo():
+    cc_settings = {
+        "patch": "2.13",
+        "body_rig": "pwa",
+        "selections": [
+            {
+                "slot": "head",
+                "prefix": "h0",
+                "index": 0,
+                "rig": "pwa",
+                "group": "basehead",
+                "variant": "01_ca_pale",
+                "raw": "h0_000_pwa__basehead__01_ca_pale",
+                "cname_hash": 1,
+            },
+        ],
+    }
+    assets = resolve_assets(cc_settings)
+    assert assets.get("body_tattoo") is None
+    assert not any("full_tattoo" in p for p in assets["part_entities"])
+
+
 def test_resolve_assets_missing_patch():
     with pytest.raises(MappingError):
         resolve_assets({})

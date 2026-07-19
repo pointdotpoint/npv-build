@@ -613,6 +613,73 @@ def _split_stock_eye_for_glow(comps: list[dict], eye_ov: dict) -> list[dict]:
     return out
 
 
+def _apply_body_tattoo(component_specs: list[dict], body_tattoo: dict | None) -> None:
+    """Apply the save's body-tattoo appearance to the tx_ overlay component.
+
+    The tx_ part .ent carries meshAppearance 'default'; the actual appearance
+    is the save selection's raw value (skin-tone-keyed, e.g. w__01_ca_pale).
+    """
+    if not body_tattoo or not body_tattoo.get("appearance"):
+        return
+    for comp in component_specs:
+        name = comp.get("name", "")
+        if name.startswith("tx_") and "tattoo" in name:
+            comp["appearance"] = body_tattoo["appearance"]
+            logger.info(f"[Project] Body tattoo: {name} -> {body_tattoo['appearance']}")
+
+
+def _bake_lips_overlays(
+    wk: WolvenKit,
+    game_dir: Path,
+    source_dir: Path,
+    mod_id: str,
+    body_rig: str,
+    face_morphs: dict,
+    component_specs: list[dict],
+    verbosity: int,
+) -> None:
+    """Bake the makeup-lips overlay with V's face morphs and repoint it.
+
+    The overlay is a stock unmorphed mesh; over the morph-baked head it
+    renders a second pair of lips. Same design as the heb_ skin-detail layer:
+    bake with the part's own morphtarget (shares the head's morph channels),
+    restore materials, repoint the component. Stays a skinned mesh so it
+    animates with the same face_rig bones as the baked head. Non-fatal: on
+    bake failure the stock overlay is kept.
+    """
+    from . import blender_module, head_bake
+
+    for comp in component_specs:
+        if "makeup_lips" not in comp.get("name", "") or not comp.get("morph_resource"):
+            continue
+        stock_mesh = comp.get("mesh", "")
+        lips_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_lips.mesh"
+        lips_fs = source_dir / lips_depot.replace("\\", "/")
+        try:
+            ok = blender_module.bake_face_mesh(
+                game_dir,
+                body_rig,
+                face_morphs,
+                lips_fs,
+                verbosity,
+                wk=wk,
+                mt_depot=comp["morph_resource"],
+                mesh_depot=stock_mesh,
+                stage_name="bake_lips",
+            )
+            if ok:
+                head_bake._restore_part_materials(wk, lips_fs, stock_mesh, verbosity)
+        except (NpvError, OSError) as e:
+            logger.warning(f"[Lips] overlay bake failed ({e}); keeping stock lips overlay")
+            continue
+        if ok:
+            comp["mesh"] = lips_depot
+            comp["source"] = "baked lips overlay (face morphs applied)"
+            logger.info(f"[Lips] baked makeup lips overlay -> {lips_depot}")
+        else:
+            logger.warning("[Lips] overlay bake returned nothing; keeping stock lips overlay")
+
+
 def _apply_recipe_overrides(
     components: list[dict], recipe_overrides: list[dict], modded_eyes: bool = False
 ) -> list[dict]:
@@ -1011,6 +1078,14 @@ def build_project(
                     c["source"] = "baked heb_ layer (face morphs applied)"
                     logger.info(f"[Head] repointed {c['name']} -> baked heb mesh")
 
+    # 2a2. Bake the makeup-lips overlay with V's face morphs (same design as
+    # heb_ above): the stock unmorphed overlay renders a second pair of lips
+    # over the morph-baked head.
+    if baked_mesh_depot and face_morphs and game_dir and not override:
+        _bake_lips_overlays(
+            wk, game_dir, source_dir, mod_id, body_rig, face_morphs, component_specs, verbosity
+        )
+
     # 2b. Arms
     arms_mesh = {
         "pwa": "base\\characters\\common\\player_base_bodies\\player_female_average\\arms_hq\\a0_000_pwa_base_hq__full.mesh",
@@ -1115,6 +1190,10 @@ def build_project(
             if name.startswith(("t0_", "a0_", "i0_", "l0_")):
                 comp["appearance"] = skin_tone
                 logger.info(f"[Project] Skin tone override: {name} -> {skin_tone}")
+
+    # 5a. Body tattoo — the tx_ overlay's appearance is the save's raw
+    # selection (skin-tone-keyed, e.g. w__01_ca_pale), not 'default'.
+    _apply_body_tattoo(component_specs, asset_paths.get("body_tattoo"))
 
     # 6. Clothing — resolve equipped garment meshes by name (CET gives only hashes)
     equipped_clothing = _resolve_equipped_clothing_meshes(

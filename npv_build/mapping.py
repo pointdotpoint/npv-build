@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from pathlib import Path
 
 from .core.errors import NpvError
@@ -86,6 +87,7 @@ def resolve_assets(
         "external_dependencies": [],
         "unresolved": [],
         "equipped_clothing": cc_settings.get("clothing", []),
+        "body_tattoo": None,
     }
 
     part_entities = []
@@ -200,6 +202,24 @@ def resolve_assets(
 
             if not fallback_resolved:
                 asset_paths["unresolved"].append(raw)
+
+    # 1c. Body tattoo: label body_tattoo_NN (slots TPP_Body/character_creation,
+    # the fpp_ variant is deliberately excluded). The raw value is the
+    # skin-tone-keyed tattoo appearance (e.g. w__01_ca_pale); shape NN picks
+    # the tx_ overlay part .ent. The assembler applies the appearance
+    # (_apply_body_tattoo).
+    for sel in selections:
+        m = re.match(r"^body_tattoo_(\d+)$", sel.get("label", "") or "")
+        if m and sel.get("raw"):
+            shape = m.group(1).zfill(2)
+            asset_paths["body_tattoo"] = {"shape": shape, "appearance": sel["raw"]}
+            tx_ent = (
+                "base\\characters\\common\\player_base_bodies\\appearances\\entity\\"
+                f"tx_000_{body_rig}_base__full_tattoo_{shape}.ent"
+            )
+            part_entities.append(tx_ent)
+            logger.info(f"[Mapping] Body tattoo {shape} -> {sel['raw']}")
+            break
 
     # If the selections array was empty or mock settings are loaded, check compatibility fallbacks
     if not part_entities:
