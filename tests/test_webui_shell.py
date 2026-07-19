@@ -7,6 +7,43 @@ def test_webui_dir_exists_and_has_index():
     assert (d / "js" / "main.js").is_file()
 
 
+def test_linux_env_defaults_set(monkeypatch):
+    from npv_build.webui_shell import _linux_env_defaults
+
+    monkeypatch.setattr("sys.platform", "linux")
+    monkeypatch.delenv("PYWEBVIEW_GUI", raising=False)
+    monkeypatch.delenv("WEBKIT_DISABLE_DMABUF_RENDERER", raising=False)
+    _linux_env_defaults()
+    import os
+
+    assert os.environ["PYWEBVIEW_GUI"] == "gtk"
+    assert os.environ["WEBKIT_DISABLE_DMABUF_RENDERER"] == "1"
+
+
+def test_linux_env_defaults_respect_overrides(monkeypatch):
+    from npv_build.webui_shell import _linux_env_defaults
+
+    monkeypatch.setattr("sys.platform", "linux")
+    monkeypatch.setenv("PYWEBVIEW_GUI", "qt")
+    monkeypatch.setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "0")
+    _linux_env_defaults()
+    import os
+
+    assert os.environ["PYWEBVIEW_GUI"] == "qt"
+    assert os.environ["WEBKIT_DISABLE_DMABUF_RENDERER"] == "0"
+
+
+def test_linux_env_defaults_noop_elsewhere(monkeypatch):
+    from npv_build.webui_shell import _linux_env_defaults
+
+    monkeypatch.setattr("sys.platform", "win32")
+    monkeypatch.delenv("PYWEBVIEW_GUI", raising=False)
+    _linux_env_defaults()
+    import os
+
+    assert "PYWEBVIEW_GUI" not in os.environ
+
+
 def test_main_reports_missing_webview(monkeypatch, capsys):
     import builtins
 

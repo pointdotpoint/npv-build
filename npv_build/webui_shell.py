@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -12,7 +13,17 @@ def webui_dir() -> Path:
     return Path(__file__).parent / "webui"
 
 
+def _linux_env_defaults() -> None:
+    if not sys.platform.startswith("linux"):
+        return
+    # pywebview forces its QT backend under KDE (KDE_FULL_SESSION), which we
+    # don't ship; WebKitGTK's DMA-BUF renderer crashes on NVIDIA + Wayland.
+    os.environ.setdefault("PYWEBVIEW_GUI", "gtk")
+    os.environ.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+
+
 def main() -> int:
+    _linux_env_defaults()
     try:
         import webview
     except ImportError:
