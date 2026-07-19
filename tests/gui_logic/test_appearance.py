@@ -102,6 +102,25 @@ def test_apply_overrides_unknown_slot_raises():
         apply_overrides(_cc(), {"nose_shape": "x"})
 
 
+def _cc_without_hair_color_selection():
+    cc = _cc()
+    cc["selections"] = [s for s in cc["selections"] if s["label"] != "winona_2_hair"]
+    cc["hair"] = {"style_id": "winona_2", "raw": "winona_2_hair"}
+    return cc
+
+
+def test_apply_overrides_hair_color_without_selection_raises():
+    with pytest.raises(ValueError):
+        apply_overrides(_cc_without_hair_color_selection(), {"hair_color": "x"})
+
+
+def test_rows_hair_color_with_empty_value_is_locked_even_with_options():
+    rows = inspector_rows(_cc_without_hair_color_selection(), OPTIONS, {})
+    by_id = {r["slot_id"]: r for r in rows}
+    assert by_id["hair_color"]["value_raw"] == ""
+    assert by_id["hair_color"]["editable"] is False
+
+
 def test_apply_overrides_hair_mod_emulates_ccxl_save():
     """hair_mod: <token> must reshape cc.hair exactly like a save that used
     that CCXL hair — mapping.resolve_assets' CCXL branch keys off

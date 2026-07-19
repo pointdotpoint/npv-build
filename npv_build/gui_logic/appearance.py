@@ -55,13 +55,19 @@ def inspector_rows(cc_settings: dict, options: dict, display_names: dict) -> lis
 
     for slot_id in EDITABLE_SLOTS:
         opts = list(options.get(slot_id) or [])
+        value_raw = current[slot_id]
+        # hair_color has no selection to write an override into when the save
+        # has no non-default hair colour (e.g. bald/default-hair saves) — see
+        # apply_overrides' matching hard-fail. Locking the row here keeps the
+        # UI from offering an edit that would raise at apply time.
+        editable = bool(opts) and not (slot_id == "hair_color" and value_raw == "")
         rows.append({
             "category": _CATEGORIES.get(slot_id, "Other"),
             "slot_id": slot_id,
             "label": label_for(slot_id),
-            "value_label": current[slot_id],
-            "value_raw": current[slot_id],
-            "editable": bool(opts),
+            "value_label": value_raw,
+            "value_raw": value_raw,
+            "editable": editable,
             "options": opts,
         })
 
@@ -91,8 +97,10 @@ def apply_overrides(cc_settings: dict, overrides: dict) -> dict:
             out.setdefault("hair", {})["style_id"] = value
         elif slot_id == "hair_color":
             sel = _hair_color_selection(out)
-            if sel is not None:
-                sel["raw"] = value
+            if sel is None:
+                raise ValueError(
+                    "hair_color override has no hair-color selection to apply to")
+            sel["raw"] = value
         elif slot_id == "eye_color":
             rig = out.get("body_rig", "pwa")
             raw = f"he_000_{rig}__basehead__{value}"

@@ -162,7 +162,8 @@ window.screens.appearance = {
       browseBtn.className = "secondary browse-hair-mod";
       browseBtn.textContent = "Use hair mod file…";
       browseBtn.onclick = async () => {
-        const out = await Api.call("browse_for_hair_mod");
+        const rig = (s.save.preview && s.save.preview.body_rig) || "pwa";
+        const out = await Api.call("browse_for_hair_mod", rig);
         this.applyHairMod(out);
         store.set({});
       };
@@ -204,7 +205,8 @@ window.screens.appearance = {
         showFormError("Drag & drop needs the desktop app — use the file browser instead.");
         return;
       }
-      const out = await Api.call("add_hair_mod", path, s.save.preview.body_rig);
+      const rig = (s.save.preview && s.save.preview.body_rig) || "pwa";
+      const out = await Api.call("add_hair_mod", path, rig);
       this.applyHairMod(out);
       store.set({});
     };

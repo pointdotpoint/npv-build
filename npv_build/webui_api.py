@@ -324,7 +324,7 @@ class WebUiApi:
         return {"ok": True, "token": token, "source": src or archive_path.name,
                 "warning": "The NPV needs this hair mod to stay installed."}
 
-    def browse_for_hair_mod(self) -> dict:
+    def browse_for_hair_mod(self, body_rig: str = "pwa") -> dict:
         try:
             import webview
 
@@ -342,7 +342,7 @@ class WebUiApi:
                     "details": str(e)}
         if not result:
             return {"ok": False, "cancelled": True, "error": ""}
-        return self.add_hair_mod(result[0])
+        return self.add_hair_mod(result[0], body_rig)
 
     def zip_info(self, output_dir: str) -> dict:
         """Describe the built mod zip in output_dir (path, size, contents)."""

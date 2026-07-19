@@ -124,6 +124,29 @@ def test_browse_for_save_without_webview_is_structured_error():
     assert out["error"]
 
 
+def test_browse_for_hair_mod_passes_body_rig_through(monkeypatch):
+    import sys
+    import types
+
+    fake_window = types.SimpleNamespace(
+        create_file_dialog=lambda *a, **k: ["/x/h.archive"])
+    fake_webview = types.SimpleNamespace(windows=[fake_window], OPEN_DIALOG="open")
+    monkeypatch.setitem(sys.modules, "webview", fake_webview)
+
+    recorded = {}
+
+    def fake_add_hair_mod(self, path, body_rig="pwa"):
+        recorded["path"] = path
+        recorded["body_rig"] = body_rig
+        return {"ok": True}
+
+    monkeypatch.setattr(WebUiApi, "add_hair_mod", fake_add_hair_mod)
+
+    out = WebUiApi().browse_for_hair_mod("pma")
+    assert out == {"ok": True}
+    assert recorded == {"path": "/x/h.archive", "body_rig": "pma"}
+
+
 def test_zip_info_reports_contents(tmp_path):
     import zipfile
 
