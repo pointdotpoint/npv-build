@@ -36,10 +36,12 @@ from .gui_logic.modmanager import (
 from .gui_logic.overrides_store import load_overrides, save_overrides
 from .gui_logic.settings import load_settings, save_settings, validate
 from .gui_logic.wizard import WizardModel
+from .hair_mod_helper import install_hair_mod
 from .installer import auto_install_missing
 from .mapping import resolve_table_key
-from .part_resolver import get_index_path
+from .part_resolver import extract_hair_components, get_index_path
 from .save_parser import parse_save as parse_save_for_inspector
+from .wk_cli import WolvenKit, WolvenKitConfig
 
 logger = logging.getLogger(__name__)
 
@@ -227,6 +229,64 @@ class WebUiApi:
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
             return {"ok": False, "error": str(e), "remediation": ""}
         return {"ok": True, **info}
+
+    def add_hair_mod(self, path: str, body_rig: str = "pwa") -> dict:
+        """Install a CCXL/hair mod file into the game and return its token.
+
+        The mod is a runtime dependency of the built NPV (the .app is attached
+        by appearance reference), so installing into the game dir here is the
+        end state, not a side effect."""
+        s = load_settings()
+        if not s.game_dir:
+            return {"ok": False, "error": "Game directory not configured.",
+                    "remediation": "Set it in Settings."}
+        game_dir = Path(s.game_dir)
+        try:
+            token, _installed = install_hair_mod(Path(path), game_dir)
+        except NpvError as e:
+            return {"ok": False, "error": e.user_message,
+                    "remediation": e.remediation or ""}
+        except (ValueError, OSError) as e:
+            return {"ok": False, "error": str(e),
+                    "remediation": "Pick a hair mod file: .archive, .zip, .7z or .rar."}
+        # Probe: does the installed mod actually carry a findable hair .app?
+        # extract_hair_components pre-filters candidates by filename/.xl
+        # sidecar, so this lists ~1 archive, not the whole mod dir.
+        try:
+            wk = WolvenKit(WolvenKitConfig(game_dir=game_dir, verbosity=0))
+            _comps, src, app_depot, _app_name = extract_hair_components(
+                game_dir, token, body_rig, verbosity=0, wk=wk)
+        except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
+            logger.exception("hair mod probe failed")
+            return {"ok": False, "error": f"Could not inspect the hair mod: {e}",
+                    "remediation": "Check the file and try again."}
+        if not app_depot:
+            return {"ok": False,
+                    "error": f"No hair appearance found in '{Path(path).name}'.",
+                    "remediation": "This does not look like a CCXL/hair mod — "
+                                   "pick the mod's main .archive (or its zip/7z/rar)."}
+        return {"ok": True, "token": token, "source": src or "",
+                "warning": "The NPV needs this hair mod to stay installed."}
+
+    def browse_for_hair_mod(self) -> dict:
+        try:
+            import webview
+
+            if not webview.windows:
+                raise RuntimeError("no webview window")
+            result = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                file_types=("Hair mod (*.archive;*.zip;*.7z;*.rar)",
+                            "All files (*.*)"),
+            )
+        except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
+            return {"ok": False,
+                    "error": "File dialog is unavailable outside the desktop app.",
+                    "remediation": "Drag & drop the mod file instead.",
+                    "details": str(e)}
+        if not result:
+            return {"ok": False, "cancelled": True, "error": ""}
+        return self.add_hair_mod(result[0])
 
     def zip_info(self, output_dir: str) -> dict:
         """Describe the built mod zip in output_dir (path, size, contents)."""
