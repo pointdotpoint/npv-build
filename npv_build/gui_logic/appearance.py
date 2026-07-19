@@ -8,7 +8,9 @@ Row contract (consumed by webui/js/appearance.js and webui_api.appearance_data):
 from __future__ import annotations
 
 import copy
+import json
 import re
+from pathlib import Path
 
 EDITABLE_SLOTS = ("skin_tone", "hair_style", "hair_color", "eye_color")
 
@@ -171,10 +173,29 @@ def option_lists(index: dict | None, body_rig: str) -> dict[str, list[str]]:
         if hair_app_re.match(base):
             hair_color.update(n for n in names if "__" not in n)
 
+    hair_color_list = sorted(hair_color)
+    if not hair_color_list:
+        hair_color_list = _vendored_hair_colors()
+
     out = {
         "hair_style": hair_style,
         "eye_color": app_suffixes(f"he_000_{body_rig}__basehead"),
         "skin_tone": app_suffixes(f"h0_000_{body_rig}__basehead"),
-        "hair_color": sorted(hair_color),
+        "hair_color": hair_color_list,
     }
     return {k: v for k, v in out.items() if v}
+
+
+def _vendored_hair_colors() -> list[str]:
+    """Global vanilla hair-colour constants, vendored from the game's
+    hair-profile stems (custom_* NPC-specific profiles excluded).
+
+    Fallback for the index-derived hair_color list: the real part index
+    contains no hh_* apps, so that derivation always yields [] against a
+    real (non-empty) index. See amended plan note, Task 2 review finding
+    2026-07-19."""
+    path = Path(__file__).parents[1] / "data" / "hair_colors.json"
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return []

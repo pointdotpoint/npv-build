@@ -164,3 +164,55 @@ def test_option_lists_other_rig_and_empty_index():
     assert opts["hair_style"] == ["hh_044_pma__hairs_140"]  # no _fpp
     assert option_lists({}, "pwa") == {}
     assert option_lists(None, "pwa") == {}
+
+
+# Real-shape fixture: app basenames WITHOUT rig (rig only embedded in the
+# appearance names), matching the actual part-resolver index shape rather
+# than the synthetic INDEX above. Includes a decoy app that must not match.
+INDEX2 = {
+    "part_ents": {},
+    "app_appearances": {
+        "base\\x\\he_000__basehead.app": [
+            "he_000_pwa__basehead__11_gradient_blue",
+            "he_000_pwa__basehead__01_black",
+            "he_000_pma__basehead__21_green",
+        ],
+        "base\\x\\h0_000__basehead.app": [
+            "h0_000_pwa__basehead__01_ca_pale",
+            "h0_000_pwa__basehead__03_ca_medium",
+        ],
+        # Decoy: must NOT be matched as the exact skin_tone app for pwa.
+        "base\\x\\h0_000__basehead_face_rig.app": [
+            "h0_000_pwa__basehead_face_rig__99_should_not_appear",
+        ],
+    },
+}
+
+
+def test_option_lists_rigless_app_basename_fallback():
+    opts = option_lists(INDEX2, "pwa")
+    assert opts["eye_color"] == ["01_black", "11_gradient_blue"]
+    assert opts["skin_tone"] == ["01_ca_pale", "03_ca_medium"]
+    assert "99_should_not_appear" not in opts.get("skin_tone", [])
+    # No hh_* apps/parts at all -> hair_style/hair_color absent or fall back,
+    # but the decoy must not leak into any option list.
+    for values in opts.values():
+        assert "99_should_not_appear" not in values
+
+
+def test_option_lists_hair_color_falls_back_to_vendored_list_when_index_has_no_hh_apps():
+    import json
+    from pathlib import Path
+
+    vendored = json.loads(
+        (Path(__file__).parents[2] / "npv_build" / "data" / "hair_colors.json").read_text()
+    )
+    opts = option_lists(INDEX2, "pwa")
+    assert opts["hair_color"] == vendored
+    assert opts["hair_color"] != []
+
+
+def test_option_lists_empty_index_still_returns_empty_dict_with_fallback_present():
+    # Fallback must never fire when there's no index at all.
+    assert option_lists({}, "pwa") == {}
+    assert option_lists(None, "pwa") == {}
