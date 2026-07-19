@@ -422,3 +422,77 @@ def test_start_build_without_game_dir_errors(monkeypatch):
     out = WebUiApi().start_build({"save_path": "/s", "npv_name": "V",
                                   "output_dir": "/o"})
     assert out["ok"] is False and "Game directory" in out["error"]
+
+
+def test_appearance_data_rows_and_overrides(monkeypatch, tmp_path):
+    cc = {
+        "patch": "2.31", "body_rig": "pwa", "selections": [],
+        "head": {}, "eyes": {"raw": "he_000_pwa__basehead__11_gradient_blue"},
+        "teeth": {"raw": ""}, "skin": {"tone_id": "01_ca_pale"},
+        "hair": {"style_id": "winona_2", "raw": ""}, "overlays": [],
+        "face_morphs": {"eyes": "h091"},
+    }
+    monkeypatch.setattr("npv_build.webui_api.parse_save_for_inspector", lambda p: cc)
+    monkeypatch.setattr("npv_build.webui_api.load_part_index", lambda patch: {})
+    monkeypatch.setattr("npv_build.webui_api.load_overrides",
+                        lambda p: {"skin_tone": "03_ca_medium"})
+    out = WebUiApi().appearance_data("/s/sav.dat")
+    assert out["ok"] is True
+    ids = [r["slot_id"] for r in out["rows"]]
+    assert "skin_tone" in ids and "face_morph_eyes" in ids
+    assert out["overrides"] == {"skin_tone": "03_ca_medium"}
+
+
+def test_set_overrides_validates_and_persists(monkeypatch):
+    saved = {}
+    monkeypatch.setattr("npv_build.webui_api.save_overrides",
+                        lambda p, o: saved.update({p: o}))
+    monkeypatch.setattr("npv_build.webui_api.load_part_index", lambda patch: {})
+    monkeypatch.setattr("npv_build.webui_api.parse_save_for_inspector",
+                        lambda p: {"patch": "2.31", "body_rig": "pwa"})
+    api = WebUiApi()
+    # no option list available -> value accepted (validated at build)
+    assert api.set_overrides("/s/sav.dat", {"skin_tone": "x"}) == {"ok": True}
+    assert saved["/s/sav.dat"] == {"skin_tone": "x"}
+    # unknown slot always rejected
+    out = api.set_overrides("/s/sav.dat", {"bogus": "x"})
+    assert out["ok"] is False and "bogus" in out["error"]
+
+
+def test_start_build_passes_stored_overrides(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    started = {}
+
+    class FakeWorker:
+        def __init__(self, q): pass
+        def start(self, **kwargs): started.update(kwargs)
+
+    monkeypatch.setattr("npv_build.webui_api.BuildWorker", FakeWorker)
+    monkeypatch.setattr("npv_build.webui_api.load_overrides",
+                        lambda p: {"skin_tone": "03_ca_medium"})
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
+                         patch_override=None, check_updates=True),
+    )
+    WebUiApi().start_build({"save_path": "/s/sav.dat", "npv_name": "V",
+                            "output_dir": str(tmp_path / "o")})
+    assert started["cc_overrides"] == {"skin_tone": "03_ca_medium"}
+
+
+def test_load_part_index_resolves_table_key(monkeypatch, tmp_path):
+    from npv_build import webui_api
+
+    calls = []
+
+    def spy(patch):
+        calls.append(patch)
+        return tmp_path / f"{patch}.json"
+
+    (tmp_path / "2.13.json").write_text('{"part_ents": {}}', encoding="utf-8")
+
+    monkeypatch.setattr(webui_api, "get_index_path", spy)
+    result = webui_api.load_part_index("2.31")
+    assert result == {"part_ents": {}}
+    assert calls == ["2.13"]

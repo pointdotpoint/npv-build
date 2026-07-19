@@ -18,6 +18,7 @@ from .core.platform import find_game_dirs
 from .core.platform import open_folder as platform_open_folder
 from .gui_backend import BuildWorker, check_dependencies, resolve_tool_paths
 from .gui_backend import preview_save as preview_save_file
+from .gui_logic.appearance import inspector_rows, option_lists, validate_overrides
 from .gui_logic.discovery import entry_for_path
 from .gui_logic.discovery import list_saves as discover_saves
 from .gui_logic.modmanager import (
@@ -32,9 +33,13 @@ from .gui_logic.modmanager import (
 from .gui_logic.modmanager import (
     uninstall_mod as mm_uninstall_mod,
 )
+from .gui_logic.overrides_store import load_overrides, save_overrides
 from .gui_logic.settings import load_settings, save_settings, validate
 from .gui_logic.wizard import WizardModel
 from .installer import auto_install_missing
+from .mapping import resolve_table_key
+from .part_resolver import get_index_path
+from .save_parser import parse_save as parse_save_for_inspector
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +54,33 @@ def _app_version() -> str:
 # Cache subdirectories the GUI may clear. "tools" re-downloads on next build;
 # everything else is a pure cache.
 _CLEARABLE_CACHE_DIRS = ("index", "bake", "bake_heb", "templates", "thumbs", "tools")
+
+
+def load_part_index(patch: str) -> dict:
+    """Cached part index for this patch, or {} when it was never generated.
+
+    Never generates it here — index generation needs WolvenKit and minutes.
+    The index cache is keyed by the vendored *table* key, not the raw save
+    patch (e.g. save patch "2.31" shares tables with "2.13"), so resolve
+    through resolve_table_key before looking up the cache path.
+    """
+    import json
+
+    try:
+        path = get_index_path(resolve_table_key(patch))
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _display_names() -> dict:
+    import json
+
+    p = Path(__file__).parent / "data" / "display_names.json"
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
 
 
 class WebUiApi:
@@ -299,6 +331,38 @@ class WebUiApi:
                     "remediation": e.remediation or ""}
         return {"ok": True}
 
+    def appearance_data(self, save_path: str) -> dict:
+        try:
+            cc = parse_save_for_inspector(Path(save_path))
+        except NpvError as e:
+            return {"ok": False, "error": e.user_message,
+                    "remediation": e.remediation or ""}
+        except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
+            return {"ok": False, "error": str(e), "remediation": ""}
+        options = option_lists(load_part_index(cc.get("patch", "")),
+                               cc.get("body_rig", "pwa"))
+        rows = inspector_rows(cc, options, _display_names())
+        categories = list(dict.fromkeys(r["category"] for r in rows))
+        return {"ok": True, "rows": rows, "categories": categories,
+                "overrides": load_overrides(save_path)}
+
+    def get_overrides(self, save_path: str) -> dict:
+        return {"ok": True, "overrides": load_overrides(save_path)}
+
+    def set_overrides(self, save_path: str, overrides: dict) -> dict:
+        try:
+            cc = parse_save_for_inspector(Path(save_path))
+            options = option_lists(load_part_index(cc.get("patch", "")),
+                                   cc.get("body_rig", "pwa"))
+        except Exception:  # noqa: BLE001 - index/parse problems fall back to slot-only checks
+            options = {}
+        problems = validate_overrides(overrides, options)
+        if problems:
+            return {"ok": False, "error": "; ".join(problems),
+                    "remediation": "Pick values from the dropdowns."}
+        save_overrides(save_path, overrides)
+        return {"ok": True}
+
     def start_build(self, req: dict) -> dict:
         import json
 
@@ -326,6 +390,7 @@ class WebUiApi:
             template_cache=get_cache_dir() / "templates",
             clear_cache=bool(req.get("clear_cache", False)),
             resume=bool(req.get("resume", False)),
+            cc_overrides=load_overrides(req["save_path"]),
         )
         return {"ok": True}
 
