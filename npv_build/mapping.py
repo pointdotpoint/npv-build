@@ -86,6 +86,7 @@ def resolve_assets(
         "part_entities": [],
         "external_dependencies": [],
         "unresolved": [],
+        "vanilla_hair_ent": "",
         "equipped_clothing": cc_settings.get("clothing", []),
         "body_tattoo": None,
     }
@@ -373,6 +374,25 @@ def resolve_assets(
                         dep["reason"] = f"modded hair from {src} (must stay installed)"
         except (NpvError, OSError, TypeError) as e:
             logger.warning(f"hair extraction failed ({e}); NPV will be bald.")
+    elif not hair_raw:
+        # Vanilla hairstyle from the save (no override, no modded hair). The
+        # ent goes into vanilla_hair_ent — NOT part_entities — so the
+        # assembler's hair section owns colour + dangle binding.
+        vanilla_style = int(hair_info.get("vanilla_style") or 0)
+        if vanilla_style:
+            hair_ent = _vanilla_hair_ent_for_style(index, body_rig, vanilla_style)
+            if hair_ent:
+                asset_paths["vanilla_hair_ent"] = hair_ent
+                logger.info(
+                    f"[Mapping] Vanilla hair: style {vanilla_style:02d} -> "
+                    f"{hair_ent.split(chr(92))[-1]}"
+                )
+            else:
+                asset_paths["unresolved"].append(f"vanilla_hair:style_{vanilla_style:02d}")
+                logger.info(
+                    f"[Mapping] Vanilla hair style {vanilla_style:02d} not in index; "
+                    "NPV will be bald."
+                )
 
     # Garment overrides: add explicit garment .ent depot paths as parts.
     for g in garments or []:
@@ -382,6 +402,19 @@ def resolve_assets(
             logger.info(f"[Mapping] Garment added: {g.split(chr(92))[-1]}")
 
     return asset_paths
+
+
+def _vanilla_hair_ent_for_style(index: dict, body_rig: str, style_num: int) -> str:
+    """CC hairstyle number (1-51) -> depot path of the vanilla hair part .ent,
+    via the vendored style table. Only index-verified paths are returned
+    (hard-fail policy): "" when the style or its ent is unknown."""
+    table_file = Path(__file__).parent / "data" / "mappings" / "vanilla_hair.json"
+    if not table_file.exists():
+        return ""
+    with open(table_file) as f:
+        table = json.load(f)
+    stem = table.get(body_rig, {}).get(str(style_num), "")
+    return index.get("part_ents", {}).get(stem, "") if stem else ""
 
 
 def _find_vanilla_hair_ent(index: dict, body_rig: str, hair_num: str) -> str:

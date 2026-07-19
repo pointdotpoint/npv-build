@@ -296,7 +296,13 @@ def _decode_cc_v195(sc: SaveContainer) -> dict:
         "eyes": {"raw": eyes_sel["raw"] if eyes_sel else ""},
         "teeth": {"raw": teeth_sel["raw"] if teeth_sel else ""},
         "skin": {"tone_id": skin_tone},
-        "hair": {"style_id": hair_style, "raw": hair_raw},
+        "hair": {
+            "style_id": hair_style,
+            "raw": hair_raw,
+            # Vanilla CC hairstyle number (1-51); 0 when modded hair is equipped
+            # or no style label exists (bald).
+            "vanilla_style": 0 if hair_entry else vanilla_hair_style_from_selections(selections),
+        },
         "overlays": [e["raw"] for e in cc_entries if e["prefix"] == "hx"],
         "face_morphs": face_morphs,  # {region: morph_name} for Blender bake
     }
@@ -321,6 +327,26 @@ def _resolve_decoder(v3: int) -> Callable[[SaveContainer], dict]:
             module_name="Save Parser",
         )
     return decoder
+
+
+_VANILLA_HAIR_LABEL = re.compile(r"^hair_color(?:_cyberware)?_?0*(\d+)$")
+
+
+def vanilla_hair_style_from_selections(selections: list[dict]) -> int:
+    """Extract the vanilla CC hairstyle number (1-51) from the hairs-slot label.
+
+    Vanilla saves carry the style in the selection's label (uk1):
+    hair_color_cyberware_01 (styles with a cyberware variant) or hair_color3
+    (styles without). The FPP stub (hair_color_fpp_NN) and modded-hair labels
+    don't match. Returns 0 when no vanilla style is found (modded hair / bald).
+    """
+    for s in selections:
+        if s.get("slot") not in ("hairs", "character_customization"):
+            continue
+        m = _VANILLA_HAIR_LABEL.match(s.get("label") or "")
+        if m:
+            return int(m.group(1))
+    return 0
 
 
 def hair_color_from_selections(selections: list[dict]) -> str:

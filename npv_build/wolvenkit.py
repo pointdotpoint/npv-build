@@ -238,6 +238,23 @@ def _extract_part_components(
     return result
 
 
+def _load_vanilla_hair_components(wk: WolvenKit, hair_ent_depot: str) -> list[dict]:
+    """Uncook a vanilla hh_ part .ent and return its RAW chunks, in the same
+    shape extract_hair_components yields for modded hair, so the hair section
+    of build_project applies colour + dangle binding identically."""
+    basename = hair_ent_depot.replace("\\", "/").rsplit("/", 1)[-1]
+    try:
+        data = wk.uncook_json(basename)
+    except (WolvenKitError, FileNotFoundError) as e:
+        logger.warning(f"vanilla hair extraction failed ({e}); NPV will be bald.")
+        return []
+    rc = data.get("Data", {}).get("RootChunk", {})
+    chunks = rc.get("compiledData", {}).get("Data", {}).get("Chunks", [])
+    if not chunks:
+        chunks = rc.get("components", [])
+    return chunks
+
+
 def _resolve_garment_mesh(wk: WolvenKit, game_dir, name: str, verbosity: int) -> str:
     """Resolve an equipped garment component name to its .mesh depot path.
 
@@ -1127,6 +1144,11 @@ def build_project(
     # 3. Hair components
     hair_components = asset_paths.get("hair_components", [])
     hair_color = asset_paths.get("hair_color", "")
+    vanilla_hair_ent = asset_paths.get("vanilla_hair_ent", "")
+    if not hair_components and vanilla_hair_ent:
+        hair_components = _load_vanilla_hair_components(wk, vanilla_hair_ent)
+        short = vanilla_hair_ent.rsplit("\\", 1)[-1]
+        logger.info(f"[Project]   vanilla hair: {short} ({len(hair_components)} chunk(s))")
     hair_has_dangle = False
     if hair_components:
         for c in hair_components:
