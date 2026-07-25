@@ -155,7 +155,13 @@ def resolve_assets(
     if arms_part:
         part_entities.append(arms_part)
 
-    # 3. Walk through all other selections: eyes, teeth, eyebrows, overlays, hair
+    # 3. Resolve canonical character-customization parts. Saves repeat the same
+    # appearance across runtime slots (TPP, FPP, photomode, holstered arms,
+    # proxies, and so on); those rows describe game state, not additional NPV
+    # assets. The character_customization slot is the authoritative visual
+    # selection set used by the recipe pass below.
+    from .part_resolver import resolve_appearance_to_app
+
     for sel in selections:
         prefix = sel.get("prefix")
         if prefix == "h0":
@@ -170,6 +176,9 @@ def resolve_assets(
                     "reason": "modded hair not in base game",
                 }
             )
+            continue
+
+        if sel.get("slot") != "character_customization":
             continue
 
         key = f"{prefix}_{str(sel.get('index', 0)).zfill(3)}_{body_rig}__{sel.get('group', '')}"
@@ -201,7 +210,24 @@ def resolve_assets(
                     fallback_resolved = True
                     break
 
-            if not fallback_resolved:
+            # Some visual choices (piercings, teeth, colours, makeup) are
+            # authored in .app recipes rather than as standalone part .ents.
+            # Their presence in appearance_to_app is a valid resolution path.
+            appearance_resolved = bool(resolve_appearance_to_app(index, raw, sel.get("label", "")))
+
+            # Hair colour is applied by the dedicated hair path below. Arm
+            # colours/nails decorate the curated arms entity added in step 2;
+            # neither row names a separate part entity.
+            handled_by_curated_part = prefix == "a0" or sel.get("label", "").startswith(
+                "hair_color"
+            )
+
+            if (
+                not fallback_resolved
+                and not appearance_resolved
+                and not handled_by_curated_part
+                and raw != "default"
+            ):
                 asset_paths["unresolved"].append(raw)
 
     # 1c. Body tattoo: label body_tattoo_NN (slots TPP_Body/character_creation,
@@ -269,8 +295,6 @@ def resolve_assets(
     for s in selections:
         if s.get("slot") == "character_customization":
             name_to_label.setdefault(s.get("raw", ""), s.get("label", ""))
-
-    from .part_resolver import resolve_appearance_to_app
 
     feature_apps = {}
     for name in candidate_names:
