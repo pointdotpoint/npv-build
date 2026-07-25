@@ -122,3 +122,17 @@ Both bundles include the **GUI and CLI in one binary** — double-click launches
 **SHA-256 verification** — Each release includes a `SHA256SUMS` file covering all artifacts for integrity checking.
 
 See `docs/release-qa.md` for the full QA checklist before publishing a release.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the canonical `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix` labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository with `CONTEXT.md` at the root and architecture decisions in `docs/adr/`. See `docs/agents/domain.md`.
