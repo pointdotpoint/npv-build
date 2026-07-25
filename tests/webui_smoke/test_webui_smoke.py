@@ -35,7 +35,7 @@ def test_error_path_recovery(webui_server):
         page.goto(webui_server)
         expect(page.locator(".rail-title")).to_have_text("NPV BUILD")
         # Click bad save card
-        cards = page.locator(".card.selectable")
+        cards = page.locator(".card.selectable.save-card")
         expect(cards).to_have_count(2)
         cards.nth(1).click()  # BadSave-1
         bad_card = cards.nth(1)
@@ -65,7 +65,7 @@ def test_continue_with_empty_fields_shows_error(webui_server):
         page = browser.new_page()
         page.add_init_script(path=str(MOCK))
         page.goto(webui_server)
-        good_card = page.locator(".card.selectable").first
+        good_card = page.locator(".card.selectable.save-card").first
         good_card.click()
         expect(good_card.locator(".preview")).to_contain_text("pwa")
         page.click("text=Continue →")
@@ -87,14 +87,14 @@ def test_patch_badge_and_browse(webui_server):
         page = browser.new_page()
         page.add_init_script(path=str(MOCK))
         page.goto(webui_server)
-        cards = page.locator(".card.selectable")
+        cards = page.locator(".card.selectable.save-card")
         expect(cards).to_have_count(2)
         expect(cards.nth(0).locator(".badge")).to_have_text("2.31")
         expect(cards.nth(1).locator(".badge")).to_have_count(0)  # unknown -> no badge
         # Browse… adds the picked save as a new selected card with a preview
         page.click("text=Browse…")
-        expect(page.locator(".card.selectable")).to_have_count(3)
-        browsed = page.locator(".card.selectable.selected")
+        expect(page.locator(".card.selectable.save-card")).to_have_count(3)
+        browsed = page.locator(".card.selectable.save-card.selected")
         expect(browsed).to_contain_text("BrowsedSave")
         expect(browsed.locator(".preview")).to_contain_text("pwa")
         browser.close()
@@ -106,7 +106,7 @@ def test_drag_drop_save_file(webui_server):
         page = browser.new_page()
         page.add_init_script(path=str(MOCK))
         page.goto(webui_server)
-        expect(page.locator(".card.selectable")).to_have_count(2)
+        expect(page.locator(".card.selectable.save-card")).to_have_count(2)
         # Simulate a pywebview-style drop (File with pywebviewFullPath)
         page.evaluate(
             """() => {
@@ -120,8 +120,8 @@ def test_drag_drop_save_file(webui_server):
                 { bubbles: true, cancelable: true, dataTransfer: dt }));
             }"""
         )
-        expect(page.locator(".card.selectable")).to_have_count(3)
-        expect(page.locator(".card.selectable.selected")).to_contain_text("DroppedSave")
+        expect(page.locator(".card.selectable.save-card")).to_have_count(3)
+        expect(page.locator(".card.selectable.save-card.selected")).to_contain_text("DroppedSave")
         browser.close()
 
 
@@ -134,7 +134,7 @@ def test_build_log_copy_and_scroll_pause(webui_server):
         page = context.new_page()
         page.add_init_script(path=str(MOCK))
         page.goto(webui_server)
-        page.locator(".card.selectable").first.click()
+        page.locator(".card.selectable.save-card").first.click()
         page.click("text=Continue →")
         page.click("text=Continue →")
         expect(page.locator("h1")).to_have_text("Build")
@@ -265,7 +265,7 @@ def test_full_flow_source_to_install(webui_server):
         page.add_init_script(path=str(MOCK))
         page.goto(webui_server)
         expect(page.locator(".rail-title")).to_have_text("NPV BUILD")
-        good_card = page.locator(".card.selectable").first
+        good_card = page.locator(".card.selectable.save-card").first
         good_card.click()
         expect(good_card.locator(".preview")).to_contain_text("pwa")
         page.click("text=Continue →")
@@ -294,7 +294,7 @@ def test_appearance_inspector_override_flow(webui_server):
         page = browser.new_page()
         page.add_init_script(path=str(MOCK))
         page.goto(webui_server)
-        page.locator(".card.selectable").first.click()
+        page.locator(".card.selectable.save-card").first.click()
         page.click("text=Continue →")
         expect(page.locator("h1")).to_have_text("Appearance")
         rows = page.locator(".irow")
@@ -340,7 +340,7 @@ def test_appearance_modded_hair_flow(webui_server):
         page = browser.new_page()
         page.add_init_script(path=str(MOCK))
         page.goto(webui_server)
-        page.locator(".card.selectable").first.click()
+        page.locator(".card.selectable.save-card").first.click()
         page.click("text=Continue →")
         expect(page.locator("h1")).to_have_text("Appearance")
         hair_mod_row = page.locator(".irow.hair-mod-row")
@@ -365,4 +365,32 @@ def test_appearance_modded_hair_flow(webui_server):
         expect(page.locator("h1")).to_have_text("Build")
         assert page.evaluate("() => window.__mockApi._overrides") == {
             "hair_mod": "edie"}
+        browser.close()
+
+
+def test_from_scratch_preset_flow(webui_server):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+
+        page.locator(".card", has_text="From scratch").click()
+        page.click("#rig-pwa")
+        expect(page.locator("#rig-pma")).to_be_disabled()
+        page.click("text=Continue →")
+
+        expect(page.locator("h1")).to_have_text("Appearance")
+        expect(page.locator("main")).to_contain_text("pwa")
+        expect(page.locator(".irow")).to_have_count(0)
+        expect(page.locator("#npv-name")).to_have_value("Default V")
+        expect(page.locator("#output-dir")).to_have_value("/out/DefaultV-pwa")
+        page.click("text=Continue →")
+
+        expect(page.locator("h1")).to_have_text("Build")
+        page.click("text=Start build")
+        page.wait_for_function("window.__mockApi._startRequests.length === 1")
+        [request] = page.evaluate("window.__mockApi._startRequests")
+        assert request["preset_rig"] == "pwa"
+        assert "save_path" not in request
         browser.close()

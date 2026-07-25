@@ -36,6 +36,21 @@ window.__mockApi = {
     { path: "/saves/bad/sav.dat", name: "BadSave-1", mtime: 1752700000,
       thumbnail: null, patch: null },
   ],
+  list_presets: async () => ({
+    ok: true,
+    presets: [
+      { rig: "pwa", available: true },
+      { rig: "pma", available: false },
+    ],
+  }),
+  preview_preset: async () => ({
+    ok: true,
+    body_rig: "pwa",
+    skin_tone: "01_ca_pale",
+    hair_style: "hh_040",
+    hair_color: "copper",
+    selections_count: 150,
+  }),
   browse_for_save: async () => ({
     ok: true,
     save: { path: "/saves/browsed/sav.dat", name: "BrowsedSave", mtime: 1752900000,
@@ -53,7 +68,11 @@ window.__mockApi = {
     return { ok: true, body_rig: "pwa", skin_tone: "03",
       hair_style: "bob", hair_color: "copper", selections_count: 152 };
   },
-  start_build: async () => ({ ok: true }),
+  _startRequests: [],
+  start_build: async function (request) {
+    this._startRequests.push(request);
+    return { ok: true };
+  },
   _polls: 0,
   poll_events: async function () {
     this._polls += 1;

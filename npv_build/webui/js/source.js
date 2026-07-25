@@ -9,13 +9,21 @@ function esc(s) {
 window.screens = window.screens || {};
 window.screens.source = {
   saves: null,
+  presets: null,
+  scratchOpen: false,
+  _presetError: null,
   _pickToken: 0,
   async load() {
-    this.saves = await Api.call("list_saves");
+    const [saves, presetsOut] = await Promise.all([
+      Api.call("list_saves"),
+      Api.call("list_presets"),
+    ]);
+    this.saves = saves;
+    this.presets = presetsOut.ok ? presetsOut.presets : [];
     store.set({});
   },
   render(el, s) {
-    if (this.saves === null) {
+    if (this.saves === null || this.presets === null) {
       el.innerHTML = "<h1>Source</h1><p class='subtitle'>Scanning for saves…</p>";
       this.load();
       return;
@@ -26,7 +34,7 @@ window.screens.source = {
     for (const save of this.saves) {
       const card = document.createElement("div");
       const isSelected = s.save && s.save.path === save.path;
-      card.className = "card selectable" + (isSelected ? " selected" : "");
+      card.className = "card selectable save-card" + (isSelected ? " selected" : "");
       const date = new Date(save.mtime * 1000).toLocaleString();
       let previewHtml = "…";
       if (isSelected && s.save.preview) {
@@ -47,10 +55,41 @@ window.screens.source = {
       list.appendChild(card);
     }
     const scratch = document.createElement("div");
-    scratch.className = "card";
-    scratch.style.opacity = ".5";
+    const hasPreset = this.presets.some((preset) => preset.available);
+    scratch.className = "card" + (hasPreset ? " selectable" : "") +
+      (s.preset ? " selected" : "");
+    if (!hasPreset) scratch.style.opacity = ".5";
     scratch.innerHTML = "<strong>From scratch</strong>" +
-      "<div class='muted'>Start from the default V preset — coming soon.</div>";
+      `<div class='muted'>${hasPreset
+        ? "Start from a bundled default V preset."
+        : "Default V presets have not been generated yet."}</div>`;
+    if (hasPreset) {
+      scratch.onclick = () => {
+        this.scratchOpen = true;
+        store.set({});
+      };
+    }
+    if (this.scratchOpen || s.preset) {
+      const rigRow = document.createElement("div");
+      rigRow.className = "row";
+      rigRow.style.marginTop = "12px";
+      for (const preset of this.presets) {
+        const button = document.createElement("button");
+        button.id = `rig-${preset.rig}`;
+        button.className = "secondary";
+        button.textContent = preset.rig;
+        button.disabled = !preset.available;
+        button.title = preset.available
+          ? `Use the default ${preset.rig} V preset`
+          : `The default ${preset.rig} V preset is not bundled yet`;
+        button.onclick = (event) => {
+          event.stopPropagation();
+          this.pickPreset(preset.rig);
+        };
+        rigRow.appendChild(button);
+      }
+      scratch.appendChild(rigRow);
+    }
     list.appendChild(scratch);
     el.appendChild(list);
 
@@ -63,6 +102,10 @@ window.screens.source = {
       sourceError.textContent = msg;
       sourceError.style.display = "";
     };
+    if (this._presetError) {
+      showError(this._presetError);
+      this._presetError = null;
+    }
 
     const browse = document.createElement("button");
     browse.className = "secondary";
@@ -95,7 +138,10 @@ window.screens.source = {
     const cont = document.createElement("button");
     cont.textContent = "Continue →";
     cont.style.marginTop = "16px";
-    cont.disabled = !(s.save && s.save.preview && s.save.preview.ok);
+    cont.disabled = !(
+      (s.save && s.save.preview && s.save.preview.ok) ||
+      s.preset
+    );
     cont.onclick = () => {
       store.set({
         stepsDone: { ...store.state.stepsDone, source: true },
@@ -110,11 +156,12 @@ window.screens.source = {
   },
   async pick(save, card) {
     const token = (this._pickToken = (this._pickToken || 0) + 1);
+    store.set({ save: null, preset: null });
     if (card) card.querySelector(".preview").textContent = "Parsing…";
     const preview = await Api.call("preview_save", save.path);
     if (token !== this._pickToken) return; // superseded by a newer click
     if (!preview.ok) {
-      store.set({ save: { ...save, preview } });
+      store.set({ save: { ...save, preview }, preset: null });
       return;
     }
     const defaults = {};
@@ -123,6 +170,28 @@ window.screens.source = {
       store.state.appState.settings.output_dir;
     if (!store.state.outputDir && outRoot)
       defaults.outputDir = outRoot + "/" + save.name;
-    store.set({ save: { ...save, preview }, ...defaults });
+    store.set({ save: { ...save, preview }, preset: null, ...defaults });
+  },
+  async pickPreset(rig) {
+    const token = (this._pickToken = (this._pickToken || 0) + 1);
+    store.set({ save: null, preset: null });
+    const preview = await Api.call("preview_preset", rig);
+    if (token !== this._pickToken) return;
+    if (!preview.ok) {
+      this._presetError = preview.error + " " + (preview.remediation || "");
+      store.set({});
+      return;
+    }
+    const defaults = {};
+    if (!store.state.npvName) defaults.npvName = "Default V";
+    const outRoot = store.state.appState.default_output_root ||
+      store.state.appState.settings.output_dir || "";
+    if (!store.state.outputDir && outRoot)
+      defaults.outputDir = outRoot + "/DefaultV-" + rig;
+    store.set({
+      preset: { rig, preview },
+      save: null,
+      ...defaults,
+    });
   },
 };

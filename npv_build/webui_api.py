@@ -16,7 +16,7 @@ from .config import get_cache_dir, load_config
 from .core.errors import NpvError
 from .core.platform import find_game_dirs
 from .core.platform import open_folder as platform_open_folder
-from .gui_backend import BuildWorker, check_dependencies, resolve_tool_paths
+from .gui_backend import BuildWorker, check_dependencies, resolve_tool_paths, summarize_cc
 from .gui_backend import preview_save as preview_save_file
 from .gui_logic.appearance import inspector_rows, option_lists, validate_overrides
 from .gui_logic.discovery import entry_for_path
@@ -34,6 +34,8 @@ from .gui_logic.modmanager import (
     uninstall_mod as mm_uninstall_mod,
 )
 from .gui_logic.overrides_store import load_overrides, save_overrides
+from .gui_logic.presets import list_presets as list_gui_presets
+from .gui_logic.presets import load_preset
 from .gui_logic.settings import load_settings, save_settings, validate
 from .gui_logic.wizard import WizardModel
 from .hair_mod_helper import install_hair_mod
@@ -234,6 +236,23 @@ class WebUiApi:
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
             return {"ok": False, "error": str(e), "remediation": ""}
         return {"ok": True, **info}
+
+    def list_presets(self) -> dict:
+        return {"ok": True, "presets": list_gui_presets()}
+
+    def preview_preset(self, rig: str) -> dict:
+        try:
+            cc = load_preset(rig)
+            summary = summarize_cc(cc)
+        except NpvError as error:
+            return {
+                "ok": False,
+                "error": error.user_message,
+                "remediation": error.remediation or "",
+            }
+        except Exception as error:  # noqa: BLE001 - bridge boundary must not raise into JS
+            return {"ok": False, "error": str(error), "remediation": ""}
+        return {"ok": True, **summary}
 
     def add_hair_mod(self, path: str, body_rig: str = "pwa") -> dict:
         """Install a CCXL/hair mod file into the game and return its token.
@@ -486,12 +505,37 @@ class WebUiApi:
         if not s.game_dir:
             return {"ok": False, "error": "Game directory not configured.",
                     "remediation": "Set it in Settings."}
+        preset_rig = req.get("preset_rig")
+        source_save_path = req.get("save_path")
+        if bool(preset_rig) == bool(source_save_path):
+            return {
+                "ok": False,
+                "error": "Choose exactly one build source.",
+                "remediation": "Pick a save or an available default-V preset.",
+            }
+
+        if preset_rig:
+            try:
+                cc_override = load_preset(preset_rig)
+            except NpvError as error:
+                return {
+                    "ok": False,
+                    "error": error.user_message,
+                    "remediation": error.remediation or "",
+                }
+            meta = {"npv_name": req["npv_name"], "preset_rig": preset_rig}
+            save_path = None
+            extra = {"cc_settings_override": cc_override, "cc_overrides": {}}
+        else:
+            meta = {"npv_name": req["npv_name"], "save_path": source_save_path}
+            save_path = Path(source_save_path)
+            extra = {"cc_overrides": load_overrides(source_save_path)}
+
         try:
             out_dir = Path(req["output_dir"])
             out_dir.mkdir(parents=True, exist_ok=True)
             (out_dir / "build_meta.json").write_text(
-                json.dumps({"npv_name": req["npv_name"],
-                            "save_path": req["save_path"]}),
+                json.dumps(meta),
                 encoding="utf-8",
             )
         except OSError as e:
@@ -499,14 +543,14 @@ class WebUiApi:
                     "remediation": "Check the output directory path and permissions."}
         self._worker = BuildWorker(self._queue)
         self._worker.start(
-            save_path=Path(req["save_path"]),
+            save_path=save_path,
             npv_name=req["npv_name"],
             output_dir=Path(req["output_dir"]),
             game_dir=Path(s.game_dir),
             template_cache=get_cache_dir() / "templates",
             clear_cache=bool(req.get("clear_cache", False)),
             resume=bool(req.get("resume", False)),
-            cc_overrides=load_overrides(req["save_path"]),
+            **extra,
         )
         return {"ok": True}
 

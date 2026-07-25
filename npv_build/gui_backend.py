@@ -209,22 +209,28 @@ def resolve_tool_paths() -> dict:
     return {"wolvenkit": wolvenkit, "blender": blender}
 
 
-def preview_save(save_path: Path) -> dict:
-    """Parse save file and return summary.
-
-    Raises:
-        SaveParserError: If save file format is invalid.
-        UnsupportedPatchError: If the game build/patch is not supported.
-    """
-    cc_settings = parse_save(save_path)
+def summarize_cc(cc_settings: dict) -> dict:
+    """Return the appearance summary shared by save and preset previews."""
     hair = cc_settings.get("hair") or {}
     skin = cc_settings.get("skin") or {}
+    selections = cc_settings.get("selections") or []
+    selection_rows = [row for row in selections if isinstance(row, dict)]
     return {
         "body_rig": cc_settings.get("body_rig", "Unknown"),
         "skin_tone": skin.get("tone_id") or "Unknown",
         "hair_style": hair.get("style_id") or "Unknown",
         "hair_color": (hair.get("color")
-                       or hair_color_from_selections(cc_settings.get("selections", []))
+                       or hair_color_from_selections(selection_rows)
                        or "Unknown"),
-        "selections_count": len(cc_settings.get("selections", [])),
+        "selections_count": len(selections),
     }
+
+
+def preview_save(save_path: Path) -> dict:
+    """Parse a save file and return its appearance summary.
+
+    Raises:
+        SaveParserError: If save file format is invalid.
+        UnsupportedPatchError: If the game build/patch is not supported.
+    """
+    return summarize_cc(parse_save(save_path))

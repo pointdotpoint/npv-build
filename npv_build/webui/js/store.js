@@ -5,6 +5,7 @@ window.store = {
     stepsDone: { source: false, appearance: false, build: false },
     appState: null,            // get_state() payload
     save: null,                // selected save {path, name, preview}
+    preset: null,              // selected default-V preset {rig, preview}
     npvName: "", outputDir: "",
     build: { running: false, stages: [], log: "", error: null, outputDir: null },
   },

@@ -25,6 +25,10 @@ window.screens.appearance = {
     el.innerHTML = "<h1>Appearance</h1>" +
       "<p class='subtitle'>Adjust the decoded appearance. Overridden rows " +
       "are marked; everything else builds exactly as saved.</p>";
+    if (s.preset) {
+      this.renderPreset(el, s);
+      return;
+    }
     if (!s.save) { el.innerHTML += "<p class='muted'>Pick a save first.</p>"; return; }
 
     if (this._forPath !== s.save.path) {
@@ -249,6 +253,64 @@ window.screens.appearance = {
       }
       store.set({
         npvName, outputDir,
+        stepsDone: { ...store.state.stepsDone, appearance: true },
+        screen: "build",
+      });
+    };
+    el.appendChild(cont);
+  },
+  renderPreset(el, s) {
+    const preview = s.preset.preview;
+    el.innerHTML = "<h1>Appearance</h1>" +
+      "<p class='subtitle'>This from-scratch build uses the bundled default-V " +
+      "appearance. Preset values are read-only.</p>";
+
+    const summary = document.createElement("div");
+    summary.className = "card preset-summary";
+    summary.innerHTML = `<strong>Default V · ${esc(s.preset.rig)}</strong>` +
+      `<div class="muted">Skin ${esc(preview.skin_tone)} · ` +
+      `${esc(preview.hair_style)} · ${esc(preview.hair_color)}</div>` +
+      `<div class="muted">${esc(preview.selections_count)} CC selections</div>`;
+    el.appendChild(summary);
+
+    const form = document.createElement("div");
+    form.innerHTML = `
+      <label>NPV name (AMM spawn label)</label>
+      <input type="text" id="npv-name" value="${esc(s.npvName || "")}">
+      <label>Output directory</label>
+      <input type="text" id="output-dir" value="${esc(s.outputDir || "")}">`;
+    el.appendChild(form);
+    form.querySelector("#npv-name").addEventListener("input", (event) => {
+      store.state.npvName = event.target.value;
+    });
+    form.querySelector("#output-dir").addEventListener("input", (event) => {
+      store.state.outputDir = event.target.value;
+    });
+
+    const formError = document.createElement("div");
+    formError.className = "form-error err";
+    formError.style.display = "none";
+    formError.style.marginTop = "12px";
+    el.appendChild(formError);
+
+    const cont = document.createElement("button");
+    cont.textContent = "Continue →";
+    cont.style.marginTop = "16px";
+    cont.onclick = () => {
+      const npvName = document.getElementById("npv-name").value.trim();
+      const outputDir = document.getElementById("output-dir").value.trim();
+      const missing = [];
+      if (!npvName) missing.push("NPV name");
+      if (!outputDir) missing.push("Output directory");
+      if (missing.length) {
+        formError.textContent = missing.join(" and ") +
+          (missing.length > 1 ? " are" : " is") + " required.";
+        formError.style.display = "";
+        return;
+      }
+      store.set({
+        npvName,
+        outputDir,
         stepsDone: { ...store.state.stepsDone, appearance: true },
         screen: "build",
       });

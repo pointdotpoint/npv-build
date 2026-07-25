@@ -24,8 +24,11 @@ window.screens.build = {
     store.set({ build: { running: true, stages: {}, log: "", error: null,
                          outputDir: null, progress: 0 } });
     this.starts = {};
+    const source = s.preset
+      ? { preset_rig: s.preset.rig }
+      : { save_path: s.save.path };
     const out = await Api.call("start_build", {
-      save_path: s.save.path, npv_name: s.npvName, output_dir: s.outputDir,
+      ...source, npv_name: s.npvName, output_dir: s.outputDir,
       clear_cache: false, resume: !!resume,
     });
     if (!out.ok) {

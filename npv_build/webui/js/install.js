@@ -71,7 +71,7 @@ window.screens.install = {
     const again = document.createElement("button");
     again.className = "secondary"; again.textContent = "Build another";
     again.onclick = () => store.set({
-      save: null, npvName: "", outputDir: "",
+      save: null, preset: null, npvName: "", outputDir: "",
       stepsDone: { source: false, appearance: false, build: false },
       build: { running: false, stages: {}, log: "", error: null, outputDir: null },
       screen: "source",

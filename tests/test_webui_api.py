@@ -661,3 +661,119 @@ def test_add_hair_mod_bad_package_is_structured(monkeypatch, tmp_path):
     monkeypatch.setattr("npv_build.webui_api.install_hair_mod", boom)
     out = WebUiApi().add_hair_mod(str(tmp_path / "empty.zip"))
     assert out["ok"] is False and "No .archive" in out["error"]
+
+
+def test_preview_preset_and_start_build_with_preset(monkeypatch, tmp_path):
+    import json
+
+    from npv_build.gui_logic.settings import Settings
+
+    cc = {
+        "patch": "2.31",
+        "body_rig": "pma",
+        "selections": [1, 2],
+        "skin": {"tone_id": "02"},
+        "hair": {"style_id": "hh_01", "raw": ""},
+        "head": {},
+        "eyes": {},
+        "teeth": {},
+        "overlays": [],
+        "face_morphs": {},
+    }
+    monkeypatch.setattr("npv_build.webui_api.load_preset", lambda rig: cc)
+    monkeypatch.setattr(
+        "npv_build.webui_api.list_gui_presets",
+        lambda: [
+            {"rig": "pwa", "available": False},
+            {"rig": "pma", "available": True},
+        ],
+    )
+
+    api = WebUiApi()
+    assert api.list_presets()["presets"][1]["available"] is True
+    preview = api.preview_preset("pma")
+    assert preview["ok"] is True
+    assert preview["body_rig"] == "pma"
+    assert preview["selections_count"] == 2
+
+    started = {}
+
+    class FakeWorker:
+        def __init__(self, queue):
+            pass
+
+        def start(self, **kwargs):
+            started.update(kwargs)
+
+    monkeypatch.setattr("npv_build.webui_api.BuildWorker", FakeWorker)
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
+    )
+
+    out = api.start_build(
+        {
+            "preset_rig": "pma",
+            "npv_name": "Default V",
+            "output_dir": str(tmp_path / "o"),
+        }
+    )
+    assert out == {"ok": True}
+    assert started["save_path"] is None
+    assert started["cc_settings_override"] == cc
+    assert started["cc_overrides"] == {}
+    meta = json.loads((tmp_path / "o" / "build_meta.json").read_text())
+    assert meta == {"npv_name": "Default V", "preset_rig": "pma"}
+
+
+def test_preview_preset_missing_is_structured(monkeypatch):
+    from npv_build.core.errors import NpvError
+
+    def fail_to_load(rig):
+        raise NpvError("No preset", remediation="Generate it")
+
+    monkeypatch.setattr("npv_build.webui_api.load_preset", fail_to_load)
+
+    out = WebUiApi().preview_preset("pwa")
+    assert out == {
+        "ok": False,
+        "error": "No preset",
+        "remediation": "Generate it",
+    }
+
+
+def test_preview_preset_malformed_is_structured(monkeypatch):
+    monkeypatch.setattr("npv_build.webui_api.load_preset", lambda rig: [])
+
+    out = WebUiApi().preview_preset("pwa")
+    assert out["ok"] is False
+    assert out["error"]
+    assert "remediation" in out
+
+
+def test_start_build_requires_exactly_one_source(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
+    )
+    api = WebUiApi()
+    base = {"npv_name": "V", "output_dir": str(tmp_path / "o")}
+
+    assert api.start_build(base)["ok"] is False
+    assert api.start_build(
+        {**base, "save_path": "/s/sav.dat", "preset_rig": "pwa"}
+    )["ok"] is False
