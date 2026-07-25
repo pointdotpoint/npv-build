@@ -13,6 +13,7 @@ window.screens.appearance = {
   _overrides: {},
   _search: "",
   _hairModWarning: null,
+  _hairModLoading: false,
   async load(sourceKey, method, source) {
     this._forSource = sourceKey;
     const out = await Api.call(method, source);
@@ -104,6 +105,7 @@ window.screens.appearance = {
     reset.id = "reset-all";
     reset.className = "secondary";
     reset.textContent = "Reset all";
+    reset.disabled = this._hairModLoading;
     reset.onclick = () => {
       this._overrides = {};
       this._hairModWarning = null;
@@ -139,6 +141,7 @@ window.screens.appearance = {
           sel.appendChild(o);
         }
         sel.value = overridden ? this._overrides[row.slot_id] : row.value_raw;
+        sel.disabled = this._hairModLoading;
         sel.onchange = () => {
           if (sel.value === row.value_raw) delete this._overrides[row.slot_id];
           else this._overrides[row.slot_id] = sel.value;
@@ -154,6 +157,7 @@ window.screens.appearance = {
           const rv = document.createElement("button");
           rv.className = "secondary revert"; rv.textContent = "↺";
           rv.title = "Revert to the save's value";
+          rv.disabled = this._hairModLoading;
           rv.onclick = () => { delete this._overrides[row.slot_id]; store.set({}); };
           div.appendChild(rv);
         }
@@ -170,20 +174,29 @@ window.screens.appearance = {
         (this._overrides.hair_mod || "").toLowerCase().includes(q)) {
       const hairOverridden = "hair_mod" in this._overrides;
       const hrow = document.createElement("div");
-      hrow.className = "irow hair-mod-row" + (hairOverridden ? " overridden" : "");
-      const valueLabel = this._overrides.hair_mod || "—";
-      hrow.innerHTML = `<span>Modded hair</span><span>${esc(valueLabel)}</span>`;
+      hrow.className = "irow hair-mod-row"
+        + (hairOverridden ? " overridden" : "")
+        + (this._hairModLoading ? " loading" : "");
+      hrow.setAttribute("aria-busy", String(this._hairModLoading));
+      if (this._hairModLoading) {
+        hrow.innerHTML = `<span>Modded hair</span><span class="hair-loading-value">` +
+          `<span class="hair-spinner" aria-hidden="true"></span>Loading…</span>`;
+      } else {
+        hrow.innerHTML = `<span>Modded hair</span>` +
+          `<span>${esc(this._overrides.hair_mod || "—")}</span>`;
+      }
 
       const browseBtn = document.createElement("button");
       browseBtn.className = "secondary browse-hair-mod";
-      browseBtn.textContent = "Use hair mod file…";
-      browseBtn.onclick = async () => {
+      browseBtn.textContent = this._hairModLoading
+        ? "Loading hair…"
+        : "Use hair mod file…";
+      browseBtn.disabled = this._hairModLoading;
+      browseBtn.onclick = () => {
         const rig = s.preset
           ? s.preset.rig
           : (s.save.preview && s.save.preview.body_rig) || "pwa";
-        const out = await Api.call("browse_for_hair_mod", rig);
-        this.applyHairMod(out);
-        store.set({});
+        this.loadHairMod("browse_for_hair_mod", rig);
       };
       hrow.appendChild(browseBtn);
 
@@ -191,6 +204,7 @@ window.screens.appearance = {
         const rv = document.createElement("button");
         rv.className = "secondary revert"; rv.textContent = "↺";
         rv.title = "Revert to the save's value";
+        rv.disabled = this._hairModLoading;
         rv.onclick = () => {
           delete this._overrides.hair_mod;
           this._hairModWarning = null;
@@ -200,10 +214,26 @@ window.screens.appearance = {
       }
       rowsEl.appendChild(hrow);
 
-      if (this._hairModWarning) {
+      if (this._hairModLoading) {
+        const note = document.createElement("div");
+        note.className = "hair-mod-status";
+        note.setAttribute("role", "status");
+        note.setAttribute("aria-live", "polite");
+        note.innerHTML = `<strong>Loading and validating the hair mod…</strong>` +
+          `<span>Scanning installed archives can take several minutes. ` +
+          `You can continue when this finishes.</span>`;
+        rowsEl.appendChild(note);
+      } else if (this._hairModWarning) {
+        const note = document.createElement("div");
+        note.className = "hair-mod-status loaded";
+        note.innerHTML = `<strong>✓ Hair loaded and validated.</strong>` +
+          `<span>${esc(this._hairModWarning)}</span>`;
+        rowsEl.appendChild(note);
+      } else {
         const note = document.createElement("div");
         note.className = "muted hair-mod-note";
-        note.textContent = this._hairModWarning;
+        note.textContent = "Hair mods are loaded and validated before use. " +
+          "Large mod folders may take several minutes to scan.";
         rowsEl.appendChild(note);
       }
     }
@@ -215,8 +245,9 @@ window.screens.appearance = {
     // Drag & drop a hair mod file anywhere on the screen (mirrors Source's
     // drop handler). Full paths are only exposed by the pywebview shell.
     el.ondragover = (e) => e.preventDefault();
-    el.ondrop = async (e) => {
+    el.ondrop = (e) => {
       e.preventDefault();
+      if (this._hairModLoading) return;
       const f = e.dataTransfer.files && e.dataTransfer.files[0];
       const path = f && (f.pywebviewFullPath || f.path);
       if (!path) {
@@ -226,9 +257,7 @@ window.screens.appearance = {
       const rig = s.preset
         ? s.preset.rig
         : (s.save.preview && s.save.preview.body_rig) || "pwa";
-      const out = await Api.call("add_hair_mod", path, rig);
-      this.applyHairMod(out);
-      store.set({});
+      this.loadHairMod("add_hair_mod", path, rig);
     };
 
     const form = document.createElement("div");
@@ -249,7 +278,13 @@ window.screens.appearance = {
     el.appendChild(formError);
 
     const cont = document.createElement("button");
-    cont.textContent = "Continue →";
+    cont.textContent = this._hairModLoading
+      ? "Waiting for hair to load…"
+      : "Continue →";
+    cont.disabled = this._hairModLoading;
+    if (this._hairModLoading) {
+      cont.title = "The hair mod must finish loading and validation first.";
+    }
     cont.style.marginTop = "16px";
     cont.onclick = async () => {
       const npvName = document.getElementById("npv-name").value.trim();
@@ -281,6 +316,23 @@ window.screens.appearance = {
       });
     };
     el.appendChild(cont);
+  },
+  async loadHairMod(method, ...args) {
+    if (this._hairModLoading) return;
+    this._hairModLoading = true;
+    this._hairModError = null;
+    store.set({ appearanceBusy: true });
+    try {
+      const out = await Api.call(method, ...args);
+      if (!out.cancelled) this.applyHairMod(out);
+    } catch (error) {
+      this._hairModError = error && error.message
+        ? error.message
+        : "Could not load the hair mod.";
+    } finally {
+      this._hairModLoading = false;
+      store.set({ appearanceBusy: false });
+    }
   },
   applyHairMod(out) {
     if (!out.ok) {

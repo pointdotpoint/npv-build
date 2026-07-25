@@ -7,6 +7,7 @@ window.store = {
     save: null,                // selected save {path, name, preview}
     preset: null,              // selected default-V preset {rig, preview}
     npvName: "", outputDir: "",
+    appearanceBusy: false,     // true while a hair mod is being loaded/validated
     build: { running: false, stages: [], log: "", error: null, outputDir: null },
   },
   _subs: [],

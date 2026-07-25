@@ -20,12 +20,14 @@ function renderRail(s) {
   el.appendChild(title);
   for (const [name, label] of STEPS) {
     const item = document.createElement("div");
-    const unlocked = stepUnlocked(name, s);
+    const navigationLocked = s.appearanceBusy && name !== "appearance";
+    const unlocked = !navigationLocked && stepUnlocked(name, s);
     item.className = "rail-item"
       + (s.screen === name ? " current" : "")
       + (s.stepsDone[name] ? " done" : "")
       + (unlocked ? "" : " locked");
     item.textContent = (s.stepsDone[name] ? "✓ " : "") + label;
+    if (navigationLocked) item.title = "Wait for the hair mod to finish loading.";
     if (unlocked) item.onclick = () => store.set({ screen: name });
     el.appendChild(item);
   }
@@ -33,9 +35,14 @@ function renderRail(s) {
   sep.className = "rail-sep"; el.appendChild(sep);
   for (const [name, label] of PAGES) {
     const item = document.createElement("div");
-    item.className = "rail-item" + (s.screen === name ? " current" : "");
+    item.className = "rail-item" + (s.screen === name ? " current" : "")
+      + (s.appearanceBusy ? " locked" : "");
     item.textContent = label;
-    item.onclick = () => store.set({ screen: name });
+    if (s.appearanceBusy) {
+      item.title = "Wait for the hair mod to finish loading.";
+    } else {
+      item.onclick = () => store.set({ screen: name });
+    }
     el.appendChild(item);
   }
   const v = document.createElement("div");

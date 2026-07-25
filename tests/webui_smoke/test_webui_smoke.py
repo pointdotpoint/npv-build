@@ -368,6 +368,60 @@ def test_appearance_modded_hair_flow(webui_server):
         browser.close()
 
 
+def test_modded_hair_loading_blocks_progress_until_override_is_ready(webui_server):
+    """The slow archive probe must be visible and impossible to bypass."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.locator(".card", has_text="From scratch").click()
+        page.click("#rig-pwa")
+        page.click("text=Continue →")
+        expect(page.locator("h1")).to_have_text("Appearance")
+
+        page.evaluate(
+            """() => {
+                window.__mockApi.browse_for_hair_mod = () =>
+                    new Promise((resolve) => {
+                        window.__resolveHairMod = resolve;
+                    });
+            }"""
+        )
+        hair_mod_row = page.locator(".irow.hair-mod-row")
+        hair_mod_row.locator("button.browse-hair-mod").click()
+
+        expect(hair_mod_row).to_have_attribute("aria-busy", "true")
+        expect(hair_mod_row).to_contain_text("Loading…")
+        expect(page.locator(".hair-mod-status")).to_contain_text(
+            "Loading and validating the hair mod"
+        )
+        expect(page.get_by_role("button", name="Waiting for hair to load…")).to_be_disabled()
+        expect(page.locator(".rail-item", has_text="3 · Build")).to_have_class(
+            re.compile("locked")
+        )
+
+        page.evaluate(
+            """() => window.__resolveHairMod({
+                ok: true,
+                token: "axiom_hair",
+                source: "axiom_hair.archive",
+                warning: "The NPV needs this hair mod to stay installed.",
+            })"""
+        )
+
+        expect(hair_mod_row).to_have_attribute("aria-busy", "false")
+        expect(hair_mod_row).to_contain_text("axiom_hair")
+        continue_button = page.get_by_role("button", name="Continue →")
+        expect(continue_button).to_be_enabled()
+        continue_button.click()
+        page.get_by_role("button", name="Start build").click()
+        page.wait_for_function("window.__mockApi._startRequests.length === 1")
+        [request] = page.evaluate("window.__mockApi._startRequests")
+        assert request["cc_overrides"] == {"hair_mod": "axiom_hair"}
+        browser.close()
+
+
 def test_from_scratch_preset_flow(webui_server):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()

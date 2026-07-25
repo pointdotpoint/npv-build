@@ -72,6 +72,7 @@ window.screens.install = {
     again.className = "secondary"; again.textContent = "Build another";
     again.onclick = () => store.set({
       save: null, preset: null, npvName: "", outputDir: "",
+      appearanceBusy: false,
       stepsDone: { source: false, appearance: false, build: false },
       build: { running: false, stages: {}, log: "", error: null, outputDir: null },
       screen: "source",
