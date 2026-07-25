@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import logging
@@ -34,6 +35,7 @@ class BuildRequest:
     template_cache: Path
     clear_cache: bool = False
     cc_json_path: Path | None = None
+    cc_settings_override: dict | None = None
     hair_override: str | None = None
     skin_override: str | None = None
     garments: list[str] = field(default_factory=list)
@@ -69,14 +71,36 @@ def _make_wolvenkit(req: BuildRequest, cancel: CancelToken | None) -> WolvenKit:
 def _run_parse(req: BuildRequest) -> dict:
     """Load CC settings. Replicates orchestrator.run_orchestrator's cc-json handling.
 
-    Three modes:
+    File-based modes:
       save only            -> full CC from the save parser (fallback outfit)
       --cc-json only        -> full CC from the CET dump
       save AND --cc-json    -> CC from the save (head/face/hair are reliable only
                                 there), with the dump's `clothing` overlaid so the
                                 NPV wears V's equipped outfit. The CET dump cannot
                                 reconstruct head CC, so we never let it replace it.
+
+    A settings override is the sole source for a from-scratch preset build and
+    cannot be combined with either file-based source.
     """
+    sources = [
+        source
+        for source in (req.save_path, req.cc_json_path, req.cc_settings_override)
+        if source is not None
+    ]
+    if len(sources) > 1 and req.cc_settings_override is not None:
+        raise NpvError(
+            "A preset build cannot also use a save or CC dump.",
+            remediation="Provide exactly one CC source.",
+        )
+    if not sources:
+        raise NpvError(
+            "No CC source provided.",
+            remediation="Provide a save file, a --cc-json dump, or a preset.",
+        )
+    if req.cc_settings_override is not None:
+        logger.info("[CC Loader] Using preset CC settings (from-scratch build).")
+        return copy.deepcopy(req.cc_settings_override)
+
     dump_data = None
     if req.cc_json_path is not None:
         logger.info(f"[CC Loader] Loading CC dump from {req.cc_json_path}...")
@@ -187,7 +211,14 @@ class PipelineService:
             if req.save_path is not None and req.save_path.exists():
                 st = req.save_path.stat()
                 save_stat = [st.st_size, st.st_mtime]
-            parse_hash = _hash_input([str(req.save_path), save_stat, str(req.cc_json_path)])
+            parse_hash = _hash_input(
+                [
+                    str(req.save_path),
+                    save_stat,
+                    str(req.cc_json_path),
+                    req.cc_settings_override,
+                ]
+            )
             prior = manifest.get(current_stage)
             if req.resume and prior is not None and prior.get("input_hash") == parse_hash:
                 cc_settings = prior["output"]
