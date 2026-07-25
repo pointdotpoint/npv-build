@@ -2,6 +2,7 @@
 
 Requires: uv run playwright install chromium
 """
+
 import re
 import threading
 from functools import partial
@@ -150,11 +151,13 @@ def test_build_log_copy_and_scroll_pause(webui_server):
         # Auto-scroll: pinned to bottom
         assert page.evaluate(
             "() => { const l = document.querySelector('.log');"
-            " return l.scrollTop + l.clientHeight >= l.scrollHeight - 4; }")
+            " return l.scrollTop + l.clientHeight >= l.scrollHeight - 4; }"
+        )
         # User scrolls up -> auto-scroll pauses
         page.evaluate(
             "() => { const l = document.querySelector('.log');"
-            " l.scrollTop = 0; l.dispatchEvent(new Event('scroll')); }")
+            " l.scrollTop = 0; l.dispatchEvent(new Event('scroll')); }"
+        )
         page.wait_for_timeout(1000)  # several polls/renders later...
         assert page.evaluate("() => document.querySelector('.log').scrollTop < 40")
         # Copy button copies the log text
@@ -213,7 +216,7 @@ def test_settings_tools_cache_and_clothing_dir(webui_server):
         cache.locator("button", has_text="Clear").first.click()  # index: one click
         expect(cache).not_to_contain_text("index")
         cache.locator("button", has_text="Clear").first.click()  # tools: step 1
-        cache.locator("text=Really clear?").click()              # tools: step 2
+        cache.locator("text=Really clear?").click()  # tools: step 2
         assert page.evaluate("() => window.__mockApi._cleared") == ["index", "tools"]
         browser.close()
 
@@ -307,8 +310,7 @@ def test_appearance_inspector_override_flow(webui_server):
         skin.locator("select").select_option("03_ca_medium")
         expect(skin).to_have_class(re.compile("overridden"))
         expect(skin.locator("button.revert")).to_be_visible()
-        expect(page.locator(".cat", has_text="Skin").locator(".override-count")
-               ).to_have_text("1")
+        expect(page.locator(".cat", has_text="Skin").locator(".override-count")).to_have_text("1")
         # Search filters rows (hair style + hair color + modded-hair row)
         page.fill("#inspector-search", "hair")
         expect(page.locator(".irow")).to_have_count(3)
@@ -318,16 +320,16 @@ def test_appearance_inspector_override_flow(webui_server):
         expect(skin).not_to_have_class(re.compile("overridden"))
         # Reset all after two overrides
         skin.locator("select").select_option("03_ca_medium")
-        page.locator(".irow", has_text="Hair color").locator("select"
-            ).select_option("06_black_carbon")
+        page.locator(".irow", has_text="Hair color").locator("select").select_option(
+            "06_black_carbon"
+        )
         page.click("#reset-all")
         expect(page.locator(".irow.overridden")).to_have_count(0)
         # Continue persists via set_overrides and advances
         skin.locator("select").select_option("03_ca_medium")
         page.click("text=Continue →")
         expect(page.locator("h1")).to_have_text("Build")
-        assert page.evaluate("() => window.__mockApi._overrides") == {
-            "skin_tone": "03_ca_medium"}
+        assert page.evaluate("() => window.__mockApi._overrides") == {"skin_tone": "03_ca_medium"}
         browser.close()
 
 
@@ -352,8 +354,7 @@ def test_appearance_modded_hair_flow(webui_server):
         hair_mod_row.locator("button.browse-hair-mod").click()
         expect(hair_mod_row).to_have_class(re.compile("overridden"))
         expect(hair_mod_row).to_contain_text("edie")
-        expect(page.locator("main")).to_contain_text(
-            "needs this hair mod to stay installed")
+        expect(page.locator("main")).to_contain_text("needs this hair mod to stay installed")
         # Mutual exclusion: the vanilla style override was cleared
         expect(style_row).not_to_have_class(re.compile("overridden"))
         # Re-picking a vanilla style clears the mod override
@@ -363,8 +364,7 @@ def test_appearance_modded_hair_flow(webui_server):
         hair_mod_row.locator("button.browse-hair-mod").click()
         page.click("text=Continue →")
         expect(page.locator("h1")).to_have_text("Build")
-        assert page.evaluate("() => window.__mockApi._overrides") == {
-            "hair_mod": "edie"}
+        assert page.evaluate("() => window.__mockApi._overrides") == {"hair_mod": "edie"}
         browser.close()
 
 
@@ -382,7 +382,10 @@ def test_from_scratch_preset_flow(webui_server):
 
         expect(page.locator("h1")).to_have_text("Appearance")
         expect(page.locator("main")).to_contain_text("pwa")
-        expect(page.locator(".irow")).to_have_count(0)
+        expect(page.locator(".irow")).to_have_count(6)
+        cyberware = page.locator(".irow", has_text="Cyberware")
+        cyberware.locator("select").select_option(label="Cyberware 02 · 03 ca senna")
+        expect(cyberware).to_have_class(re.compile("overridden"))
         expect(page.locator("#npv-name")).to_have_value("Default V")
         expect(page.locator("#output-dir")).to_have_value("/out/DefaultV-pwa")
         page.click("text=Continue →")
@@ -393,4 +396,5 @@ def test_from_scratch_preset_flow(webui_server):
         [request] = page.evaluate("window.__mockApi._startRequests")
         assert request["preset_rig"] == "pwa"
         assert "save_path" not in request
+        assert request["cc_overrides"]["cc:cyberware_01"].startswith('{"label":"cyberware_02"')
         browser.close()

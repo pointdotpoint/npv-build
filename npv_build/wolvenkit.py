@@ -645,6 +645,17 @@ def _apply_body_tattoo(component_specs: list[dict], body_tattoo: dict | None) ->
             logger.info(f"[Project] Body tattoo: {name} -> {body_tattoo['appearance']}")
 
 
+def _apply_nail_color(component_specs: list[dict], nail_color: str) -> None:
+    """Apply the selected mesh appearance to both curated arm nail meshes."""
+    if not nail_color:
+        return
+    for comp in component_specs:
+        name = comp.get("name", "")
+        if name.endswith(("__nails_l", "__nails_r")):
+            comp["appearance"] = nail_color
+            logger.info(f"[Project] Nail color: {name} -> {nail_color}")
+
+
 def _bake_lips_overlays(
     wk: WolvenKit,
     game_dir: Path,
@@ -1212,6 +1223,10 @@ def build_project(
             if name.startswith(("t0_", "a0_", "i0_", "l0_")):
                 comp["appearance"] = skin_tone
                 logger.info(f"[Project] Skin tone override: {name} -> {skin_tone}")
+
+    # Nail meshes are part of the curated arms entity but use their own
+    # appearance palette; apply this after the general body skin-tone pass.
+    _apply_nail_color(component_specs, asset_paths.get("nail_color", ""))
 
     # 5a. Body tattoo — the tx_ overlay's appearance is the save's raw
     # selection (skin-tone-keyed, e.g. w__01_ca_pale), not 'default'.

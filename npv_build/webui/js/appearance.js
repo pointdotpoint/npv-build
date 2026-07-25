@@ -9,30 +9,33 @@ function esc(s) {
 window.screens = window.screens || {};
 window.screens.appearance = {
   _data: null,
-  _forPath: null,
+  _forSource: null,
   _overrides: {},
   _search: "",
   _hairModWarning: null,
-  async load(savePath) {
-    this._forPath = savePath;
-    const out = await Api.call("appearance_data", savePath);
-    if (this._forPath !== savePath) return; // superseded by a newer save pick
+  async load(sourceKey, method, source) {
+    this._forSource = sourceKey;
+    const out = await Api.call(method, source);
+    if (this._forSource !== sourceKey) return; // superseded by a newer source pick
     this._data = out;
     this._overrides = out.ok ? { ...out.overrides } : {};
     store.set({});
   },
   render(el, s) {
+    const sourceKey = s.preset
+      ? `preset:${s.preset.rig}`
+      : s.save ? `save:${s.save.path}` : null;
     el.innerHTML = "<h1>Appearance</h1>" +
-      "<p class='subtitle'>Adjust the decoded appearance. Overridden rows " +
-      "are marked; everything else builds exactly as saved.</p>";
-    if (s.preset) {
-      this.renderPreset(el, s);
+      `<p class='subtitle'>Adjust every resolved customization option. ` +
+      `Overridden rows are marked; everything else builds exactly as ` +
+      `${s.preset ? "the default preset" : "saved"}.</p>`;
+    if (!sourceKey) {
+      el.innerHTML += "<p class='muted'>Pick a source first.</p>";
       return;
     }
-    if (!s.save) { el.innerHTML += "<p class='muted'>Pick a save first.</p>"; return; }
 
-    if (this._forPath !== s.save.path) {
-      // Selected save changed since we last loaded — reset and reload.
+    if (this._forSource !== sourceKey) {
+      // Selected source changed since we last loaded — reset and reload.
       this._data = null;
       this._overrides = {};
       this._hairModWarning = null;
@@ -40,7 +43,11 @@ window.screens.appearance = {
 
     if (this._data === null) {
       el.innerHTML += "<p class='muted'>Decoding…</p>";
-      this.load(s.save.path);
+      if (s.preset) {
+        this.load(sourceKey, "preset_appearance_data", s.preset.rig);
+      } else {
+        this.load(sourceKey, "appearance_data", s.save.path);
+      }
       return;
     }
     if (!this._data.ok) {
@@ -116,14 +123,19 @@ window.screens.appearance = {
       div.innerHTML = `<span>${esc(row.label)}</span>`;
       if (row.editable) {
         const sel = document.createElement("select");
+        const optionValues = [];
         for (const opt of row.options) {
+          const value = typeof opt === "object" ? opt.value : opt;
+          const label = typeof opt === "object" ? opt.label : opt;
           const o = document.createElement("option");
-          o.value = opt; o.textContent = opt;
+          o.value = value; o.textContent = label;
           sel.appendChild(o);
+          optionValues.push(value);
         }
-        if (!row.options.includes(row.value_raw)) {
+        if (!optionValues.includes(row.value_raw)) {
           const o = document.createElement("option");
-          o.value = row.value_raw; o.textContent = row.value_raw + " (current)";
+          o.value = row.value_raw;
+          o.textContent = row.value_label + " (current)";
           sel.appendChild(o);
         }
         sel.value = overridden ? this._overrides[row.slot_id] : row.value_raw;
@@ -166,7 +178,9 @@ window.screens.appearance = {
       browseBtn.className = "secondary browse-hair-mod";
       browseBtn.textContent = "Use hair mod file…";
       browseBtn.onclick = async () => {
-        const rig = (s.save.preview && s.save.preview.body_rig) || "pwa";
+        const rig = s.preset
+          ? s.preset.rig
+          : (s.save.preview && s.save.preview.body_rig) || "pwa";
         const out = await Api.call("browse_for_hair_mod", rig);
         this.applyHairMod(out);
         store.set({});
@@ -209,7 +223,9 @@ window.screens.appearance = {
         showFormError("Drag & drop needs the desktop app — use the file browser instead.");
         return;
       }
-      const rig = (s.save.preview && s.save.preview.body_rig) || "pwa";
+      const rig = s.preset
+        ? s.preset.rig
+        : (s.save.preview && s.save.preview.body_rig) || "pwa";
       const out = await Api.call("add_hair_mod", path, rig);
       this.applyHairMod(out);
       store.set({});
@@ -246,71 +262,20 @@ window.screens.appearance = {
           (missing.length > 1 ? " are" : " is") + " required.");
         return;
       }
-      const out = await Api.call("set_overrides", s.save.path, this._overrides);
-      if (!out.ok) {
-        showFormError(out.error);
-        return;
+      if (s.preset) {
+        store.state.preset = {
+          ...s.preset,
+          overrides: { ...this._overrides },
+        };
+      } else {
+        const out = await Api.call("set_overrides", s.save.path, this._overrides);
+        if (!out.ok) {
+          showFormError(out.error);
+          return;
+        }
       }
       store.set({
         npvName, outputDir,
-        stepsDone: { ...store.state.stepsDone, appearance: true },
-        screen: "build",
-      });
-    };
-    el.appendChild(cont);
-  },
-  renderPreset(el, s) {
-    const preview = s.preset.preview;
-    el.innerHTML = "<h1>Appearance</h1>" +
-      "<p class='subtitle'>This from-scratch build uses the bundled default-V " +
-      "appearance. Preset values are read-only.</p>";
-
-    const summary = document.createElement("div");
-    summary.className = "card preset-summary";
-    summary.innerHTML = `<strong>Default V · ${esc(s.preset.rig)}</strong>` +
-      `<div class="muted">Skin ${esc(preview.skin_tone)} · ` +
-      `${esc(preview.hair_style)} · ${esc(preview.hair_color)}</div>` +
-      `<div class="muted">${esc(preview.selections_count)} CC selections</div>`;
-    el.appendChild(summary);
-
-    const form = document.createElement("div");
-    form.innerHTML = `
-      <label>NPV name (AMM spawn label)</label>
-      <input type="text" id="npv-name" value="${esc(s.npvName || "")}">
-      <label>Output directory</label>
-      <input type="text" id="output-dir" value="${esc(s.outputDir || "")}">`;
-    el.appendChild(form);
-    form.querySelector("#npv-name").addEventListener("input", (event) => {
-      store.state.npvName = event.target.value;
-    });
-    form.querySelector("#output-dir").addEventListener("input", (event) => {
-      store.state.outputDir = event.target.value;
-    });
-
-    const formError = document.createElement("div");
-    formError.className = "form-error err";
-    formError.style.display = "none";
-    formError.style.marginTop = "12px";
-    el.appendChild(formError);
-
-    const cont = document.createElement("button");
-    cont.textContent = "Continue →";
-    cont.style.marginTop = "16px";
-    cont.onclick = () => {
-      const npvName = document.getElementById("npv-name").value.trim();
-      const outputDir = document.getElementById("output-dir").value.trim();
-      const missing = [];
-      if (!npvName) missing.push("NPV name");
-      if (!outputDir) missing.push("Output directory");
-      if (missing.length) {
-        formError.textContent = missing.join(" and ") +
-          (missing.length > 1 ? " are" : " is") + " required.";
-        formError.style.display = "";
-        return;
-      }
-      store.set({
-        npvName,
-        outputDir,
         stepsDone: { ...store.state.stepsDone, appearance: true },
         screen: "build",
       });

@@ -89,6 +89,7 @@ def resolve_assets(
         "vanilla_hair_ent": "",
         "equipped_clothing": cc_settings.get("clothing", []),
         "body_tattoo": None,
+        "nail_color": _nail_appearance(cc_settings),
     }
 
     part_entities = []
@@ -455,3 +456,21 @@ def _find_vanilla_hair_ent(index: dict, body_rig: str, hair_num: str) -> str:
     # Prefer the plain variant (no _cyberware suffix).
     plain = [m for m in matches if "cyberware" not in m.lower()]
     return (plain or matches)[0]
+
+
+def _nail_appearance(cc_settings: dict) -> str:
+    configured = (cc_settings.get("nails") or {}).get("appearance", "")
+    if configured:
+        return configured
+    for selection in cc_settings.get("selections", []):
+        if selection.get("slot") == "character_customization" and "nails_color" in (
+            selection.get("label") or ""
+        ):
+            parts = selection.get("raw", "").split("__")
+            if len(parts) < 2:
+                return ""
+            appearance = parts[1].removeprefix("nails_")
+            if len(parts) > 2 and parts[2]:
+                appearance += f"__{parts[2]}"
+            return appearance
+    return ""

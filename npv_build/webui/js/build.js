@@ -25,7 +25,10 @@ window.screens.build = {
                          outputDir: null, progress: 0 } });
     this.starts = {};
     const source = s.preset
-      ? { preset_rig: s.preset.rig }
+      ? {
+          preset_rig: s.preset.rig,
+          cc_overrides: s.preset.overrides || {},
+        }
       : { save_path: s.save.path };
     const out = await Api.call("start_build", {
       ...source, npv_name: s.npvName, output_dir: s.outputDir,

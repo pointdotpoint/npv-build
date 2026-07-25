@@ -473,7 +473,9 @@ def test_extract_part_components_keeps_morph_resource():
                                     "DepotPath": {"$value": "base\\x\\he_000_pwa_c__basehead.mesh"}
                                 },
                                 "morphResource": {
-                                    "DepotPath": {"$value": "base\\x\\he_000_pwa__morphs.morphtarget"}
+                                    "DepotPath": {
+                                        "$value": "base\\x\\he_000_pwa__morphs.morphtarget"
+                                    }
                                 },
                                 "meshAppearance": {"$value": "default"},
                             },
@@ -505,6 +507,22 @@ def test_apply_body_tattoo_appearance():
     specs2 = [{"name": "tx_000_pwa_base__full_tattoo_02", "appearance": "default"}]
     _apply_body_tattoo(specs2, None)
     assert specs2[0]["appearance"] == "default"
+
+
+def test_apply_nail_color_targets_both_nail_components_only():
+    from npv_build.wolvenkit import _apply_nail_color
+
+    specs = [
+        {"name": "a0_000_pwa_base__nails_l", "appearance": "03_ca_senna"},
+        {"name": "a0_000_pwa_base__nails_r", "appearance": "03_ca_senna"},
+        {"name": "a0_000_pwa_base_hq__full", "appearance": "03_ca_senna"},
+    ]
+
+    _apply_nail_color(specs, "01_all_red__multilayer")
+
+    assert specs[0]["appearance"] == "01_all_red__multilayer"
+    assert specs[1]["appearance"] == "01_all_red__multilayer"
+    assert specs[2]["appearance"] == "03_ca_senna"
 
 
 def test_bake_lips_overlays_repoints_mesh(monkeypatch, tmp_path):

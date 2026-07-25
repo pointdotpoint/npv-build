@@ -1,4 +1,3 @@
-
 from npv_build.webui_api import WebUiApi
 
 
@@ -8,14 +7,21 @@ def test_get_state_shape(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
         lambda: Settings(
-            game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
-            patch_override=None, check_updates=True,
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
         ),
     )
     monkeypatch.setattr(
         "npv_build.webui_api.check_dependencies",
-        lambda game_dir: {"wolvenkit": True, "blender": False,
-                          "npv_inject": True, "game_dir_valid": True},
+        lambda game_dir: {
+            "wolvenkit": True,
+            "blender": False,
+            "npv_inject": True,
+            "game_dir_valid": True,
+        },
     )
     state = WebUiApi().get_state()
     assert state["settings"]["game_dir"] == str(tmp_path)
@@ -31,8 +37,11 @@ def test_get_state_default_output_root(monkeypatch, tmp_path):
 
     def fake_settings(output_dir):
         return lambda: Settings(
-            game_dir=str(tmp_path), output_dir=output_dir, log_verbosity=1,
-            patch_override=None, check_updates=True,
+            game_dir=str(tmp_path),
+            output_dir=output_dir,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
         )
 
     monkeypatch.setattr(
@@ -54,11 +63,11 @@ def test_save_config_roundtrip(monkeypatch):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=None, output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=None, output_dir=None, log_verbosity=1, patch_override=None, check_updates=True
+        ),
     )
-    monkeypatch.setattr("npv_build.webui_api.save_settings",
-                        lambda s: saved.update(vars(s)))
+    monkeypatch.setattr("npv_build.webui_api.save_settings", lambda s: saved.update(vars(s)))
     monkeypatch.setattr("npv_build.webui_api.validate", lambda s: [])
     result = WebUiApi().save_config({"game_dir": "/g", "log_verbosity": 2})
     assert result == {"ok": True, "errors": []}
@@ -70,11 +79,11 @@ def test_save_config_returns_validation_errors(monkeypatch):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=None, output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=None, output_dir=None, log_verbosity=1, patch_override=None, check_updates=True
+        ),
     )
-    monkeypatch.setattr("npv_build.webui_api.validate",
-                        lambda s: ["game_dir does not exist"])
+    monkeypatch.setattr("npv_build.webui_api.validate", lambda s: ["game_dir does not exist"])
     result = WebUiApi().save_config({"game_dir": "/nope"})
     assert result == {"ok": False, "errors": ["game_dir does not exist"]}
 
@@ -84,12 +93,26 @@ def test_list_saves_serializes(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "npv_build.webui_api.discover_saves",
-        lambda: [SaveEntry(path=tmp_path / "sav.dat", name="AutoSave-0",
-                           mtime=123.0, thumbnail=None, patch="2.31")],
+        lambda: [
+            SaveEntry(
+                path=tmp_path / "sav.dat",
+                name="AutoSave-0",
+                mtime=123.0,
+                thumbnail=None,
+                patch="2.31",
+            )
+        ],
     )
     saves = WebUiApi().list_saves()
-    assert saves == [{"path": str(tmp_path / "sav.dat"), "name": "AutoSave-0",
-                      "mtime": 123.0, "thumbnail": None, "patch": "2.31"}]
+    assert saves == [
+        {
+            "path": str(tmp_path / "sav.dat"),
+            "name": "AutoSave-0",
+            "mtime": 123.0,
+            "thumbnail": None,
+            "patch": "2.31",
+        }
+    ]
 
 
 def test_add_save_path_ok(tmp_path):
@@ -128,8 +151,7 @@ def test_browse_for_hair_mod_passes_body_rig_through(monkeypatch):
     import sys
     import types
 
-    fake_window = types.SimpleNamespace(
-        create_file_dialog=lambda *a, **k: ["/x/h.archive"])
+    fake_window = types.SimpleNamespace(create_file_dialog=lambda *a, **k: ["/x/h.archive"])
     fake_webview = types.SimpleNamespace(windows=[fake_window], OPEN_DIALOG="open")
     monkeypatch.setitem(sys.modules, "webview", fake_webview)
 
@@ -170,8 +192,9 @@ def test_zip_info_without_zip_is_structured(tmp_path):
 
 def test_open_folder_ok(monkeypatch, tmp_path):
     opened = {}
-    monkeypatch.setattr("npv_build.webui_api.platform_open_folder",
-                        lambda p: opened.setdefault("path", p))
+    monkeypatch.setattr(
+        "npv_build.webui_api.platform_open_folder", lambda p: opened.setdefault("path", p)
+    )
     out = WebUiApi().open_folder(str(tmp_path))
     assert out["ok"] is True
     assert str(opened["path"]) == str(tmp_path)
@@ -212,12 +235,14 @@ def test_get_state_includes_tool_paths(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=None, output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=None, output_dir=None, log_verbosity=1, patch_override=None, check_updates=True
+        ),
     )
     monkeypatch.setattr("npv_build.webui_api.check_dependencies", lambda g: {})
-    monkeypatch.setattr("npv_build.webui_api.resolve_tool_paths",
-                        lambda: {"wolvenkit": "/t/wk", "blender": None})
+    monkeypatch.setattr(
+        "npv_build.webui_api.resolve_tool_paths", lambda: {"wolvenkit": "/t/wk", "blender": None}
+    )
     state = WebUiApi().get_state()
     assert state["tool_paths"] == {"wolvenkit": "/t/wk", "blender": None}
 
@@ -266,8 +291,7 @@ def test_install_tools_failure_is_structured(monkeypatch):
 
 
 def test_detect_game_dirs_bridge(monkeypatch, tmp_path):
-    monkeypatch.setattr("npv_build.webui_api.find_game_dirs",
-                        lambda: [tmp_path / "Cyberpunk 2077"])
+    monkeypatch.setattr("npv_build.webui_api.find_game_dirs", lambda: [tmp_path / "Cyberpunk 2077"])
     out = WebUiApi().detect_game_dirs()
     assert out == {"ok": True, "dirs": [str(tmp_path / "Cyberpunk 2077")]}
 
@@ -275,8 +299,13 @@ def test_detect_game_dirs_bridge(monkeypatch, tmp_path):
 def test_preview_save_ok(monkeypatch):
     monkeypatch.setattr(
         "npv_build.webui_api.preview_save_file",
-        lambda p: {"body_rig": "pwa", "skin_tone": "03", "hair_style": "bob",
-                   "hair_color": "copper", "selections_count": 152},
+        lambda p: {
+            "body_rig": "pwa",
+            "skin_tone": "03",
+            "hair_style": "bob",
+            "hair_color": "copper",
+            "selections_count": 152,
+        },
     )
     out = WebUiApi().preview_save("/s/sav.dat")
     assert out["ok"] is True and out["body_rig"] == "pwa"
@@ -290,8 +319,7 @@ def test_preview_save_error_is_structured(monkeypatch):
 
     monkeypatch.setattr("npv_build.webui_api.preview_save_file", boom)
     out = WebUiApi().preview_save("/s/sav.dat")
-    assert out == {"ok": False, "error": "Unsupported patch",
-                   "remediation": "Update mappings"}
+    assert out == {"ok": False, "error": "Unsupported patch", "remediation": "Update mappings"}
 
 
 def test_preview_save_real_parser_error_is_structured(tmp_path):
@@ -306,13 +334,17 @@ def test_preview_save_real_parser_error_is_structured(tmp_path):
 def test_mod_roundtrip(monkeypatch, tmp_path):
     from npv_build.gui_logic.modmanager import ModEntry
 
-    entry = ModEntry(mod_id="v_abc", archive_path=tmp_path / "v_abc.archive",
-                     lua_path=tmp_path / "v_abc.lua", installed=False)
+    entry = ModEntry(
+        mod_id="v_abc",
+        archive_path=tmp_path / "v_abc.archive",
+        lua_path=tmp_path / "v_abc.lua",
+        installed=False,
+    )
     installed = []
-    monkeypatch.setattr("npv_build.webui_api.mm_list_mods",
-                        lambda root, gd: [entry])
-    monkeypatch.setattr("npv_build.webui_api.mm_install_mod",
-                        lambda e, gd: installed.append(e.mod_id))
+    monkeypatch.setattr("npv_build.webui_api.mm_list_mods", lambda root, gd: [entry])
+    monkeypatch.setattr(
+        "npv_build.webui_api.mm_install_mod", lambda e, gd: installed.append(e.mod_id)
+    )
     api = WebUiApi()
     api._settings_for_mods = lambda: (tmp_path, tmp_path)  # test seam
     result = api.list_mods()
@@ -336,9 +368,15 @@ def test_list_mods_includes_build_meta(monkeypatch, tmp_path):
     archive.parent.mkdir(parents=True)
     archive.write_bytes(b"A")
     (mod_root / "build_meta.json").write_text(
-        json.dumps({"npv_name": "My V", "save_path": "/saves/x/sav.dat"}))
-    entry = ModEntry(mod_id="my_v_abc", archive_path=archive,
-                     lua_path=mod_root / "x.lua", installed=False, built_at=42.0)
+        json.dumps({"npv_name": "My V", "save_path": "/saves/x/sav.dat"})
+    )
+    entry = ModEntry(
+        mod_id="my_v_abc",
+        archive_path=archive,
+        lua_path=mod_root / "x.lua",
+        installed=False,
+        built_at=42.0,
+    )
     monkeypatch.setattr("npv_build.webui_api.mm_list_mods", lambda r, g: [entry])
     api = WebUiApi()
     api._settings_for_mods = lambda: (tmp_path, tmp_path)
@@ -351,12 +389,15 @@ def test_list_mods_includes_build_meta(monkeypatch, tmp_path):
 def test_delete_mod_bridge(monkeypatch, tmp_path):
     from npv_build.gui_logic.modmanager import ModEntry
 
-    entry = ModEntry(mod_id="v_abc", archive_path=tmp_path / "v_abc.archive",
-                     lua_path=tmp_path / "v_abc.lua", installed=False)
+    entry = ModEntry(
+        mod_id="v_abc",
+        archive_path=tmp_path / "v_abc.archive",
+        lua_path=tmp_path / "v_abc.lua",
+        installed=False,
+    )
     deleted = []
     monkeypatch.setattr("npv_build.webui_api.mm_list_mods", lambda r, g: [entry])
-    monkeypatch.setattr("npv_build.webui_api.mm_delete_mod",
-                        lambda e, g: deleted.append(e.mod_id))
+    monkeypatch.setattr("npv_build.webui_api.mm_delete_mod", lambda e, g: deleted.append(e.mod_id))
     api = WebUiApi()
     api._settings_for_mods = lambda: (tmp_path, tmp_path)
     assert api.delete_mod("v_abc") == {"ok": True}
@@ -370,8 +411,9 @@ def test_list_mods_without_game_dir_is_structured_error(monkeypatch):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=None, output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=None, output_dir=None, log_verbosity=1, patch_override=None, check_updates=True
+        ),
     )
     out = WebUiApi().list_mods()
     assert out["ok"] is False
@@ -382,15 +424,13 @@ def test_poll_events_translates_queue(monkeypatch, tmp_path):
     api = WebUiApi()
     api._queue.put(("log", "[assemble] baking\n"))
     api._queue.put(("progress", 0.6))
-    api._queue.put(("stage", {"stage": "assemble", "status": "started",
-                              "message": "Assembling"}))
+    api._queue.put(("stage", {"stage": "assemble", "status": "started", "message": "Assembling"}))
     api._queue.put(("done", "/out"))
     events = api.poll_events()
     assert events == [
         {"kind": "log", "text": "[assemble] baking\n"},
         {"kind": "progress", "value": 0.6},
-        {"kind": "stage", "stage": "assemble", "status": "started",
-         "message": "Assembling"},
+        {"kind": "stage", "stage": "assemble", "status": "started", "message": "Assembling"},
         {"kind": "done", "output_dir": "/out"},
     ]
     assert api.poll_events() == []
@@ -415,13 +455,24 @@ def test_start_build_fills_context_and_starts_worker(monkeypatch, tmp_path):
     monkeypatch.setattr("npv_build.webui_api.BuildWorker", FakeWorker)
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=str(tmp_path), output_dir=None,
-                         log_verbosity=1, patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
     )
     api = WebUiApi()
-    out = api.start_build({"save_path": str(tmp_path / "sav.dat"),
-                           "npv_name": "V", "output_dir": str(tmp_path / "o"),
-                           "clear_cache": False, "resume": False})
+    out = api.start_build(
+        {
+            "save_path": str(tmp_path / "sav.dat"),
+            "npv_name": "V",
+            "output_dir": str(tmp_path / "o"),
+            "clear_cache": False,
+            "resume": False,
+        }
+    )
     assert out == {"ok": True}
     kw = started["kwargs"]
     assert kw["game_dir"] == tmp_path
@@ -439,26 +490,32 @@ def test_start_build_without_game_dir_errors(monkeypatch):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=None, output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=None, output_dir=None, log_verbosity=1, patch_override=None, check_updates=True
+        ),
     )
-    out = WebUiApi().start_build({"save_path": "/s", "npv_name": "V",
-                                  "output_dir": "/o"})
+    out = WebUiApi().start_build({"save_path": "/s", "npv_name": "V", "output_dir": "/o"})
     assert out["ok"] is False and "Game directory" in out["error"]
 
 
 def test_appearance_data_rows_and_overrides(monkeypatch, tmp_path):
     cc = {
-        "patch": "2.31", "body_rig": "pwa", "selections": [],
-        "head": {}, "eyes": {"raw": "he_000_pwa__basehead__11_gradient_blue"},
-        "teeth": {"raw": ""}, "skin": {"tone_id": "01_ca_pale"},
-        "hair": {"style_id": "winona_2", "raw": ""}, "overlays": [],
+        "patch": "2.31",
+        "body_rig": "pwa",
+        "selections": [],
+        "head": {},
+        "eyes": {"raw": "he_000_pwa__basehead__11_gradient_blue"},
+        "teeth": {"raw": ""},
+        "skin": {"tone_id": "01_ca_pale"},
+        "hair": {"style_id": "winona_2", "raw": ""},
+        "overlays": [],
         "face_morphs": {"eyes": "h091"},
     }
     monkeypatch.setattr("npv_build.webui_api.parse_save_for_inspector", lambda p: cc)
     monkeypatch.setattr("npv_build.webui_api.load_part_index", lambda patch: {})
-    monkeypatch.setattr("npv_build.webui_api.load_overrides",
-                        lambda p: {"skin_tone": "03_ca_medium"})
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_overrides", lambda p: {"skin_tone": "03_ca_medium"}
+    )
     out = WebUiApi().appearance_data("/s/sav.dat")
     assert out["ok"] is True
     ids = [r["slot_id"] for r in out["rows"]]
@@ -468,11 +525,12 @@ def test_appearance_data_rows_and_overrides(monkeypatch, tmp_path):
 
 def test_set_overrides_validates_and_persists(monkeypatch):
     saved = {}
-    monkeypatch.setattr("npv_build.webui_api.save_overrides",
-                        lambda p, o: saved.update({p: o}))
+    monkeypatch.setattr("npv_build.webui_api.save_overrides", lambda p, o: saved.update({p: o}))
     monkeypatch.setattr("npv_build.webui_api.load_part_index", lambda patch: {})
-    monkeypatch.setattr("npv_build.webui_api.parse_save_for_inspector",
-                        lambda p: {"patch": "2.31", "body_rig": "pwa"})
+    monkeypatch.setattr(
+        "npv_build.webui_api.parse_save_for_inspector",
+        lambda p: {"patch": "2.31", "body_rig": "pwa"},
+    )
     api = WebUiApi()
     # no option list available -> value accepted (validated at build)
     assert api.set_overrides("/s/sav.dat", {"skin_tone": "x"}) == {"ok": True}
@@ -488,19 +546,29 @@ def test_start_build_passes_stored_overrides(monkeypatch, tmp_path):
     started = {}
 
     class FakeWorker:
-        def __init__(self, q): pass
-        def start(self, **kwargs): started.update(kwargs)
+        def __init__(self, q):
+            pass
+
+        def start(self, **kwargs):
+            started.update(kwargs)
 
     monkeypatch.setattr("npv_build.webui_api.BuildWorker", FakeWorker)
-    monkeypatch.setattr("npv_build.webui_api.load_overrides",
-                        lambda p: {"skin_tone": "03_ca_medium"})
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_overrides", lambda p: {"skin_tone": "03_ca_medium"}
+    )
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
     )
-    WebUiApi().start_build({"save_path": "/s/sav.dat", "npv_name": "V",
-                            "output_dir": str(tmp_path / "o")})
+    WebUiApi().start_build(
+        {"save_path": "/s/sav.dat", "npv_name": "V", "output_dir": str(tmp_path / "o")}
+    )
     assert started["cc_overrides"] == {"skin_tone": "03_ca_medium"}
 
 
@@ -526,19 +594,30 @@ def test_add_hair_mod_installs_probes_and_returns_token(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
     )
-    monkeypatch.setattr("npv_build.webui_api.install_hair_mod",
-                        lambda src, gd: ("edie", [tmp_path / "edie_hair.archive"]))
+    monkeypatch.setattr(
+        "npv_build.webui_api.install_hair_mod",
+        lambda src, gd: ("edie", [tmp_path / "edie_hair.archive"]),
+    )
     monkeypatch.setattr(
         "npv_build.webui_api.list_mod_archive_apps",
         lambda wk, archive_path: ["base\\x\\fhair_edie.app"],
     )
     monkeypatch.setattr(
         "npv_build.webui_api.extract_hair_components",
-        lambda gd, token, rig, verbosity=0, wk=None:
-            ([{"name": "c"}], "edie_hair.archive", "base\\x\\fhair_edie.app", "edie"),
+        lambda gd, token, rig, verbosity=0, wk=None: (
+            [{"name": "c"}],
+            "edie_hair.archive",
+            "base\\x\\fhair_edie.app",
+            "edie",
+        ),
     )
     out = WebUiApi().add_hair_mod(str(tmp_path / "edie_hair.zip"))
     assert out["ok"] is True
@@ -551,11 +630,18 @@ def test_add_hair_mod_no_hair_app_is_structured_error(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
     )
-    monkeypatch.setattr("npv_build.webui_api.install_hair_mod",
-                        lambda src, gd: ("notahair", [tmp_path / "notahair.archive"]))
+    monkeypatch.setattr(
+        "npv_build.webui_api.install_hair_mod",
+        lambda src, gd: ("notahair", [tmp_path / "notahair.archive"]),
+    )
     monkeypatch.setattr(
         "npv_build.webui_api.list_mod_archive_apps",
         lambda wk, archive_path: ["base\\x\\not_a_hair_thing.app"],
@@ -575,8 +661,13 @@ def test_add_hair_mod_token_from_app_basename_not_filename(monkeypatch, tmp_path
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
     )
     archive_path = tmp_path / "ANRUI_MiyaviHair_Fluffypony_CCXL.archive"
     monkeypatch.setattr(
@@ -611,8 +702,13 @@ def test_add_hair_mod_roundtrip_failure_is_structured(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
     )
     archive_path = tmp_path / "weird_hair.archive"
     monkeypatch.setattr(
@@ -639,8 +735,9 @@ def test_add_hair_mod_without_game_dir_is_structured(monkeypatch):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=None, output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=None, output_dir=None, log_verbosity=1, patch_override=None, check_updates=True
+        ),
     )
     out = WebUiApi().add_hair_mod("/x/hair.zip")
     assert out["ok"] is False and "Game directory" in out["error"]
@@ -651,8 +748,13 @@ def test_add_hair_mod_bad_package_is_structured(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "npv_build.webui_api.load_settings",
-        lambda: Settings(game_dir=str(tmp_path), output_dir=None, log_verbosity=1,
-                         patch_override=None, check_updates=True),
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
     )
 
     def boom(src, gd):
@@ -722,14 +824,58 @@ def test_preview_preset_and_start_build_with_preset(monkeypatch, tmp_path):
             "preset_rig": "pma",
             "npv_name": "Default V",
             "output_dir": str(tmp_path / "o"),
+            "cc_overrides": {"skin_tone": "03_ca_medium"},
         }
     )
     assert out == {"ok": True}
     assert started["save_path"] is None
     assert started["cc_settings_override"] == cc
-    assert started["cc_overrides"] == {}
+    assert started["cc_overrides"] == {"skin_tone": "03_ca_medium"}
     meta = json.loads((tmp_path / "o" / "build_meta.json").read_text())
     assert meta == {"npv_name": "Default V", "preset_rig": "pma"}
+
+
+def test_preset_appearance_data_uses_editable_inspector(monkeypatch):
+    cc = {
+        "patch": "2.31",
+        "body_rig": "pwa",
+        "selections": [
+            {
+                "slot": "character_customization",
+                "label": "eyes_color",
+                "raw": "he_000_pwa__basehead__11_gradient_blue",
+                "variant": "11_gradient_blue",
+            }
+        ],
+        "skin": {"tone_id": "01_ca_pale"},
+        "hair": {"style_id": "", "raw": "", "vanilla_style": 1},
+        "eyes": {"raw": "he_000_pwa__basehead__11_gradient_blue"},
+        "teeth": {"raw": "female_ht_000__basehead"},
+        "face_morphs": {},
+    }
+    index = {
+        "part_ents": {"hh_001_pwa__hairs_033": "base\\hair.ent"},
+        "app_appearances": {
+            "base\\h0_000__basehead.app": [
+                "h0_000_pwa__basehead__01_ca_pale",
+                "h0_000_pwa__basehead__03_ca_senna",
+            ],
+            "base\\he_000__basehead.app": [
+                "he_000_pwa__basehead__11_gradient_blue",
+                "he_000_pwa__basehead__14_gradient_grey",
+            ],
+        },
+    }
+    monkeypatch.setattr("npv_build.webui_api.load_preset", lambda rig: cc)
+    monkeypatch.setattr("npv_build.webui_api.load_part_index", lambda patch: index)
+
+    out = WebUiApi().preset_appearance_data("pwa")
+
+    assert out["ok"] is True
+    assert out["overrides"] == {}
+    skin = next(row for row in out["rows"] if row["slot_id"] == "skin_tone")
+    assert skin["editable"] is True
+    assert "03_ca_senna" in skin["options"]
 
 
 def test_preview_preset_missing_is_structured(monkeypatch):
@@ -774,6 +920,4 @@ def test_start_build_requires_exactly_one_source(monkeypatch, tmp_path):
     base = {"npv_name": "V", "output_dir": str(tmp_path / "o")}
 
     assert api.start_build(base)["ok"] is False
-    assert api.start_build(
-        {**base, "save_path": "/s/sav.dat", "preset_rig": "pwa"}
-    )["ok"] is False
+    assert api.start_build({**base, "save_path": "/s/sav.dat", "preset_rig": "pwa"})["ok"] is False

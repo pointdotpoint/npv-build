@@ -10,6 +10,17 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-18-gui-redesign-webui-design.md` §"From-scratch builds".
 
+## Post-plan amendment (2026-07-25)
+
+The user superseded Task 5's original read-only-preset boundary after seeing
+the live screen. From-scratch presets now use the same editable inspector as
+save builds. Every decoded visual selection with an indexed game appearance
+is a dropdown (including brows, lashes, cyberware, piercings, teeth, makeup,
+and blemishes), alongside skin, vanilla hair style/color, eyes, and nails.
+Preset overrides are request-scoped, validated against the live option
+catalog, and passed as `BuildRequest.cc_overrides`; the vendored preset remains
+immutable.
+
 ## User-gated data prerequisite (do first, can run in parallel with Tasks 2+)
 
 The preset files themselves require **two saves the repo does not have**: a new

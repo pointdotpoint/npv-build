@@ -105,23 +105,31 @@ class WebUiApi:
         entries = []
         for sub in sorted(p for p in cache.iterdir() if p.is_dir()) if cache.is_dir() else []:
             size = sum(f.stat().st_size for f in sub.rglob("*") if f.is_file())
-            entries.append({"name": sub.name, "path": str(sub), "size": size,
-                            "clearable": sub.name in _CLEARABLE_CACHE_DIRS})
+            entries.append(
+                {
+                    "name": sub.name,
+                    "path": str(sub),
+                    "size": size,
+                    "clearable": sub.name in _CLEARABLE_CACHE_DIRS,
+                }
+            )
         return {"ok": True, "entries": entries}
 
     def clear_cache(self, name: str) -> dict:
         import shutil
 
         if name not in _CLEARABLE_CACHE_DIRS:
-            return {"ok": False, "error": f"'{name}' is not a clearable cache.",
-                    "remediation": ""}
+            return {"ok": False, "error": f"'{name}' is not a clearable cache.", "remediation": ""}
         target = get_cache_dir() / name
         try:
             if target.is_dir():
                 shutil.rmtree(target)
         except OSError as e:
-            return {"ok": False, "error": f"Could not clear {name}: {e}",
-                    "remediation": "Close any running builds and retry."}
+            return {
+                "ok": False,
+                "error": f"Could not clear {name}: {e}",
+                "remediation": "Close any running builds and retry.",
+            }
         return {"ok": True}
 
     def install_tools(self) -> dict:
@@ -136,7 +144,8 @@ class WebUiApi:
             try:
                 auto_install_missing(
                     lambda message, value: self._tool_queue.put(
-                        ("tool_progress", {"message": message, "value": value}))
+                        ("tool_progress", {"message": message, "value": value})
+                    )
                 )
                 self._tool_queue.put(("tool_done", {}))
             except Exception as e:  # noqa: BLE001 - worker thread must not die silently
@@ -189,9 +198,13 @@ class WebUiApi:
 
     @staticmethod
     def _save_entry_dict(e) -> dict:
-        return {"path": str(e.path), "name": e.name, "mtime": e.mtime,
-                "thumbnail": str(e.thumbnail) if e.thumbnail else None,
-                "patch": e.patch}
+        return {
+            "path": str(e.path),
+            "name": e.name,
+            "mtime": e.mtime,
+            "thumbnail": str(e.thumbnail) if e.thumbnail else None,
+            "patch": e.patch,
+        }
 
     def list_saves(self) -> list[dict]:
         return [self._save_entry_dict(e) for e in discover_saves()]
@@ -202,9 +215,11 @@ class WebUiApi:
         if p.is_dir():
             p = p / "sav.dat"
         if not p.is_file():
-            return {"ok": False,
-                    "error": f"No save file at {path}.",
-                    "remediation": "Pick the sav.dat file, or the save folder containing it."}
+            return {
+                "ok": False,
+                "error": f"No save file at {path}.",
+                "remediation": "Pick the sav.dat file, or the save folder containing it.",
+            }
         return {"ok": True, "save": self._save_entry_dict(entry_for_path(p))}
 
     def browse_for_save(self) -> dict:
@@ -219,10 +234,12 @@ class WebUiApi:
                 file_types=("Cyberpunk save (*.dat)", "All files (*.*)"),
             )
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
-            return {"ok": False,
-                    "error": "File dialog is unavailable outside the desktop app.",
-                    "remediation": "Drag & drop the save folder instead.",
-                    "details": str(e)}
+            return {
+                "ok": False,
+                "error": "File dialog is unavailable outside the desktop app.",
+                "remediation": "Drag & drop the save folder instead.",
+                "details": str(e),
+            }
         if not result:
             return {"ok": False, "cancelled": True, "error": ""}
         return self.add_save_path(result[0])
@@ -231,8 +248,7 @@ class WebUiApi:
         try:
             info = preview_save_file(Path(path))
         except NpvError as e:
-            return {"ok": False, "error": e.user_message,
-                    "remediation": e.remediation or ""}
+            return {"ok": False, "error": e.user_message, "remediation": e.remediation or ""}
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
             return {"ok": False, "error": str(e), "remediation": ""}
         return {"ok": True, **info}
@@ -262,24 +278,30 @@ class WebUiApi:
         end state, not a side effect."""
         s = load_settings()
         if not s.game_dir:
-            return {"ok": False, "error": "Game directory not configured.",
-                    "remediation": "Set it in Settings."}
+            return {
+                "ok": False,
+                "error": "Game directory not configured.",
+                "remediation": "Set it in Settings.",
+            }
         game_dir = Path(s.game_dir)
         try:
             _filename_token, installed = install_hair_mod(Path(path), game_dir)
         except NpvError as e:
-            return {"ok": False, "error": e.user_message,
-                    "remediation": e.remediation or ""}
+            return {"ok": False, "error": e.user_message, "remediation": e.remediation or ""}
         except (ValueError, OSError) as e:
-            return {"ok": False, "error": str(e),
-                    "remediation": "Pick a hair mod file: .archive, .zip, .7z or .rar."}
-        archive_path = next(
-            (p for p in installed if str(p).lower().endswith(".archive")), None)
+            return {
+                "ok": False,
+                "error": str(e),
+                "remediation": "Pick a hair mod file: .archive, .zip, .7z or .rar.",
+            }
+        archive_path = next((p for p in installed if str(p).lower().endswith(".archive")), None)
         if archive_path is None:
-            return {"ok": False,
-                    "error": f"No hair appearance found in '{Path(path).name}'.",
-                    "remediation": "This does not look like a CCXL/hair mod — "
-                                   "pick the mod's main .archive (or its zip/7z/rar)."}
+            return {
+                "ok": False,
+                "error": f"No hair appearance found in '{Path(path).name}'.",
+                "remediation": "This does not look like a CCXL/hair mod — "
+                "pick the mod's main .archive (or its zip/7z/rar).",
+            }
         archive_path = Path(archive_path)
         # Probe: list the *installed archive's own* .app files rather than
         # trusting a token derived from the archive filename — mod filenames
@@ -291,8 +313,11 @@ class WebUiApi:
             app_paths = list_mod_archive_apps(wk, archive_path)
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
             logger.exception("hair mod probe failed")
-            return {"ok": False, "error": f"Could not inspect the hair mod: {e}",
-                    "remediation": "Check the file and try again."}
+            return {
+                "ok": False,
+                "error": f"Could not inspect the hair mod: {e}",
+                "remediation": "Check the file and try again.",
+            }
         gender_pref = "fhair_" if body_rig == "pwa" else "mhair_"
         candidates = []
         for p in app_paths:
@@ -303,10 +328,12 @@ class WebUiApi:
             if bn_low.startswith("fhair_") or bn_low.startswith("mhair_") or "hair" in bn_low:
                 candidates.append((p, bn))
         if not candidates:
-            return {"ok": False,
-                    "error": f"No hair appearance found in '{Path(path).name}'.",
-                    "remediation": "This does not look like a CCXL/hair mod — "
-                                   "pick the mod's main .archive (or its zip/7z/rar)."}
+            return {
+                "ok": False,
+                "error": f"No hair appearance found in '{Path(path).name}'.",
+                "remediation": "This does not look like a CCXL/hair mod — "
+                "pick the mod's main .archive (or its zip/7z/rar).",
+            }
 
         def score(item: tuple[str, str]) -> int:
             _p, bn = item
@@ -324,24 +351,34 @@ class WebUiApi:
             token = token[: -len(".app")]
         for pre in ("fhair_", "mhair_"):
             if token.lower().startswith(pre):
-                token = token[len(pre):]
+                token = token[len(pre) :]
                 break
 
         try:
             _comps, src, app_depot, _app_name = extract_hair_components(
-                game_dir, token, body_rig, verbosity=0, wk=wk)
+                game_dir, token, body_rig, verbosity=0, wk=wk
+            )
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
             logger.exception("hair mod probe failed")
-            return {"ok": False, "error": f"Could not inspect the hair mod: {e}",
-                    "remediation": "Check the file and try again."}
+            return {
+                "ok": False,
+                "error": f"Could not inspect the hair mod: {e}",
+                "remediation": "Check the file and try again.",
+            }
         if not app_depot:
-            return {"ok": False,
-                    "error": f"Hair mod installed but its hair could not be resolved "
-                             f"(token '{token}').",
-                    "remediation": "Open an issue with the mod name — its naming "
-                                   "defeats token matching."}
-        return {"ok": True, "token": token, "source": src or archive_path.name,
-                "warning": "The NPV needs this hair mod to stay installed."}
+            return {
+                "ok": False,
+                "error": f"Hair mod installed but its hair could not be resolved "
+                f"(token '{token}').",
+                "remediation": "Open an issue with the mod name — its naming "
+                "defeats token matching.",
+            }
+        return {
+            "ok": True,
+            "token": token,
+            "source": src or archive_path.name,
+            "warning": "The NPV needs this hair mod to stay installed.",
+        }
 
     def browse_for_hair_mod(self, body_rig: str = "pwa") -> dict:
         try:
@@ -351,14 +388,15 @@ class WebUiApi:
                 raise RuntimeError("no webview window")
             result = webview.windows[0].create_file_dialog(
                 webview.OPEN_DIALOG,
-                file_types=("Hair mod (*.archive;*.zip;*.7z;*.rar)",
-                            "All files (*.*)"),
+                file_types=("Hair mod (*.archive;*.zip;*.7z;*.rar)", "All files (*.*)"),
             )
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
-            return {"ok": False,
-                    "error": "File dialog is unavailable outside the desktop app.",
-                    "remediation": "Drag & drop the mod file instead.",
-                    "details": str(e)}
+            return {
+                "ok": False,
+                "error": "File dialog is unavailable outside the desktop app.",
+                "remediation": "Drag & drop the mod file instead.",
+                "details": str(e),
+            }
         if not result:
             return {"ok": False, "cancelled": True, "error": ""}
         return self.add_hair_mod(result[0], body_rig)
@@ -369,38 +407,47 @@ class WebUiApi:
 
         zips = sorted(Path(output_dir).glob("*.zip"))
         if not zips:
-            return {"ok": False, "error": f"No mod zip found in {output_dir}.",
-                    "remediation": "Rebuild the mod."}
+            return {
+                "ok": False,
+                "error": f"No mod zip found in {output_dir}.",
+                "remediation": "Rebuild the mod.",
+            }
         z = zips[0]
         try:
             with zipfile.ZipFile(z) as zf:
-                files = [{"name": i.filename, "size": i.file_size}
-                         for i in zf.infolist()]
+                files = [{"name": i.filename, "size": i.file_size} for i in zf.infolist()]
         except (OSError, zipfile.BadZipFile) as e:
-            return {"ok": False, "error": f"Could not read {z.name}: {e}",
-                    "remediation": "Rebuild the mod."}
-        return {"ok": True, "zip": {"path": str(z), "size": z.stat().st_size,
-                                    "files": files}}
+            return {
+                "ok": False,
+                "error": f"Could not read {z.name}: {e}",
+                "remediation": "Rebuild the mod.",
+            }
+        return {"ok": True, "zip": {"path": str(z), "size": z.stat().st_size, "files": files}}
 
     def open_folder(self, path: str) -> dict:
         """Open a folder in the OS file manager."""
         p = Path(path)
         if not p.is_dir():
-            return {"ok": False, "error": f"Folder not found: {path}",
-                    "remediation": "Rebuild the mod."}
+            return {
+                "ok": False,
+                "error": f"Folder not found: {path}",
+                "remediation": "Rebuild the mod.",
+            }
         try:
             platform_open_folder(p)
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
-            return {"ok": False, "error": f"Could not open folder: {e}",
-                    "remediation": "Open it manually in your file manager."}
+            return {
+                "ok": False,
+                "error": f"Could not open folder: {e}",
+                "remediation": "Open it manually in your file manager.",
+            }
         return {"ok": True}
 
     def _settings_for_mods(self) -> tuple[Path, Path]:
         s = load_settings()
         output_root = Path(s.output_dir) if s.output_dir else Path.home() / "npv_builds"
         if not s.game_dir:
-            raise NpvError("Game directory not configured.",
-                           remediation="Set it in Settings.")
+            raise NpvError("Game directory not configured.", remediation="Set it in Settings.")
         return output_root, Path(s.game_dir)
 
     @staticmethod
@@ -421,14 +468,17 @@ class WebUiApi:
             for m in mm_list_mods(output_root, game_dir):
                 meta = self._build_meta(m)
                 mods.append(
-                    {"mod_id": m.mod_id, "archive_path": str(m.archive_path),
-                     "installed": m.installed, "built_at": m.built_at,
-                     "npv_name": meta.get("npv_name"),
-                     "save_path": meta.get("save_path")}
+                    {
+                        "mod_id": m.mod_id,
+                        "archive_path": str(m.archive_path),
+                        "installed": m.installed,
+                        "built_at": m.built_at,
+                        "npv_name": meta.get("npv_name"),
+                        "save_path": meta.get("save_path"),
+                    }
                 )
         except NpvError as e:
-            return {"ok": False, "error": e.user_message,
-                    "remediation": e.remediation or ""}
+            return {"ok": False, "error": e.user_message, "remediation": e.remediation or ""}
         return {"ok": True, "mods": mods}
 
     def _find_mod(self, mod_id: str):
@@ -436,16 +486,14 @@ class WebUiApi:
         for m in mm_list_mods(output_root, game_dir):
             if m.mod_id == mod_id:
                 return m, game_dir
-        raise NpvError(f"Mod '{mod_id}' not found.",
-                       remediation="Refresh the library.")
+        raise NpvError(f"Mod '{mod_id}' not found.", remediation="Refresh the library.")
 
     def install_mod(self, mod_id: str) -> dict:
         try:
             entry, game_dir = self._find_mod(mod_id)
             mm_install_mod(entry, game_dir)
         except NpvError as e:
-            return {"ok": False, "error": e.user_message,
-                    "remediation": e.remediation or ""}
+            return {"ok": False, "error": e.user_message, "remediation": e.remediation or ""}
         return {"ok": True}
 
     def uninstall_mod(self, mod_id: str) -> dict:
@@ -453,8 +501,7 @@ class WebUiApi:
             entry, game_dir = self._find_mod(mod_id)
             mm_uninstall_mod(entry, game_dir)
         except NpvError as e:
-            return {"ok": False, "error": e.user_message,
-                    "remediation": e.remediation or ""}
+            return {"ok": False, "error": e.user_message, "remediation": e.remediation or ""}
         return {"ok": True}
 
     def delete_mod(self, mod_id: str) -> dict:
@@ -462,24 +509,41 @@ class WebUiApi:
             entry, game_dir = self._find_mod(mod_id)
             mm_delete_mod(entry, game_dir)
         except NpvError as e:
-            return {"ok": False, "error": e.user_message,
-                    "remediation": e.remediation or ""}
+            return {"ok": False, "error": e.user_message, "remediation": e.remediation or ""}
         return {"ok": True}
 
     def appearance_data(self, save_path: str) -> dict:
         try:
             cc = parse_save_for_inspector(Path(save_path))
         except NpvError as e:
-            return {"ok": False, "error": e.user_message,
-                    "remediation": e.remediation or ""}
+            return {"ok": False, "error": e.user_message, "remediation": e.remediation or ""}
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
             return {"ok": False, "error": str(e), "remediation": ""}
-        options = option_lists(load_part_index(cc.get("patch", "")),
-                               cc.get("body_rig", "pwa"))
+        return self._appearance_payload(cc, load_overrides(save_path))
+
+    def preset_appearance_data(self, rig: str) -> dict:
+        try:
+            cc = load_preset(rig)
+        except NpvError as e:
+            return {
+                "ok": False,
+                "error": e.user_message,
+                "remediation": e.remediation or "",
+            }
+        except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
+            return {"ok": False, "error": str(e), "remediation": ""}
+        return self._appearance_payload(cc, {})
+
+    @staticmethod
+    def _appearance_payload(cc: dict, overrides: dict) -> dict:
+        options = option_lists(
+            load_part_index(cc.get("patch", "")),
+            cc.get("body_rig", "pwa"),
+            cc,
+        )
         rows = inspector_rows(cc, options, _display_names())
         categories = list(dict.fromkeys(r["category"] for r in rows))
-        return {"ok": True, "rows": rows, "categories": categories,
-                "overrides": load_overrides(save_path)}
+        return {"ok": True, "rows": rows, "categories": categories, "overrides": overrides}
 
     def get_overrides(self, save_path: str) -> dict:
         return {"ok": True, "overrides": load_overrides(save_path)}
@@ -487,14 +551,20 @@ class WebUiApi:
     def set_overrides(self, save_path: str, overrides: dict) -> dict:
         try:
             cc = parse_save_for_inspector(Path(save_path))
-            options = option_lists(load_part_index(cc.get("patch", "")),
-                                   cc.get("body_rig", "pwa"))
+            options = option_lists(
+                load_part_index(cc.get("patch", "")),
+                cc.get("body_rig", "pwa"),
+                cc,
+            )
         except Exception:  # noqa: BLE001 - index/parse problems fall back to slot-only checks
             options = {}
         problems = validate_overrides(overrides, options)
         if problems:
-            return {"ok": False, "error": "; ".join(problems),
-                    "remediation": "Pick values from the dropdowns."}
+            return {
+                "ok": False,
+                "error": "; ".join(problems),
+                "remediation": "Pick values from the dropdowns.",
+            }
         save_overrides(save_path, overrides)
         return {"ok": True}
 
@@ -503,8 +573,11 @@ class WebUiApi:
 
         s = load_settings()
         if not s.game_dir:
-            return {"ok": False, "error": "Game directory not configured.",
-                    "remediation": "Set it in Settings."}
+            return {
+                "ok": False,
+                "error": "Game directory not configured.",
+                "remediation": "Set it in Settings.",
+            }
         preset_rig = req.get("preset_rig")
         source_save_path = req.get("save_path")
         if bool(preset_rig) == bool(source_save_path):
@@ -523,9 +596,31 @@ class WebUiApi:
                     "error": error.user_message,
                     "remediation": error.remediation or "",
                 }
+            preset_overrides = req.get("cc_overrides") or {}
+            if not isinstance(preset_overrides, dict):
+                return {
+                    "ok": False,
+                    "error": "Preset appearance overrides must be an object.",
+                    "remediation": "Return to Appearance and choose the options again.",
+                }
+            options = option_lists(
+                load_part_index(cc_override.get("patch", "")),
+                cc_override.get("body_rig", preset_rig),
+                cc_override,
+            )
+            problems = validate_overrides(preset_overrides, options)
+            if problems:
+                return {
+                    "ok": False,
+                    "error": "; ".join(problems),
+                    "remediation": "Return to Appearance and pick values from the dropdowns.",
+                }
             meta = {"npv_name": req["npv_name"], "preset_rig": preset_rig}
             save_path = None
-            extra = {"cc_settings_override": cc_override, "cc_overrides": {}}
+            extra = {
+                "cc_settings_override": cc_override,
+                "cc_overrides": preset_overrides,
+            }
         else:
             meta = {"npv_name": req["npv_name"], "save_path": source_save_path}
             save_path = Path(source_save_path)
@@ -539,8 +634,11 @@ class WebUiApi:
                 encoding="utf-8",
             )
         except OSError as e:
-            return {"ok": False, "error": f"Cannot write to output directory: {e}",
-                    "remediation": "Check the output directory path and permissions."}
+            return {
+                "ok": False,
+                "error": f"Cannot write to output directory: {e}",
+                "remediation": "Check the output directory path and permissions.",
+            }
         self._worker = BuildWorker(self._queue)
         self._worker.start(
             save_path=save_path,

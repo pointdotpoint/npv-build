@@ -222,3 +222,19 @@ def test_unknown_canonical_visual_selection_is_unresolved(monkeypatch):
     assets = resolve_assets(cc_settings)
 
     assert assets["unresolved"] == [unknown]
+
+
+def test_resolve_assets_carries_selected_nail_appearance(monkeypatch):
+    from npv_build import part_resolver
+
+    monkeypatch.setattr(part_resolver, "get_or_create_index", lambda *a, **k: get_mock_index())
+    cc_settings = {
+        "patch": "2.13",
+        "body_rig": "pwa",
+        "nails": {"appearance": "01_all_red__multilayer"},
+        "selections": [],
+    }
+
+    assets = resolve_assets(cc_settings)
+
+    assert assets["nail_color"] == "01_all_red__multilayer"

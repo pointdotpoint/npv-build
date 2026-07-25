@@ -122,6 +122,22 @@ window.__mockApi = {
         editable: false, options: [] },
     ],
   }),
+  preset_appearance_data: async function () {
+    const out = await this.appearance_data();
+    const current = '{"label":"cyberware_01","raw":"hx_000_pwa__cyberware_01__03_ca_senna"}';
+    const alternate = '{"label":"cyberware_02","raw":"hx_000_pwa__cyberware_02__03_ca_senna"}';
+    out.categories.push("Face accessories");
+    out.rows.push({
+      category: "Face accessories", slot_id: "cc:cyberware_01",
+      label: "Cyberware", value_label: "cyberware 01 · 03 ca senna",
+      value_raw: current, editable: true,
+      options: [
+        { value: current, label: "Cyberware 01 · 03 ca senna" },
+        { value: alternate, label: "Cyberware 02 · 03 ca senna" },
+      ],
+    });
+    return out;
+  },
   _overrides: {},
   set_overrides: async function (path, overrides) {
     if (overrides.skin_tone === "reject_me")
