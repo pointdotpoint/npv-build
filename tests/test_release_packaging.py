@@ -17,6 +17,7 @@ def test_release_workflow_builds_all_requested_formats():
 def test_release_workflow_bundles_helpers_on_both_platforms():
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
+    assert workflow.count("astral-sh/setup-uv@v9.0.0") == 2
     assert workflow.count("submodules: recursive") == 2
     assert "--rid linux-x64 --output packaging/helpers" in workflow
     assert "--rid win-x64 --output packaging/helpers" in workflow
