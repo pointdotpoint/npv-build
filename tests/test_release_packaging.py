@@ -1,3 +1,4 @@
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
@@ -36,3 +37,18 @@ def test_packagers_reference_versioned_outputs():
     assert "npv-build-${VERSION}-x86_64.AppImage" in appimage
     assert "npv-build_${VERSION}_amd64.deb" in deb
     assert "npv-build-{#MyAppVersion}-windows-x86_64-setup" in installer
+
+
+def test_linux_release_uses_bundled_qt_instead_of_host_webkitgtk():
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    gui_dependencies = pyproject["project"]["optional-dependencies"]["gui"]
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    spec = (ROOT / "packaging" / "npv-build.spec").read_text(encoding="utf-8")
+
+    assert any("pywebview[qt]" in dependency for dependency in gui_dependencies)
+    assert all("pygobject" not in dependency.lower() for dependency in gui_dependencies)
+    assert "gir1.2-webkit2" not in workflow
+    assert workflow.count("xvfb-run -a timeout 10s") == 2
+    assert 'excludes=["gi"]' in spec
+    for xcb_dependency in ("libxcb-icccm4", "libxcb-keysyms1", "libxcb-shape0"):
+        assert xcb_dependency in workflow

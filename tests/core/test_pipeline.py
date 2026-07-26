@@ -91,7 +91,7 @@ def test_build_result_zip_path_populated(fake_stages, tmp_path):
     assert Path(result.zip_path).exists()
     manifest = json.loads((tmp_path / "out" / ".npv_manifest.json").read_text(encoding="utf-8"))
     assert manifest["format_version"] == 2
-    assert manifest["producer_version"] == "2.0.1"
+    assert manifest["producer_version"] == "2.0.2"
     assert set(manifest["stage_schemas"]) == set(PipelineService.STAGES)
     assert set(manifest["stages"]) == set(PipelineService.STAGES)
 

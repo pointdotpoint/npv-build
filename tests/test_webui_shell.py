@@ -12,12 +12,10 @@ def test_linux_env_defaults_set(monkeypatch):
 
     monkeypatch.setattr("sys.platform", "linux")
     monkeypatch.delenv("PYWEBVIEW_GUI", raising=False)
-    monkeypatch.delenv("WEBKIT_DISABLE_DMABUF_RENDERER", raising=False)
     _linux_env_defaults()
     import os
 
-    assert os.environ["PYWEBVIEW_GUI"] == "gtk"
-    assert os.environ["WEBKIT_DISABLE_DMABUF_RENDERER"] == "1"
+    assert os.environ["PYWEBVIEW_GUI"] == "qt"
 
 
 def test_linux_env_defaults_respect_overrides(monkeypatch):
@@ -25,12 +23,10 @@ def test_linux_env_defaults_respect_overrides(monkeypatch):
 
     monkeypatch.setattr("sys.platform", "linux")
     monkeypatch.setenv("PYWEBVIEW_GUI", "qt")
-    monkeypatch.setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "0")
     _linux_env_defaults()
     import os
 
     assert os.environ["PYWEBVIEW_GUI"] == "qt"
-    assert os.environ["WEBKIT_DISABLE_DMABUF_RENDERER"] == "0"
 
 
 def test_linux_env_defaults_noop_elsewhere(monkeypatch):
@@ -48,18 +44,18 @@ def test_check_webview_runtime_linux_missing(monkeypatch):
     from npv_build import webui_shell
 
     def boom():
-        raise ImportError("cannot import gi")
+        raise ImportError("cannot import QtWebEngineWidgets")
 
-    monkeypatch.setattr(webui_shell, "_probe_webkitgtk", boom)
+    monkeypatch.setattr(webui_shell, "_probe_qt_webengine", boom)
     hint = webui_shell.check_webview_runtime("linux")
     assert hint is not None
-    assert "gir1.2-webkit2-4.1" in hint
+    assert "PyQt6-WebEngine" in hint
 
 
 def test_check_webview_runtime_linux_present(monkeypatch):
     from npv_build import webui_shell
 
-    monkeypatch.setattr(webui_shell, "_probe_webkitgtk", lambda: None)
+    monkeypatch.setattr(webui_shell, "_probe_qt_webengine", lambda: None)
     assert webui_shell.check_webview_runtime("linux") is None
 
 
@@ -69,17 +65,17 @@ def test_check_webview_runtime_windows_is_none():
     assert check_webview_runtime("win32") is None
 
 
-def test_main_reports_missing_webkitgtk(monkeypatch, capsys):
+def test_main_reports_missing_qt_webengine(monkeypatch, capsys):
     from npv_build import webui_shell
 
     monkeypatch.setattr(webui_shell.sys, "platform", "linux")
     monkeypatch.setattr(
         webui_shell,
         "check_webview_runtime",
-        lambda: "WebKitGTK runtime not found.\nsudo apt install gir1.2-webkit2-4.1",
+        lambda: "Qt WebEngine runtime not found.\nInstall PyQt6-WebEngine",
     )
     assert webui_shell.main() == 1
-    assert "gir1.2-webkit2-4.1" in capsys.readouterr().err
+    assert "PyQt6-WebEngine" in capsys.readouterr().err
 
 
 def test_main_reports_missing_webview(monkeypatch, capsys):

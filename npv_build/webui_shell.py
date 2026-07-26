@@ -16,22 +16,15 @@ def webui_dir() -> Path:
 def _linux_env_defaults() -> None:
     if not sys.platform.startswith("linux"):
         return
-    # pywebview forces its QT backend under KDE (KDE_FULL_SESSION), which we
-    # don't ship; WebKitGTK's DMA-BUF renderer crashes on NVIDIA + Wayland.
-    os.environ.setdefault("PYWEBVIEW_GUI", "gtk")
-    os.environ.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+    # The release bundle ships Qt WebEngine as one coherent GUI runtime.
+    # Mixing bundled GTK/PyGObject with host WebKitGTK is not ABI-safe across
+    # Linux distributions.
+    os.environ.setdefault("PYWEBVIEW_GUI", "qt")
 
 
-def _probe_webkitgtk() -> None:
-    """Import the WebKitGTK GI bindings pywebview's GTK backend needs.
-    Raises on any missing piece (gi itself, or the WebKit2 typelib)."""
-    import gi
-
-    try:
-        gi.require_version("WebKit2", "4.1")
-    except ValueError:
-        gi.require_version("WebKit2", "4.0")
-    from gi.repository import WebKit2  # noqa: F401
+def _probe_qt_webengine() -> None:
+    """Import the Qt WebEngine widget pywebview's Linux backend needs."""
+    from qtpy.QtWebEngineWidgets import QWebEngineView  # noqa: F401
 
 
 def check_webview_runtime(platform: str | None = None) -> str | None:
@@ -42,15 +35,12 @@ def check_webview_runtime(platform: str | None = None) -> str | None:
     if not platform.startswith("linux"):
         return None
     try:
-        _probe_webkitgtk()
+        _probe_qt_webengine()
     except Exception as e:  # noqa: BLE001 - any failure means "can't render"
         return (
-            f"WebKitGTK runtime not found ({e}).\n"
-            "npv-build-gui needs it to render the interface on Linux.\n"
-            "  Debian/Ubuntu: sudo apt install gir1.2-webkit2-4.1\n"
-            "  Fedora:        sudo dnf install webkit2gtk4.1\n"
-            "  Arch:          sudo pacman -S webkit2gtk-4.1\n"
-            "Then reinstall Python bindings if needed: uv sync --extra gui"
+            f"Qt WebEngine runtime not found ({e}).\n"
+            "npv-build-gui needs PyQt6-WebEngine to render the interface on Linux.\n"
+            "Reinstall the GUI dependencies with: uv sync --extra gui"
         )
     return None
 
@@ -61,9 +51,9 @@ def main() -> int:
         import webview
     except ImportError:
         print(
-            "npv-build-gui needs pywebview (and WebKitGTK on Linux).\n"
+            "npv-build-gui needs pywebview (and Qt WebEngine on Linux).\n"
             "Install with: uv sync --extra gui\n"
-            "On Debian/Ubuntu also: sudo apt install gir1.2-webkit2-4.1",
+            "Release packages include the Linux Qt runtime.",
             file=sys.stderr,
         )
         return 1

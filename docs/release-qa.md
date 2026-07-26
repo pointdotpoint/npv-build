@@ -22,7 +22,7 @@ Run before publishing a release on a fresh machine or clean user profile where p
 - [ ] Build screen shows configurable options (hair, skin, garments); build completes with stage timeline visible.
 - [ ] Install screen shows install instructions; after copying to game folder, NPV spawns in-game via AMM.
 - [ ] My NPVs screen lists previously built NPVs.
-- [ ] (Linux only) Verify WebKitGTK is present (`gir1.2-webkit2-4.1` installed); on a clean system, first run should prompt or fail gracefully if missing.
+- [ ] (Linux only) Launch on a system without WebKitGTK; the bundled Qt WebEngine UI must still open.
 - [ ] Windows installer creates Start menu/uninstall entries and cleanly uninstalls.
 - [ ] Windows portable ZIP runs after extraction without installation.
 - [ ] AppImage runs after `chmod +x` without extracting it manually.
@@ -37,3 +37,4 @@ Run before publishing a release on a fresh machine or clean user profile where p
 ## Artifact hygiene
 - [ ] No standalone WolvenKit, Blender, or CDPR payloads are bundled — inspect the artifact.
 - [ ] Only NPV Build's self-contained helper binaries are bundled; WolvenKit, Blender, and CDPR assets are not.
+- [ ] Linux artifacts contain Qt WebEngine and do not contain PyGObject (`gi`) or require host WebKitGTK.

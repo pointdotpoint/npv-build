@@ -2,6 +2,15 @@
 
 All notable changes to npv-build are documented here. Format: [Keep a Changelog](https://keepachangelog.com/); versioning: [SemVer](https://semver.org/).
 
+## [2.0.2] - 2026-07-26
+
+### Fixed
+- Linux AppImage startup is now portable across distributions by bundling one
+  coherent Qt WebEngine runtime instead of mixing packaged GTK libraries with
+  the host's WebKitGTK installation.
+- Release CI launches both the portable Linux bundle and AppImage under a
+  virtual display, preventing CLI-only smoke tests from publishing a broken GUI.
+
 ## [2.0.1] - 2026-07-26
 
 ### Added
@@ -38,5 +47,6 @@ The 2.0 rewrite: a GUI-first, cross-platform npv-build.
 - WolvenKit and Blender are downloaded (checksum-verified) by the first-run wizard, not bundled.
 - Windows binaries are unsigned in this release; SmartScreen may warn on first launch.
 
+[2.0.2]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.2
 [2.0.1]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.1
 [2.0.0]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.0

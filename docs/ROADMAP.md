@@ -76,8 +76,9 @@ Replaces the greyed-out "From scratch — coming soon" card on Source:
   of the baked head — plan written, nothing built
 - **M3 H2-v2:** optional donor-entity retirement re-test
 - **Multi-appearance "Add appearance…" UI hook** (deferred since M5)
-- **v2.0.0 draft GitHub release:** built and verified, waiting for user to publish;
-  PyInstaller webkit bundling is still an open release-QA gate
+- **Cross-distribution Linux release QA:** the AppImage now bundles Qt WebEngine
+  and CI launches the GUI under Xvfb; continue spot-checking releases on a
+  non-Ubuntu desktop.
 
 ## Known perf improvement (from 2026-07-19 GUI QA)
 

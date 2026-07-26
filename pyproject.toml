@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "npv-build"
-version = "2.0.1"
+version = "2.0.2"
 description = "Cyberpunk 2077 NPV Automation"
 authors = [
     {name = "Maintainer"}
@@ -19,10 +19,8 @@ dependencies = [
 
 [project.optional-dependencies]
 gui = [
-    "pywebview>=5.0",
-    # pywebview's GTK backend needs PyGObject on Linux (plus the system
-    # gir1.2-webkit2-4.1 package); Windows uses the built-in WebView2.
-    "pygobject>=3.50; sys_platform == 'linux'",
+    "pywebview[qt]>=5.0; sys_platform == 'linux'",
+    "pywebview>=5.0; sys_platform != 'linux'",
 ]
 
 [project.scripts]

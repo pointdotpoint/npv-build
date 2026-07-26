@@ -1,5 +1,5 @@
 # PyInstaller one-dir build of npv-build (GUI + CLI in one executable).
-# The GUI is pywebview (webkit2gtk on Linux / WebView2 on Windows) + a static
+# The GUI is pywebview (bundled Qt WebEngine on Linux / WebView2 on Windows) + a static
 # HTML/CSS/JS frontend under npv_build/webui/ -- no customtkinter/tkinter here.
 from pathlib import Path
 import sys
@@ -13,6 +13,10 @@ d, b, h = collect_all("webview")
 datas += d
 binaries += b
 hiddenimports += h
+if sys.platform.startswith("linux"):
+    hiddenimports = [
+        module for module in hiddenimports if not module.startswith("webview.platforms.gtk")
+    ]
 
 helper_root = Path(SPECPATH) / "helpers"
 if not helper_root.is_dir():
@@ -35,6 +39,7 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
+    excludes=["gi"] if sys.platform.startswith("linux") else [],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

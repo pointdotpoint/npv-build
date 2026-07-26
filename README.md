@@ -2,7 +2,7 @@
 
 **Turn your Cyberpunk 2077 save into an AMM-spawnable NPC clone of V — in one command.**
 
-![version](https://img.shields.io/badge/version-2.0.1-blue)
+![version](https://img.shields.io/badge/version-2.0.2-blue)
 ![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
 ![assets](https://img.shields.io/badge/CDPR%20bytes%20in%20repo-none-green)
 
@@ -49,7 +49,9 @@ Choose either format:
 - **AppImage:** download `npv-build-<version>-x86_64.AppImage`, run `chmod +x` on it, then launch it directly.
 - **Debian/Ubuntu:** download `npv-build_<version>_amd64.deb` and install it with `sudo apt install ./npv-build_<version>_amd64.deb`.
 
-The first run will auto-download and install WolvenKit and Blender (checksum-verified) — **they are not bundled**. WebKitGTK is a system dependency; the `.deb` installs it automatically, while AppImage users may need to install `gir1.2-webkit2-4.1`.
+The first run will auto-download and install WolvenKit and Blender
+(checksum-verified) — **they are not bundled**. Linux releases include the Qt
+WebEngine GUI runtime, so WebKitGTK is not required.
 
 Both artifacts include the GUI and CLI in a single executable:
 - **Double-click** or run with **no arguments** → launches the GUI.
@@ -84,7 +86,7 @@ You point the tool at a save and a name; it hands you an installable mod. The
 | Python | ≥ 3.11 | Only required when running from source; release packages include Python. |
 | .NET 8 SDK | 8.x | Used to install WolvenKit.CLI when running from source. Release packages include NPV Build's native helper tools. |
 | [AMM](https://www.nexusmods.com/cyberpunk2077/mods/790) | any | Required in-game to spawn the NPC. |
-| WebKitGTK (Linux only) | 2.4.x+ | Required for the GUI. On Debian/Ubuntu: `sudo apt install gir1.2-webkit2-4.1`. Windows uses WebView2 (preinstalled). |
+| Qt WebEngine (Linux releases) | bundled | Included in the AppImage and `.deb`; source installs receive it through `uv sync --extra gui`. Windows uses WebView2 (preinstalled). |
 
 > **Flatpak Blender:** if you use the Flatpak (`org.blender.Blender`), grant it
 > filesystem access once so it can read the staged mesh files:

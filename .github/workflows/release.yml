@@ -31,14 +31,28 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            gcc \
-            pkg-config \
-            python3-dev \
-            libcairo2-dev \
-            libgirepository-2.0-dev \
-            gir1.2-gtk-3.0 \
-            gir1.2-webkit2-4.1 \
-            libfuse2
+            binutils \
+            libasound2t64 \
+            libdbus-1-3 \
+            libegl1 \
+            libfontconfig1 \
+            libfuse2 \
+            libglib2.0-0 \
+            libgl1 \
+            libnss3 \
+            libx11-xcb1 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxfixes3 \
+            libxkbfile1 \
+            libxrandr2 \
+            libxtst6 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-keysyms1 \
+            libxcb-shape0 \
+            libxkbcommon-x11-0 \
+            xvfb
       - run: uv sync --locked --extra gui
       - name: Validate release version
         run: |
@@ -64,6 +78,12 @@ jobs:
             test "$status" -eq 1
             test -n "$output"
           done
+          if xvfb-run -a timeout 10s packaging/dist/npv-build/npv-build; then
+            gui_status=0
+          else
+            gui_status=$?
+          fi
+          test "$gui_status" -eq 124
       - name: Build AppImage and Debian package
         run: |
           packaging/build_appimage.sh "$VERSION"
@@ -73,6 +93,12 @@ jobs:
           APPIMAGE="packaging/dist/npv-build-${VERSION}-x86_64.AppImage"
           DEB="packaging/dist/npv-build_${VERSION}_amd64.deb"
           "$APPIMAGE" --appimage-extract-and-run --help
+          if xvfb-run -a timeout 10s "$APPIMAGE" --appimage-extract-and-run; then
+            gui_status=0
+          else
+            gui_status=$?
+          fi
+          test "$gui_status" -eq 124
           dpkg-deb --info "$DEB"
           dpkg-deb -x "$DEB" "$RUNNER_TEMP/npv-deb-smoke"
           "$RUNNER_TEMP/npv-deb-smoke/usr/lib/npv-build/npv-build" --help
