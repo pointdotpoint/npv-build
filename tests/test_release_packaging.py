@@ -32,11 +32,25 @@ def test_release_workflow_bundles_helpers_on_both_platforms():
 def test_packagers_reference_versioned_outputs():
     appimage = (ROOT / "packaging" / "build_appimage.sh").read_text(encoding="utf-8")
     deb = (ROOT / "packaging" / "build_deb.sh").read_text(encoding="utf-8")
+    spec = (ROOT / "packaging" / "npv-build.spec").read_text(encoding="utf-8")
     installer = (ROOT / "packaging" / "windows" / "npv-build.iss").read_text(encoding="utf-8")
 
     assert "npv-build-${VERSION}-x86_64.AppImage" in appimage
     assert "npv-build_${VERSION}_amd64.deb" in deb
     assert "npv-build-{#MyAppVersion}-windows-x86_64-setup" in installer
+    assert "npv-build.ico" in spec
+    assert r"SetupIconFile=..\npv-build.ico" in installer
+
+
+def test_brand_icon_has_svg_and_windows_variants():
+    svg = (ROOT / "packaging" / "npv-build.svg").read_text(encoding="utf-8")
+    ico = (ROOT / "packaging" / "npv-build.ico").read_bytes()
+
+    assert svg.count("<path") == 3
+    assert 'fill="#77a7ff"' in svg
+    assert 'fill="#9bc0ff"' in svg
+    assert 'fill="#ff5d79"' in svg
+    assert ico.startswith(b"\x00\x00\x01\x00")
 
 
 def test_linux_release_uses_bundled_qt_instead_of_host_webkitgtk():

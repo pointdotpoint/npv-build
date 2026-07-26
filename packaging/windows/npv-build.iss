@@ -28,6 +28,7 @@ OutputBaseFilename=npv-build-{#MyAppVersion}-windows-x86_64-setup
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\npv-build.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 CloseApplications=yes
 

@@ -47,6 +47,7 @@ exe = EXE(
     pyz, a.scripts, [],
     exclude_binaries=True,
     name="npv-build",
+    icon=str(Path(SPECPATH) / "npv-build.ico") if sys.platform == "win32" else None,
     console=True,  # keep a console so CLI output is visible; GUI still opens its own window
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="npv-build")

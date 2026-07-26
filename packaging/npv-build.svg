@@ -6,7 +6,11 @@
     </linearGradient>
   </defs>
   <rect width="256" height="256" rx="48" fill="url(#bg)"/>
-  <path d="M52 58h32l51 82V58h30v140h-30L82 115v83H52z" fill="#77a7ff"/>
-  <path d="M177 58h27v140h-27z" fill="#9bc0ff"/>
-  <circle cx="190.5" cy="43" r="13" fill="#ff5d79"/>
+  <path d="M27 192V64h17l30 82V64h18v128H75l-30-84v84z" fill="#77a7ff"/>
+  <path
+    d="M101 64h33c31 0 48 14 48 41 0 28-17 42-48 42h-14v45h-19V64zm19 19v45h13c20 0 29-7 29-23 0-15-9-22-29-22h-13z"
+    fill="#9bc0ff"
+    fill-rule="evenodd"
+  />
+  <path d="M169 64h20l17 91 17-91h20l-27 128h-20z" fill="#ff5d79"/>
 </svg>
