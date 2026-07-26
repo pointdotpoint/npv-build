@@ -66,9 +66,12 @@ def test_check_webview_runtime_windows_is_none():
 
 
 def test_main_reports_missing_qt_webengine(monkeypatch, capsys):
+    import sys
+
     from npv_build import webui_shell
 
     monkeypatch.setattr(webui_shell.sys, "platform", "linux")
+    monkeypatch.setitem(sys.modules, "webview", object())
     monkeypatch.setattr(
         webui_shell,
         "check_webview_runtime",
