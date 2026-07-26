@@ -11,7 +11,7 @@ def test_release_workflow_builds_all_requested_formats():
     assert "npv-build-*-windows-x86_64.zip" in workflow
     assert "npv-build-*-x86_64.AppImage" in workflow
     assert "npv-build_*_amd64.deb" in workflow
-    assert "draft: true" in workflow
+    assert "draft: false" in workflow
 
 
 def test_release_workflow_bundles_helpers_on_both_platforms():

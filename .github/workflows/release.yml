@@ -208,7 +208,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: NPV Build ${{ github.ref_name }}
-          draft: true
+          draft: false
           files: release/*
           body_path: CHANGELOG.md
           generate_release_notes: false

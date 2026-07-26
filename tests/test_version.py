@@ -5,7 +5,7 @@ import npv_build
 
 
 def test_package_version_is_2_0_0():
-    assert npv_build.__version__ == "2.0.0"
+    assert npv_build.__version__ == "2.0.1"
 
 
 def test_pyproject_version_matches_package():

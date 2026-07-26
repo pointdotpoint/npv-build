@@ -2,6 +2,22 @@
 
 All notable changes to npv-build are documented here. Format: [Keep a Changelog](https://keepachangelog.com/); versioning: [SemVer](https://semver.org/).
 
+## [2.0.1] - 2026-07-26
+
+### Added
+- Full from-scratch appearance controls, including explicit modded-hair loading.
+- Complete Photo Mode NPC registration and custom thumbnail generation.
+- Windows installer and portable ZIP plus Linux AppImage and Debian packages.
+
+### Fixed
+- Hair, clothing, body, and genital selection issues in generated NPVs.
+- Native helper discovery in packaged applications.
+- Release packages now include the required self-contained NPV helper tools.
+
+### Changed
+- Faster incremental builds through caching and reduced redundant WolvenKit work.
+- GitHub releases are published automatically after all package smoke tests pass.
+
 ## [2.0.0] - 2026-07-17
 
 The 2.0 rewrite: a GUI-first, cross-platform npv-build.
@@ -22,4 +38,5 @@ The 2.0 rewrite: a GUI-first, cross-platform npv-build.
 - WolvenKit and Blender are downloaded (checksum-verified) by the first-run wizard, not bundled.
 - Windows binaries are unsigned in this release; SmartScreen may warn on first launch.
 
+[2.0.1]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.1
 [2.0.0]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.0
