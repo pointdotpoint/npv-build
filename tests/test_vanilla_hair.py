@@ -1,14 +1,67 @@
-"""Vanilla hairstyle support: parse the CC style number from the save's
-hairs-slot label and resolve it to a vanilla hh_ part .ent via the vendored
-style table (data/mappings/vanilla_hair.json)."""
+"""Hair selection support for vanilla and modded character-creator entries."""
 
+import json
 import struct
+from pathlib import Path
 
 import npv_build.part_resolver as part_resolver
 import npv_build.save_parser as save_parser
 from npv_build.mapping import resolve_assets
 
 # ---------------------------------------------------------------- parser ----
+
+
+def test_quicksave4_generic_ccxl_hair_is_not_treated_as_bald():
+    selections = json.loads(
+        (Path(__file__).parent / "fixtures" / "quicksave4_hair_selections.json").read_text()
+    )
+
+    assert save_parser.hair_from_selections(selections) == {
+        "kind": "modded",
+        "selection_label": "b1w_003_wa",
+        "mesh_appearance": "teal_ombre",
+        "style_id": "b1w_003_wa",
+        "raw": "b1w_003_wa",
+        "vanilla_style": 0,
+    }
+
+
+def test_established_mod_hair_label_shapes_use_explicit_model():
+    for label in ("fhair_miyavi_twistup_soft", "axiom_hair"):
+        hair = save_parser.hair_from_selections(
+            [{"slot": "hairs", "label": label, "raw": "04_teal_ombre"}]
+        )
+        assert hair["kind"] == "modded"
+        assert hair["selection_label"] == label
+        assert hair["mesh_appearance"] == "teal_ombre"
+
+
+def test_explicit_bald_hair_is_distinct_from_malformed_record():
+    bald = save_parser.hair_from_selections(
+        [{"slot": "hairs", "label": "hair_color0", "raw": "default"}]
+    )
+    malformed = save_parser.hair_from_selections(
+        [{"slot": "hairs", "label": "mystery_ccxl_hair", "raw": ""}]
+    )
+
+    assert bald["kind"] == "none"
+    assert malformed["kind"] == "unknown"
+    assert malformed["selection_label"] == "mystery_ccxl_hair"
+
+
+def test_fpp_only_hair_is_unknown_not_bald():
+    hair = save_parser.hair_from_selections(
+        [
+            {
+                "slot": "FPP_hairs",
+                "label": "b1w_003_wa_fpp",
+                "raw": "04_teal_ombre",
+            }
+        ]
+    )
+
+    assert hair["kind"] == "unknown"
+    assert hair["selection_label"] == "b1w_003_wa_fpp"
 
 
 def test_vanilla_hair_style_cyberware_label():

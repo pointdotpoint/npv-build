@@ -1,0 +1,20 @@
+[
+  {
+    "slot": "hairs",
+    "label": "b1w_003_wa",
+    "raw": "04_teal_ombre",
+    "cname_hash": 6178364890966597469
+  },
+  {
+    "slot": "character_customization",
+    "label": "b1w_003_wa",
+    "raw": "04_teal_ombre",
+    "cname_hash": 6178364890966597469
+  },
+  {
+    "slot": "FPP_hairs",
+    "label": "b1w_003_wa_fpp",
+    "raw": "default",
+    "cname_hash": 6178364890966597469
+  }
+]

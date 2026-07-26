@@ -1,5 +1,9 @@
+import json
+from pathlib import Path
+
 import pytest
 
+from npv_build.core.errors import MappingResolutionError
 from npv_build.mapping import MappingError, resolve_assets
 from npv_build.part_resolver import get_mock_index
 
@@ -63,6 +67,131 @@ def test_resolve_assets_valid():
     # Assert fhair registered as external dependency
     assert len(assets["external_dependencies"]) == 1
     assert assets["external_dependencies"][0]["selection"] == "fhair_miyavivi_twistup_soft"
+
+
+def test_resolve_assets_uses_explicit_generic_ccxl_hair(monkeypatch, tmp_path):
+    from npv_build import part_resolver
+
+    selections = json.loads(
+        (Path(__file__).parent / "fixtures" / "quicksave4_hair_selections.json").read_text()
+    )
+    for selection in selections:
+        selection.update(
+            {
+                "prefix": "",
+                "index": 0,
+                "rig": "",
+                "group": "",
+                "variant": "",
+            }
+        )
+    monkeypatch.setattr(
+        part_resolver,
+        "get_or_create_index",
+        lambda *args, **kwargs: get_mock_index(),
+    )
+    resolved = []
+
+    def fake_extract(game_dir, selection_label, body_rig, verbosity=0, wk=None):
+        resolved.append((selection_label, body_rig))
+        return (
+            [{"$type": "entSkinnedMeshComponent"}],
+            "#B1W_CCXL_S2-g.archive",
+            r"b1w\ccxl\hair003\appearances\b1w_003_wa.app",
+            "default",
+        )
+
+    monkeypatch.setattr(part_resolver, "extract_hair_components", fake_extract)
+    cc_settings = {
+        "patch": "2.13",
+        "body_rig": "pwa",
+        "selections": selections,
+        "hair": {
+            "kind": "modded",
+            "selection_label": "b1w_003_wa",
+            "mesh_appearance": "teal_ombre",
+            "style_id": "b1w_003_wa",
+            "raw": "b1w_003_wa",
+            "vanilla_style": 0,
+        },
+    }
+
+    assets = resolve_assets(cc_settings, game_dir=tmp_path)
+
+    assert resolved == [("b1w_003_wa", "pwa")]
+    assert assets["hair_app"].endswith(r"b1w_003_wa.app")
+    assert assets["hair_color"] == "teal_ombre"
+    assert assets["external_dependencies"] == [
+        {
+            "selection": "b1w_003_wa",
+            "reason": "modded hair from #B1W_CCXL_S2-g.archive (must stay installed)",
+        }
+    ]
+
+
+def test_selected_modded_hair_must_resolve_instead_of_silently_building_bald(
+    monkeypatch, tmp_path
+):
+    from npv_build import part_resolver
+
+    monkeypatch.setattr(
+        part_resolver,
+        "get_or_create_index",
+        lambda *args, **kwargs: get_mock_index(),
+    )
+    monkeypatch.setattr(
+        part_resolver,
+        "extract_hair_components",
+        lambda *args, **kwargs: ([], None, None, None),
+    )
+    cc_settings = {
+        "patch": "2.13",
+        "body_rig": "pwa",
+        "selections": [],
+        "hair": {
+            "kind": "modded",
+            "selection_label": "b1w_003_wa",
+            "mesh_appearance": "teal_ombre",
+            "style_id": "b1w_003_wa",
+            "raw": "b1w_003_wa",
+            "vanilla_style": 0,
+        },
+    }
+
+    with pytest.raises(MappingResolutionError, match="b1w_003_wa") as exc_info:
+        resolve_assets(cc_settings, game_dir=tmp_path)
+
+    assert "reinstall" in exc_info.value.remediation.casefold()
+
+
+def test_unknown_selected_hair_record_blocks_build_instead_of_building_bald(
+    monkeypatch,
+):
+    from npv_build import part_resolver
+
+    monkeypatch.setattr(
+        part_resolver,
+        "get_or_create_index",
+        lambda *args, **kwargs: get_mock_index(),
+    )
+    cc_settings = {
+        "patch": "2.13",
+        "body_rig": "pwa",
+        "selections": [],
+        "hair": {
+            "kind": "unknown",
+            "selection_label": "mystery_ccxl_hair",
+            "mesh_appearance": "",
+            "style_id": "",
+            "raw": "",
+            "vanilla_style": 0,
+        },
+    }
+
+    with pytest.raises(MappingResolutionError, match="mystery_ccxl_hair") as exc_info:
+        resolve_assets(cc_settings)
+
+    assert "reselect" in exc_info.value.remediation.casefold()
 
 
 def test_resolve_assets_body_tattoo():

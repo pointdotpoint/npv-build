@@ -55,17 +55,139 @@ def test_resolve_clothing_garment_override():
     specs = resolve_clothing(
         "pwa", garment_overrides=["base\\characters\\garment\\t1_097_pwa_tank.ent"]
     )
-    names = [s["name"] for s in specs]
-    assert "t1_097_pwa_tank" in names
+    assert not any(spec.get("mesh", "").endswith(".ent") for spec in specs)
+    assert not any(spec["source"] == "clothing:inner_torso" for spec in specs)
+
+
+def test_legacy_raw_mesh_uses_default_appearance():
+    specs = resolve_clothing(
+        "pwa",
+        garment_overrides=["base\\characters\\garment\\t1_097_pwa_tank.mesh"],
+    )
+    tank = next(spec for spec in specs if spec["name"] == "t1_097_pwa_tank")
+    assert tank["appearance"] == "default"
+    assert tank["source_kind"] == "legacy_mesh"
+
+
+def test_structured_garment_preserves_exact_appearance_and_components():
+    shared_mesh = "base\\garment\\t1_035_pwa_shirt.mesh"
+    blue = {
+        "item_id": "Shirt_01_basic_01",
+        "name": "BLUE TEST SHIRT",
+        "slot": "inner_torso",
+        "mesh": shared_mesh,
+        "appearance": "blue_moro",
+        "source_kind": "catalog",
+        "components": [
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "test_shirt",
+                "mesh": shared_mesh,
+                "appearance": "blue_moro",
+                "bind_to": "root",
+                "chunk_mask": "",
+            }
+        ],
+    }
+    black = {
+        **blue,
+        "item_id": "Shirt_01_basic_02",
+        "name": "BLACK TEST SHIRT",
+        "appearance": "black_psycho",
+        "components": [
+            {**blue["components"][0], "appearance": "black_psycho"},
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "test_shirt_cuff",
+                "mesh": "base\\garment\\t1_035_pwa_shirt_cuff.mesh",
+                "appearance": "black",
+                "bind_to": "root",
+                "chunk_mask": "",
+            },
+        ],
+    }
+
+    blue_specs = resolve_clothing("pwa", garment_overrides=[blue])
+    black_specs = resolve_clothing("pwa", garment_overrides=[black])
+
+    assert next(s for s in blue_specs if s["name"] == "test_shirt")[
+        "appearance"
+    ] == "blue_moro"
+    assert next(s for s in black_specs if s["name"] == "test_shirt")[
+        "appearance"
+    ] == "black_psycho"
+    assert next(s for s in black_specs if s["name"] == "test_shirt_cuff")[
+        "appearance"
+    ] == "black"
+    assert "Shirt_01_basic_02" in next(
+        s for s in black_specs if s["name"] == "test_shirt"
+    )["source"]
+
+
+def test_multi_slot_catalog_outfit_replaces_every_occupied_layer():
+    outfit = {
+        "item_id": "Q301_nusa_agent",
+        "name": "NUSA AGENT OUTFIT",
+        "slot": "outer_torso",
+        "occupied_slots": ["outer_torso", "legs", "feet"],
+        "mesh": "ep1\\garment\\t2_148_pwa_jacket.mesh",
+        "appearance": "secret_service01",
+        "source_kind": "catalog",
+        "components": [
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "agent_jacket",
+                "mesh": "ep1\\garment\\t2_148_pwa_jacket.mesh",
+                "appearance": "secret_service01",
+            },
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "agent_pants",
+                "mesh": "base\\garment\\l1_081_pwa_pants.mesh",
+                "appearance": "navy_rich",
+            },
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "agent_shoes",
+                "mesh": "base\\garment\\s1_073_pwa_shoes.mesh",
+                "appearance": "default",
+            },
+        ],
+    }
+    equipped = [
+        {
+            "name": f"{prefix}_old",
+            "mesh": f"base\\garment\\{prefix}_old.mesh",
+            "appearance": "default",
+            "slot": slot,
+        }
+        for prefix, slot in (
+            ("t1", "inner_torso"),
+            ("t2", "outer_torso"),
+            ("l1", "legs"),
+            ("s1", "feet"),
+        )
+    ]
+
+    specs = resolve_clothing(
+        "pwa",
+        garment_overrides=[outfit],
+        equipped=equipped,
+    )
+    names = {spec["name"] for spec in specs}
+
+    assert "t1_old" in names
+    assert not names & {"t2_old", "l1_old", "s1_old"}
+    assert {"agent_jacket", "agent_pants", "agent_shoes"} <= names
 
 
 def test_resolve_clothing_slot_detection():
     specs = resolve_clothing(
         "pwa",
         garment_overrides=[
-            "base\\garment\\t2_jacket.ent",
-            "base\\garment\\l1_pants.ent",
-            "base\\garment\\s1_boots.ent",
+            "base\\garment\\t2_jacket.mesh",
+            "base\\garment\\l1_pants.mesh",
+            "base\\garment\\s1_boots.mesh",
         ],
     )
     sources = [s["source"] for s in specs]
@@ -132,7 +254,7 @@ def test_resolve_clothing_garment_override_beats_equipped():
     specs = resolve_clothing(
         "pwa",
         garment_overrides=[
-            "base\\garment\\l1_new_pwa.ent",
+            "base\\garment\\l1_new_pwa.mesh",
         ],
         equipped=equipped,
     )

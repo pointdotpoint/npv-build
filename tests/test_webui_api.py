@@ -1,4 +1,88 @@
+from npv_build.gui_logic.clothing_catalog import catalog_selection
 from npv_build.webui_api import WebUiApi
+
+CATALOG = [
+    {
+        "item_id": "A",
+        "name": "RED SWEATER",
+        "image": "/i/a.jpg",
+        "slot": "inner_torso",
+        "mesh": "base\\garment\\t1_001_pwa_sweater.mesh",
+        "mesh_pwa": "base\\garment\\t1_001_pwa_sweater.mesh",
+        "mesh_pma": None,
+        "appearance_pwa": "red",
+        "appearance_pma": None,
+        "components_pwa": [
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "sweater",
+                "mesh": "base\\garment\\t1_001_pwa_sweater.mesh",
+                "appearance": "red",
+                "bind_to": "root",
+                "chunk_mask": "",
+            }
+        ],
+        "components_pma": [],
+        "buildable_pwa": True,
+        "buildable_pma": False,
+    },
+    {
+        "item_id": "B",
+        "name": "BLUE JEANS",
+        "image": "/i/b.jpg",
+        "slot": "legs",
+        "mesh": "base\\garment\\l1_001_pwa_jeans.mesh",
+        "mesh_pwa": "base\\garment\\l1_001_pwa_jeans.mesh",
+        "mesh_pma": "base\\garment\\l1_001_pma_jeans.mesh",
+        "appearance_pwa": "blue",
+        "appearance_pma": "blue",
+        "components_pwa": [
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "jeans",
+                "mesh": "base\\garment\\l1_001_pwa_jeans.mesh",
+                "appearance": "blue",
+                "bind_to": "root",
+                "chunk_mask": "",
+            }
+        ],
+        "components_pma": [
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "jeans",
+                "mesh": "base\\garment\\l1_001_pma_jeans.mesh",
+                "appearance": "blue",
+                "bind_to": "root",
+                "chunk_mask": "",
+            }
+        ],
+        "buildable_pwa": True,
+        "buildable_pma": True,
+    },
+    {
+        "item_id": "C",
+        "name": "GHOST HAT",
+        "image": "/i/c.jpg",
+        "slot": "head",
+        "mesh": None,
+        "mesh_pwa": None,
+        "mesh_pma": None,
+        "appearance_pwa": None,
+        "appearance_pma": None,
+        "components_pwa": [],
+        "components_pma": [],
+        "buildable_pwa": False,
+        "buildable_pma": False,
+    },
+]
+
+
+def _thumbnail(tmp_path):
+    from PIL import Image
+
+    path = tmp_path / "thumbnail.png"
+    Image.new("RGB", (240, 240), "magenta").save(path)
+    return path
 
 
 def test_get_state_shape(monkeypatch, tmp_path):
@@ -206,6 +290,8 @@ def test_open_folder_missing_is_structured(tmp_path):
 
 
 def test_cache_info_and_clear(monkeypatch, tmp_path):
+    from npv_build.core.artifact_cache import ArtifactCache
+
     cache = tmp_path / "npv-cache"
     (cache / "index").mkdir(parents=True)
     (cache / "index" / "2.13.json").write_bytes(b"x" * 1000)
@@ -222,6 +308,14 @@ def test_cache_info_and_clear(monkeypatch, tmp_path):
     cleared = api.clear_cache("index")
     assert cleared["ok"] is True
     assert not (cache / "index").exists()
+
+    artifact_cache = ArtifactCache(cache / "templates")
+    key = {"resource": "head.ent"}
+    artifact_cache.save_json("uncook-json-v1", key, {"Data": {}})
+    assert artifact_cache.load_json("uncook-json-v1", key) is not None
+    cleared = api.clear_cache("templates")
+    assert cleared["ok"] is True
+    assert artifact_cache.load_json("uncook-json-v1", key) is None
 
 
 def test_clear_cache_rejects_unknown_names(monkeypatch, tmp_path):
@@ -288,6 +382,107 @@ def test_install_tools_failure_is_structured(monkeypatch):
         time.sleep(0.02)
     err = next(e for e in events if e["kind"] == "tool_error")
     assert "network down" in err["message"]
+
+
+def test_clothing_search_filters_flags_and_selects_rig_mesh(monkeypatch):
+    monkeypatch.setattr("npv_build.webui_api.load_clothing_catalog", lambda: CATALOG)
+    api = WebUiApi()
+
+    out = api.clothing_search("sweater", None, "pma")
+    assert [item["item_id"] for item in out["items"]] == ["A"]
+    assert out["items"][0]["buildable"] is False
+    assert out["items"][0]["mesh"] is None
+
+    out = api.clothing_search("", "legs", "pma")
+    assert [item["item_id"] for item in out["items"]] == ["B"]
+    assert out["items"][0]["mesh"] == "base\\garment\\l1_001_pma_jeans.mesh"
+    assert out["items"][0]["appearance"] == "blue"
+    assert out["items"][0]["selection"] == catalog_selection(CATALOG[1], "pma")
+
+    out = api.clothing_search("", None, "pwa", limit=2)
+    assert len(out["items"]) == 2
+    assert all(item["buildable"] for item in out["items"])
+
+
+def test_clothing_catalog_status_built_and_unbuilt(monkeypatch):
+    monkeypatch.setattr("npv_build.webui_api.load_clothing_catalog", lambda: None)
+    assert WebUiApi().clothing_catalog_status() == {
+        "ok": True,
+        "built": False,
+        "count": 0,
+    }
+    monkeypatch.setattr("npv_build.webui_api.load_clothing_catalog", lambda: CATALOG)
+    assert WebUiApi().clothing_catalog_status() == {
+        "ok": True,
+        "built": True,
+        "count": 3,
+    }
+
+
+def test_clothing_thumb_uses_configured_images_dir(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(
+            game_dir=None,
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+            clothing_images_dir=str(tmp_path / "images"),
+        ),
+    )
+    seen = {}
+
+    def fake_thumb(image_rel, images_dir, cache_dir):
+        seen.update(
+            image_rel=image_rel,
+            images_dir=images_dir,
+            cache_dir=cache_dir,
+        )
+        return "abc"
+
+    monkeypatch.setattr("npv_build.webui_api.thumbnail_b64", fake_thumb)
+    monkeypatch.setattr("npv_build.webui_api.get_cache_dir", lambda: tmp_path / "cache")
+
+    assert WebUiApi().clothing_thumb("/images/clothes/a.jpg") == {
+        "ok": True,
+        "b64": "abc",
+    }
+    assert seen["images_dir"] == str(tmp_path / "images")
+    assert seen["cache_dir"] == tmp_path / "cache"
+
+
+def test_build_clothing_catalog_runs_worker_and_emits_events(monkeypatch, tmp_path):
+    import time
+
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.build_catalog_from_game",
+        lambda game, wk, clothes, cache: CATALOG,
+    )
+    api = WebUiApi()
+    assert api.build_clothing_catalog() == {"ok": True}
+    events = []
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        events += api.poll_catalog_events()
+        if any(event["kind"] == "catalog_done" for event in events):
+            break
+        time.sleep(0.01)
+    assert events[-1] == {"kind": "catalog_done", "count": 3}
 
 
 def test_detect_game_dirs_bridge(monkeypatch, tmp_path):
@@ -470,7 +665,7 @@ def test_start_build_fills_context_and_starts_worker(monkeypatch, tmp_path):
             "npv_name": "V",
             "output_dir": str(tmp_path / "o"),
             "clear_cache": False,
-            "resume": False,
+            "photomode_thumbnail": str(_thumbnail(tmp_path)),
         }
     )
     assert out == {"ok": True}
@@ -478,11 +673,16 @@ def test_start_build_fills_context_and_starts_worker(monkeypatch, tmp_path):
     assert kw["game_dir"] == tmp_path
     assert kw["npv_name"] == "V"
     assert str(kw["template_cache"]).endswith("templates")
+    assert kw["resume"] is True
     # Rebuild metadata is persisted alongside the build output
     import json
 
     meta = json.loads((tmp_path / "o" / "build_meta.json").read_text())
-    assert meta == {"npv_name": "V", "save_path": str(tmp_path / "sav.dat")}
+    assert meta == {
+        "npv_name": "V",
+        "save_path": str(tmp_path / "sav.dat"),
+        "photomode_thumbnail": str(_thumbnail(tmp_path).resolve()),
+    }
 
 
 def test_start_build_without_game_dir_errors(monkeypatch):
@@ -540,6 +740,88 @@ def test_set_overrides_validates_and_persists(monkeypatch):
     assert out["ok"] is False and "bogus" in out["error"]
 
 
+def test_appearance_data_reports_registered_saved_modded_hair(
+    monkeypatch,
+    tmp_path,
+):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.parse_save_for_inspector",
+        lambda path: {
+            "patch": "2.31",
+            "body_rig": "pwa",
+            "hair": {
+                "kind": "modded",
+                "selection_label": "b1w_003_wa",
+                "mesh_appearance": "teal_ombre",
+            },
+        },
+    )
+    monkeypatch.setattr("npv_build.webui_api.load_part_index", lambda patch: {})
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.hair_registration_status",
+        lambda game_dir, label: {
+            "state": "registered",
+            "selection_label": label,
+            "depot": r"b1w\ccxl\hair003\appearances\b1w_003_wa.app",
+            "source": "b1whair003ccxl.archive.xl",
+        },
+    )
+
+    out = WebUiApi().appearance_data("/s/sav.dat")
+
+    assert out["saved_hair"] == {
+        "state": "registered",
+        "selection_label": "b1w_003_wa",
+        "depot": r"b1w\ccxl\hair003\appearances\b1w_003_wa.app",
+        "source": "b1whair003ccxl.archive.xl",
+        "mesh_appearance": "teal_ombre",
+    }
+
+
+def test_set_overrides_rejects_tampered_or_legacy_catalog_garment(monkeypatch):
+    saved = {}
+    monkeypatch.setattr(
+        "npv_build.webui_api.save_overrides",
+        lambda path, value: saved.update({path: value}),
+    )
+    monkeypatch.setattr("npv_build.webui_api.load_part_index", lambda patch: {})
+    monkeypatch.setattr(
+        "npv_build.webui_api.parse_save_for_inspector",
+        lambda path: {"patch": "2.31", "body_rig": "pwa"},
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_clothing_catalog", lambda: CATALOG
+    )
+    selection = catalog_selection(CATALOG[1], "pwa")
+    api = WebUiApi()
+
+    assert api.set_overrides(
+        "/s/sav.dat", {"garment_legs": selection}
+    ) == {"ok": True}
+    tampered = {**selection, "appearance": "red"}
+    out = api.set_overrides("/s/sav.dat", {"garment_legs": tampered})
+    assert out["ok"] is False
+    assert "metadata changed" in out["error"]
+    legacy = api.set_overrides(
+        "/s/sav.dat",
+        {"garment_legs": "base\\garment\\l1_001_pwa_jeans.mesh"},
+    )
+    assert legacy["ok"] is False
+    assert "Variant unknown" in legacy["error"]
+
+
 def test_start_build_passes_stored_overrides(monkeypatch, tmp_path):
     from npv_build.gui_logic.settings import Settings
 
@@ -567,9 +849,101 @@ def test_start_build_passes_stored_overrides(monkeypatch, tmp_path):
         ),
     )
     WebUiApi().start_build(
-        {"save_path": "/s/sav.dat", "npv_name": "V", "output_dir": str(tmp_path / "o")}
+        {
+            "save_path": "/s/sav.dat",
+            "npv_name": "V",
+            "output_dir": str(tmp_path / "o"),
+            "photomode_thumbnail": str(_thumbnail(tmp_path)),
+        }
     )
     assert started["cc_overrides"] == {"skin_tone": "03_ca_medium"}
+
+
+def test_start_build_preserves_exact_garment_selection(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    started = {}
+
+    class FakeWorker:
+        def __init__(self, queue):
+            pass
+
+        def start(self, **kwargs):
+            started.update(kwargs)
+
+    garment = catalog_selection(CATALOG[1], "pwa")
+    monkeypatch.setattr("npv_build.webui_api.BuildWorker", FakeWorker)
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_clothing_catalog", lambda: CATALOG
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.parse_save_for_inspector",
+        lambda path: {"body_rig": "pwa"},
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_overrides",
+        lambda path: {
+            "skin_tone": "03_ca_medium",
+            "garment_legs": garment,
+        },
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
+    )
+
+    out = WebUiApi().start_build(
+        {
+            "save_path": "/s/sav.dat",
+            "npv_name": "V",
+            "output_dir": str(tmp_path / "o"),
+            "photomode_thumbnail": str(_thumbnail(tmp_path)),
+        }
+    )
+
+    assert out == {"ok": True}
+    assert started["garments"] == [garment]
+    assert started["cc_overrides"] == {"skin_tone": "03_ca_medium"}
+
+
+def test_start_build_blocks_legacy_mesh_only_garment(monkeypatch, tmp_path):
+    from npv_build.gui_logic.settings import Settings
+
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_overrides",
+        lambda path: {
+            "garment_legs": "base\\garment\\l1_001_pwa_jeans.mesh",
+        },
+    )
+    monkeypatch.setattr(
+        "npv_build.webui_api.load_settings",
+        lambda: Settings(
+            game_dir=str(tmp_path),
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        ),
+    )
+
+    out = WebUiApi().start_build(
+        {
+            "save_path": "/s/sav.dat",
+            "npv_name": "V",
+            "output_dir": str(tmp_path / "o"),
+            "photomode_thumbnail": str(_thumbnail(tmp_path)),
+        }
+    )
+
+    assert out["ok"] is False
+    assert "Variant unknown" in out["error"]
+    assert "reselect" in out["remediation"]
 
 
 def test_load_part_index_resolves_table_key(monkeypatch, tmp_path):
@@ -825,6 +1199,7 @@ def test_preview_preset_and_start_build_with_preset(monkeypatch, tmp_path):
             "npv_name": "Default V",
             "output_dir": str(tmp_path / "o"),
             "cc_overrides": {"skin_tone": "03_ca_medium"},
+            "photomode_thumbnail": str(_thumbnail(tmp_path)),
         }
     )
     assert out == {"ok": True}
@@ -832,7 +1207,11 @@ def test_preview_preset_and_start_build_with_preset(monkeypatch, tmp_path):
     assert started["cc_settings_override"] == cc
     assert started["cc_overrides"] == {"skin_tone": "03_ca_medium"}
     meta = json.loads((tmp_path / "o" / "build_meta.json").read_text())
-    assert meta == {"npv_name": "Default V", "preset_rig": "pma"}
+    assert meta == {
+        "npv_name": "Default V",
+        "preset_rig": "pma",
+        "photomode_thumbnail": str(_thumbnail(tmp_path).resolve()),
+    }
 
 
 def test_preset_appearance_data_uses_editable_inspector(monkeypatch):

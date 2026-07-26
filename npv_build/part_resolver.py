@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -457,6 +458,85 @@ def _remap_override_component_names(game_dir: Path, overrides, verbosity: int = 
         logger.info(f"[Recipe] remapped {fixed} override componentName(s) to real part components")
 
 
+def _select_exact_hair_path(
+    paths: list[str],
+    exact_basename: str,
+    body_rig: str,
+) -> str | None:
+    """Choose an exact basename using only explicit path properties.
+
+    TPP, the requested body rig, and a non-cyberware resource win. Equal best
+    candidates remain ambiguous instead of being resolved by load order or a
+    vague substring match.
+    """
+    unique = sorted(set(paths), key=str.casefold)
+    if not unique:
+        return None
+    wanted = {"pwa": {"pwa", "wa"}, "pma": {"pma", "ma"}}.get(
+        body_rig,
+        {body_rig.casefold()},
+    )
+    unwanted = {"pwa": {"pma", "ma"}, "pma": {"pwa", "wa"}}.get(
+        body_rig,
+        set(),
+    )
+
+    def score(path: str) -> tuple[int, int, int]:
+        normalized = path.replace("\\", "/").casefold()
+        basename = normalized.rsplit("/", 1)[-1]
+        tokens = set(re.split(r"[/_.-]+", normalized))
+        is_fpp = "fpp" in tokens or basename.endswith("_fpp.app")
+        rig_score = int(bool(tokens & wanted)) - int(bool(tokens & unwanted))
+        is_cyberware = bool(tokens & {"cyb", "cyberware"})
+        return (int(not is_fpp), rig_score, int(not is_cyberware))
+
+    ranked = sorted(unique, key=lambda path: (score(path), path.casefold()), reverse=True)
+    best_score = score(ranked[0])
+    tied = [path for path in ranked if score(path) == best_score]
+    if len(tied) != 1:
+        logger.warning(
+            "[Hair] ambiguous exact app matches for %s: %s",
+            exact_basename,
+            ", ".join(tied),
+        )
+        return None
+    return ranked[0]
+
+
+def hair_registration_status(game_dir: Path, selection_label: str) -> dict:
+    """Inspect ArchiveXL sidecars for an exact saved-hair registration."""
+    mod_dir = game_dir / "archive" / "pc" / "mod"
+    exact_basename = f"{selection_label}.app"
+    matches: list[tuple[str, str]] = []
+    if mod_dir.is_dir():
+        for sidecar in sorted(mod_dir.glob("*.xl")):
+            try:
+                lines = sidecar.read_text(errors="ignore").splitlines()
+            except OSError:
+                continue
+            for line in lines:
+                candidate = line.strip().removeprefix("-").strip().strip("\"'")
+                basename = candidate.replace("\\", "/").rsplit("/", 1)[-1]
+                if basename.casefold() == exact_basename.casefold():
+                    matches.append((sidecar.name, candidate))
+    unique_depots = sorted({depot for _source, depot in matches}, key=str.casefold)
+    if len(unique_depots) == 1:
+        depot = unique_depots[0]
+        source = next(source for source, value in matches if value == depot)
+        return {
+            "state": "registered",
+            "selection_label": selection_label,
+            "depot": depot,
+            "source": source,
+        }
+    return {
+        "state": "ambiguous" if unique_depots else "unverified",
+        "selection_label": selection_label,
+        "depot": "",
+        "source": "",
+    }
+
+
 def extract_hair_components(
     game_dir: Path, hair_mesh_name: str, body_rig: str = "pwa", verbosity: int = 0, wk=None
 ):
@@ -485,6 +565,59 @@ def extract_hair_components(
     tokens = [t for t in base.split("_") if t and t not in ("soft", "fpp")]
     gender_pref = "fhair_" if body_rig == "pwa" else "mhair_"
 
+    # ArchiveXL registrations and the archive that owns their CR2W resources
+    # do not have to share a filename. Resolve an exact depot basename against
+    # the aggregate mod directory before using legacy archive-name heuristics.
+    exact_basename = f"{base}.app"
+    registration = hair_registration_status(game_dir, base)
+    sidecar_source = (
+        registration["source"]
+        if registration.get("state") == "registered"
+        else None
+    )
+
+    exact_paths = []
+    exact_regex = re.escape(exact_basename) + r"$"
+    try:
+        if wk:
+            exact_lines = wk.list_archive(exact_regex, archive=mod_dir)
+        else:
+            res = run_tool(
+                [
+                    cli_binary,
+                    "archive",
+                    str(mod_dir),
+                    "-l",
+                    "--regex",
+                    exact_regex,
+                ],
+                tool="WolvenKit.CLI",
+                timeout=600.0,
+                logger=logger,
+            )
+            exact_lines = [line.strip() for line in res.stdout.splitlines() if line.strip()]
+        exact_paths = [
+            path
+            for path in exact_lines
+            if path.replace("\\", "/").rsplit("/", 1)[-1].casefold()
+            == exact_basename.casefold()
+        ]
+    except ToolError as error:
+        logger.warning("Could not scan aggregate mod directory: %s", error.user_message)
+
+    best = None  # (archive_or_directory, app_depot, score)
+    best_source = None
+    if exact_paths:
+        selected_exact = _select_exact_hair_path(
+            exact_paths,
+            exact_basename,
+            body_rig,
+        )
+        if selected_exact is None:
+            return [], None, None, None
+        best = (mod_dir, selected_exact, 100)
+        best_source = sidecar_source or mod_dir.name
+
     # Pre-filter archives by FILENAME or XL sidecar content.
     all_arch = sorted(mod_dir.glob("*.archive"))
 
@@ -493,27 +626,26 @@ def extract_hair_components(
         hits = sum(1 for t in tokens if t in low)
         return hits >= max(1, len(tokens) - 1)
 
-    candidates = [a for a in all_arch if name_matches(a)]
+    candidates = [] if best else [a for a in all_arch if name_matches(a)]
 
     # Also search .xl sidecar files for the hair name (CCXL hairs register there)
-    if not candidates:
+    if not best and not candidates:
         hair_search = "_".join(tokens)
         for xl in mod_dir.glob("*.xl"):
             try:
                 text = xl.read_text(errors="ignore").lower()
                 if hair_search in text or base in text:
-                    arch = xl.with_suffix(".archive")
+                    arch = xl.with_name(xl.name[: -len(".xl")])
                     if arch.exists() and arch not in candidates:
                         candidates.append(arch)
             except OSError:
                 pass
 
-    if not candidates:
+    if not best and not candidates:
         candidates = [a for a in all_arch if "hair" in a.name.lower()]
     logger.info(f"[Hair] scanning {len(candidates)} candidate archive(s) of {len(all_arch)}")
 
     # Find candidate archives whose listing contains a matching hair .app.
-    best = None  # (archive_path, app_depot)
     for arch in candidates:
         try:
             if wk:
@@ -545,12 +677,14 @@ def extract_hair_components(
                     score += 1
                 if best is None or score > best[2]:
                     best = (arch, p, score)
+                    best_source = arch.name
     if not best:
         logger.info(f"[Hair] no mod .app matched tokens {tokens}")
         return [], None, None, None
 
     arch, app_depot, _ = best
-    logger.info(f"[Hair] matched {app_depot} in {arch.name}")
+    source_name = best_source or arch.name
+    logger.info(f"[Hair] matched {app_depot} in {source_name}")
 
     with tempfile.TemporaryDirectory() as td:
         temp_dir = Path(td)
@@ -596,7 +730,7 @@ def extract_hair_components(
         # Also return the source .app depot path + appearance name so the
         # caller can choose to attach via app-reference instead of copying
         # components (which loses parentTransform/rig bindings).
-        return mesh_chunks, arch.name, app_depot, a0.get("name", {}).get("$value", "")
+        return mesh_chunks, source_name, app_depot, a0.get("name", {}).get("$value", "")
 
 
 def get_or_create_index(

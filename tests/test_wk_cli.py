@@ -8,10 +8,16 @@ from unittest.mock import patch
 
 import pytest
 
+from npv_build.core.artifact_cache import ArtifactCache
 from npv_build.core.cancel import CancelToken
 from npv_build.core.errors import ToolError
 from npv_build.core.proc import ToolResult
-from npv_build.wk_cli import WolvenKit, WolvenKitConfig, WolvenKitError
+from npv_build.wk_cli import (
+    UncookJsonMissingError,
+    WolvenKit,
+    WolvenKitConfig,
+    WolvenKitError,
+)
 
 
 @pytest.fixture
@@ -169,6 +175,217 @@ class TestUncookJson:
         with pytest.raises(FileNotFoundError):
             wk.uncook_json("nonexistent.ent")
 
+    def test_uncook_json_uses_persistent_cache(self, monkeypatch, tmp_path):
+        archive = tmp_path / "appearance.archive"
+        archive.write_bytes(b"archive")
+        binary = tmp_path / "cp77tools"
+        binary.write_bytes(b"tool")
+        binary.chmod(0o755)
+        monkeypatch.setattr(
+            "npv_build.wk_cli.resolve_tool",
+            lambda _name, _candidates: binary,
+        )
+        adapter = WolvenKit(
+            WolvenKitConfig(
+                game_dir=tmp_path,
+                artifact_cache=ArtifactCache(tmp_path / "cache"),
+            )
+        )
+        calls = 0
+
+        def fake_run(args, **_kwargs):
+            nonlocal calls
+            calls += 1
+            out_dir = Path(args[args.index("-o") + 1])
+            output = out_dir / "base" / "test.ent.json"
+            output.parent.mkdir(parents=True)
+            output.write_text('{"Data":{"cached":true}}', encoding="utf-8")
+
+        monkeypatch.setattr(adapter, "_run", fake_run)
+
+        assert adapter.uncook_json("test.ent", archive=archive)["Data"]["cached"]
+        assert adapter.uncook_json("test.ent", archive=archive)["Data"]["cached"]
+        assert calls == 1
+        assert adapter.stats.cache_hits == 1
+        assert adapter.stats.cache_misses == 1
+
+    @pytest.mark.parametrize("changed_input", ["archive", "tool"])
+    def test_uncook_json_cache_invalidates_on_file_fingerprint_change(
+        self, monkeypatch, tmp_path, changed_input
+    ):
+        archive = tmp_path / "appearance.archive"
+        archive.write_bytes(b"archive")
+        binary = tmp_path / "cp77tools"
+        binary.write_bytes(b"tool")
+        monkeypatch.setattr(
+            "npv_build.wk_cli.resolve_tool",
+            lambda _name, _candidates: binary,
+        )
+        adapter = WolvenKit(
+            WolvenKitConfig(
+                game_dir=tmp_path,
+                artifact_cache=ArtifactCache(tmp_path / "cache"),
+            )
+        )
+        calls = 0
+
+        def fake_run(args, **_kwargs):
+            nonlocal calls
+            calls += 1
+            out_dir = Path(args[args.index("-o") + 1])
+            output = out_dir / "test.ent.json"
+            output.write_text(f'{{"Data":{{"call":{calls}}}}}', encoding="utf-8")
+
+        monkeypatch.setattr(adapter, "_run", fake_run)
+        assert adapter.uncook_json("test.ent", archive=archive)["Data"]["call"] == 1
+        target = archive if changed_input == "archive" else binary
+        target.write_bytes(target.read_bytes() + b"-changed")
+
+        assert adapter.uncook_json("test.ent", archive=archive)["Data"]["call"] == 2
+        assert calls == 2
+
+
+class TestUncookJsonMany:
+    def test_batches_cold_misses_into_one_process(self, monkeypatch, tmp_path):
+        archive = tmp_path / "appearance.archive"
+        archive.write_bytes(b"archive")
+        binary = tmp_path / "cp77tools"
+        binary.write_bytes(b"tool")
+        monkeypatch.setattr(
+            "npv_build.wk_cli.resolve_tool",
+            lambda _name, _candidates: binary,
+        )
+        adapter = WolvenKit(
+            WolvenKitConfig(
+                game_dir=tmp_path,
+                artifact_cache=ArtifactCache(tmp_path / "cache"),
+            )
+        )
+        calls = 0
+        filenames = [f"part_{number}.ent" for number in range(10)]
+
+        def fake_run(args, **_kwargs):
+            nonlocal calls
+            calls += 1
+            out_dir = Path(args[args.index("-o") + 1])
+            for number, filename in enumerate(filenames):
+                output = out_dir / "base" / f"{filename}.json"
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(
+                    json.dumps({"Data": {"number": number}}), encoding="utf-8"
+                )
+
+        monkeypatch.setattr(adapter, "_run", fake_run)
+
+        result = adapter.uncook_json_many(filenames, archive=archive)
+
+        assert set(result) == set(filenames)
+        assert result["part_7.ent"]["Data"]["number"] == 7
+        assert calls == 1
+        assert adapter.uncook_json_many(filenames, archive=archive) == result
+        assert calls == 1
+        assert adapter.stats.batch_processes == 1
+        assert adapter.stats.batch_resources == 10
+
+    def test_reports_missing_names_without_discarding_successes(
+        self, monkeypatch, tmp_path
+    ):
+        archive = tmp_path / "appearance.archive"
+        archive.write_bytes(b"archive")
+        adapter = WolvenKit(WolvenKitConfig(game_dir=tmp_path))
+
+        def fake_run(args, **_kwargs):
+            out_dir = Path(args[args.index("-o") + 1])
+            (out_dir / "found.ent.json").write_text('{"Data":{}}', encoding="utf-8")
+
+        monkeypatch.setattr(adapter, "_run", fake_run)
+
+        with pytest.raises(UncookJsonMissingError) as raised:
+            adapter.uncook_json_many(
+                ["found.ent", "missing.ent"], archive=archive
+            )
+
+        assert raised.value.missing == ("missing.ent",)
+        assert set(raised.value.results) == {"found.ent"}
+
+    def test_corrupt_uncook_cache_misses_and_repairs(self, monkeypatch, tmp_path):
+        archive = tmp_path / "appearance.archive"
+        archive.write_bytes(b"archive")
+        binary = tmp_path / "cp77tools"
+        binary.write_bytes(b"tool")
+        cache_dir = tmp_path / "cache"
+        monkeypatch.setattr(
+            "npv_build.wk_cli.resolve_tool",
+            lambda _name, _candidates: binary,
+        )
+        adapter = WolvenKit(
+            WolvenKitConfig(
+                game_dir=tmp_path,
+                artifact_cache=ArtifactCache(cache_dir),
+            )
+        )
+        calls = 0
+
+        def fake_run(args, **_kwargs):
+            nonlocal calls
+            calls += 1
+            out_dir = Path(args[args.index("-o") + 1])
+            (out_dir / "test.ent.json").write_text(
+                f'{{"Data":{{"call":{calls}}}}}', encoding="utf-8"
+            )
+
+        monkeypatch.setattr(adapter, "_run", fake_run)
+        adapter.uncook_json("test.ent", archive=archive)
+        [entry] = list(cache_dir.rglob("*.json"))
+        entry.write_text("{broken", encoding="utf-8")
+
+        assert adapter.uncook_json("test.ent", archive=archive)["Data"]["call"] == 2
+        assert adapter.uncook_json("test.ent", archive=archive)["Data"]["call"] == 2
+        assert calls == 2
+
+    def test_failed_uncook_creates_no_cache_entry(self, monkeypatch, tmp_path):
+        archive = tmp_path / "appearance.archive"
+        archive.write_bytes(b"archive")
+        binary = tmp_path / "cp77tools"
+        binary.write_bytes(b"tool")
+        cache_dir = tmp_path / "cache"
+        monkeypatch.setattr(
+            "npv_build.wk_cli.resolve_tool",
+            lambda _name, _candidates: binary,
+        )
+        adapter = WolvenKit(
+            WolvenKitConfig(
+                game_dir=tmp_path,
+                artifact_cache=ArtifactCache(cache_dir),
+            )
+        )
+        monkeypatch.setattr(adapter, "_run", lambda *_args, **_kwargs: None)
+
+        with pytest.raises(FileNotFoundError):
+            adapter.uncook_json("missing.ent", archive=archive)
+
+        assert list(cache_dir.rglob("*.json")) == []
+
+    def test_uncook_without_cache_preserves_process_per_call(
+        self, monkeypatch, tmp_path
+    ):
+        archive = tmp_path / "appearance.archive"
+        archive.write_bytes(b"archive")
+        adapter = WolvenKit(WolvenKitConfig(game_dir=tmp_path, artifact_cache=None))
+        calls = 0
+
+        def fake_run(args, **_kwargs):
+            nonlocal calls
+            calls += 1
+            out_dir = Path(args[args.index("-o") + 1])
+            (out_dir / "test.ent.json").write_text('{"Data":{}}', encoding="utf-8")
+
+        monkeypatch.setattr(adapter, "_run", fake_run)
+        adapter.uncook_json("test.ent", archive=archive)
+        adapter.uncook_json("test.ent", archive=archive)
+
+        assert calls == 2
+
 
 class TestAllowExitCodes:
     @patch("npv_build.wk_cli.run_tool")
@@ -183,6 +400,32 @@ class TestAllowExitCodes:
         )
         with pytest.raises(WolvenKitError):
             wk.import_mesh(tmp_path, dest=tmp_path, allow_exit_codes=(3,))
+
+
+def test_serialize_many_uses_one_directory_conversion(monkeypatch, tmp_path):
+    adapter = WolvenKit(WolvenKitConfig(game_dir=tmp_path))
+    app = tmp_path / "source.app"
+    ent = tmp_path / "source.ent"
+    app.write_bytes(b"app")
+    ent.write_bytes(b"ent")
+    calls = 0
+
+    def fake_run(args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        input_dir = Path(args[2])
+        output_dir = Path(args[args.index("-o") + 1])
+        for binary in input_dir.iterdir():
+            (output_dir / f"{binary.name}.json").write_text(
+                json.dumps({"name": binary.name}), encoding="utf-8"
+            )
+
+    monkeypatch.setattr(adapter, "_run", fake_run)
+
+    outputs = adapter.serialize_many([app, ent], dest=tmp_path / "json")
+
+    assert calls == 1
+    assert set(outputs) == {"source.app", "source.ent"}
 
 
 def test_wolvenkit_error_is_tool_error():

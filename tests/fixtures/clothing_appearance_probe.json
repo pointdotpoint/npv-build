@@ -1,0 +1,15 @@
+{
+  "Shirt_01_basic_01": {
+    "mesh_pwa": "base\\characters\\garment\\player_equipment\\torso\\t1_035_shirt__suit\\t1_035_pwa_shirt__suit.mesh",
+    "appearance_pwa": "blue_moro"
+  },
+  "Shirt_01_basic_02": {
+    "mesh_pwa": "base\\characters\\garment\\player_equipment\\torso\\t1_035_shirt__suit\\t1_035_pwa_shirt__suit.mesh",
+    "appearance_pwa": "black_psycho"
+  },
+  "Q301_nusa_agent": {
+    "mesh_pwa": "ep1\\characters\\garment\\player_equipment\\torso\\t2_148_jacket__harford\\t2_148_pwa_jacket__harford_slim.mesh",
+    "appearance_pwa": "secret_service01",
+    "occupied_slots_pwa": ["feet", "legs", "outer_torso"]
+  }
+}

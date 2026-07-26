@@ -156,12 +156,18 @@ def _do_inject_components(
     )
 
 
-def _resolve_morphtarget_to_mesh(wk: WolvenKit, morphtarget_depot: str) -> str:
+def _resolve_morphtarget_to_mesh(
+    wk: WolvenKit,
+    morphtarget_depot: str,
+    morph_json: dict[str, dict] | None = None,
+) -> str:
     basename = morphtarget_depot.replace("\\", "/").rsplit("/", 1)[-1]
-    try:
-        mt_data = wk.uncook_json(basename)
-    except (WolvenKitError, FileNotFoundError):
-        return ""
+    mt_data = (morph_json or {}).get(basename)
+    if mt_data is None:
+        try:
+            mt_data = wk.uncook_json(basename)
+        except (WolvenKitError, FileNotFoundError):
+            return ""
     return (
         mt_data.get("Data", {})
         .get("RootChunk", {})
@@ -175,12 +181,17 @@ def _extract_part_components(
     wk: WolvenKit,
     part_ent_depot: str,
     verbosity: int,
+    *,
+    entity_json: dict[str, dict] | None = None,
+    morph_json: dict[str, dict] | None = None,
 ) -> list[dict]:
     basename = part_ent_depot.replace("\\", "/").rsplit("/", 1)[-1]
-    try:
-        data = wk.uncook_json(basename)
-    except (WolvenKitError, FileNotFoundError):
-        return []
+    data = (entity_json or {}).get(basename)
+    if data is None:
+        try:
+            data = wk.uncook_json(basename)
+        except (WolvenKitError, FileNotFoundError):
+            return []
 
     chunks = (
         data.get("Data", {})
@@ -213,7 +224,7 @@ def _extract_part_components(
                 else ""
             )
             if mr and not mesh:
-                mesh = _resolve_morphtarget_to_mesh(wk, mr)
+                mesh = _resolve_morphtarget_to_mesh(wk, mr, morph_json)
             if not mesh:
                 continue
             # Demoted to the neutral base mesh (baked-head design), but keep
@@ -238,21 +249,99 @@ def _extract_part_components(
     return result
 
 
-def _load_vanilla_hair_components(wk: WolvenKit, hair_ent_depot: str) -> list[dict]:
+def _load_vanilla_hair_components(
+    wk: WolvenKit,
+    hair_ent_depot: str,
+    *,
+    entity_json: dict[str, dict] | None = None,
+) -> list[dict]:
     """Uncook a vanilla hh_ part .ent and return its RAW chunks, in the same
     shape extract_hair_components yields for modded hair, so the hair section
     of build_project applies colour + dangle binding identically."""
     basename = hair_ent_depot.replace("\\", "/").rsplit("/", 1)[-1]
-    try:
-        data = wk.uncook_json(basename)
-    except (WolvenKitError, FileNotFoundError) as e:
-        logger.warning(f"vanilla hair extraction failed ({e}); NPV will be bald.")
-        return []
+    data = (entity_json or {}).get(basename)
+    if data is None:
+        try:
+            data = wk.uncook_json(basename)
+        except (WolvenKitError, FileNotFoundError) as e:
+            logger.warning(f"vanilla hair extraction failed ({e}); NPV will be bald.")
+            return []
     rc = data.get("Data", {}).get("RootChunk", {})
     chunks = rc.get("compiledData", {}).get("Data", {}).get("Chunks", [])
     if not chunks:
         chunks = rc.get("components", [])
     return chunks
+
+
+def _collect_prefetch_entity_depots(
+    asset_paths: dict,
+    stock_head_depot: str | None,
+) -> set[str]:
+    depots: set[str] = set()
+    if stock_head_depot and stock_head_depot.lower().endswith(".ent"):
+        depots.add(stock_head_depot)
+    vanilla_hair = asset_paths.get("vanilla_hair_ent", "")
+    if vanilla_hair and vanilla_hair.lower().endswith(".ent"):
+        depots.add(vanilla_hair)
+    for part in asset_paths.get("part_entities", []):
+        if isinstance(part, str) and part.lower().endswith(".ent"):
+            depots.add(part)
+    for recipe_part in asset_paths.get("recipe_parts", []):
+        depot = (
+            recipe_part.get("resource", {})
+            .get("DepotPath", {})
+            .get("$value", "")
+        )
+        if depot and depot.lower().endswith(".ent"):
+            depots.add(depot)
+    return depots
+
+
+def _component_chunks(data: dict) -> list[dict]:
+    root = data.get("Data", {}).get("RootChunk", {})
+    chunks = root.get("compiledData", {}).get("Data", {}).get("Chunks", [])
+    return chunks or root.get("components", [])
+
+
+def _prefetch_component_json(
+    wk: WolvenKit,
+    entity_depots: list[str] | set[str],
+) -> tuple[dict[str, dict], dict[str, dict]]:
+    if not hasattr(wk, "uncook_json_many"):
+        return {}, {}
+    entity_names = sorted(
+        {
+            depot.replace("\\", "/").rsplit("/", 1)[-1]
+            for depot in entity_depots
+            if depot.lower().endswith(".ent")
+        }
+    )
+    if not entity_names:
+        return {}, {}
+    try:
+        entity_json = wk.uncook_json_many(entity_names)
+    except FileNotFoundError as error:
+        entity_json = getattr(error, "results", {})
+
+    morph_names: set[str] = set()
+    for data in entity_json.values():
+        for component in _component_chunks(data):
+            morph_depot = (
+                component.get("morphResource", {})
+                .get("DepotPath", {})
+                .get("$value", "")
+            )
+            if morph_depot:
+                morph_names.add(
+                    morph_depot.replace("\\", "/").rsplit("/", 1)[-1]
+                )
+    if not morph_names:
+        return entity_json, {}
+    try:
+        morph_json = wk.uncook_json_many(sorted(morph_names))
+    except FileNotFoundError as error:
+        morph_json = getattr(error, "results", {})
+    return entity_json, morph_json
 
 
 def _resolve_garment_mesh(wk: WolvenKit, game_dir, name: str, verbosity: int) -> str:
@@ -656,6 +745,46 @@ def _apply_nail_color(component_specs: list[dict], nail_color: str) -> None:
             logger.info(f"[Project] Nail color: {name} -> {nail_color}")
 
 
+def _filter_genital_components(component_specs: list[dict], genital_selection: str) -> list[dict]:
+    """Keep only the detachable genital meshes selected by character creation.
+
+    The female base-body mesh supplies the default anatomy. ``genitals_none``
+    therefore means that all detachable genital meshes must be removed.
+    Inspect both component names and depot paths so renamed components cannot
+    bypass the filter.
+    """
+    selection = genital_selection.lower()
+
+    def identity(component: dict) -> str:
+        return f"{component.get('name', '')} {component.get('mesh', '')}".lower()
+
+    if "genitals_none" in selection:
+        return [
+            component
+            for component in component_specs
+            if "penis" not in identity(component) and "vagina" not in identity(component)
+        ]
+
+    if "vagina" in selection:
+        return [component for component in component_specs if "penis" not in identity(component)]
+
+    if "penis" in selection:
+        is_circumcised = "circumcised" in selection
+        filtered = []
+        for component in component_specs:
+            component_id = identity(component)
+            if "vagina" in component_id:
+                continue
+            if is_circumcised and component.get("name", "").lower() == "i0_000_pwa_base__penis":
+                continue
+            if not is_circumcised and "circumcised" in component_id:
+                continue
+            filtered.append(component)
+        return filtered
+
+    return list(component_specs)
+
+
 def _bake_lips_overlays(
     wk: WolvenKit,
     game_dir: Path,
@@ -846,6 +975,9 @@ def build_project(
     user_head_mesh: Path | None = None,
     user_heb_mesh: Path | None = None,
     restore_head_materials: bool = True,
+    npv_name: str | None = None,
+    photomode_thumbnail=None,
+    artifact_cache=None,
 ) -> list[dict]:
     """Build the full mod: assemble components, inject into .app, pack .archive.
 
@@ -864,18 +996,17 @@ def build_project(
 
     component_specs: list[dict] = []
 
-    recipe_parts = asset_paths.get("recipe_parts", [])
-    part_entities = asset_paths.get("part_entities", [])
-
-    all_part_depots: set[str] = set()
-    for pv in recipe_parts:
-        dp = pv.get("resource", {}).get("DepotPath", {}).get("$value", "")
-        if dp:
-            all_part_depots.add(dp)
-    for p in part_entities:
-        all_part_depots.add(p)
-
     stock_head_depot = find_stock_head_part(asset_paths)
+    vanilla_hair_ent = asset_paths.get("vanilla_hair_ent", "")
+    prefetch_depots = _collect_prefetch_entity_depots(asset_paths, stock_head_depot)
+    prefetched_entities, prefetched_morphs = _prefetch_component_json(
+        wk, prefetch_depots
+    )
+    all_part_depots = set(prefetch_depots)
+    if stock_head_depot:
+        all_part_depots.discard(stock_head_depot)
+    if vanilla_hair_ent:
+        all_part_depots.discard(vanilla_hair_ent)
 
     # 0. Resolve skin tone early — prefer explicit --skin override, fall back to save's tone
     if skin_override:
@@ -977,7 +1108,13 @@ def build_project(
             logger.info(f"[Head] Auto-injected VTK headpatch and seamfix for rig {body_rig}")
     elif stock_head_depot:
         use_morph_fallback = bool(face_morphs)
-        comps = _extract_part_components(wk, stock_head_depot, verbosity)
+        comps = _extract_part_components(
+            wk,
+            stock_head_depot,
+            verbosity,
+            entity_json=prefetched_entities,
+            morph_json=prefetched_morphs,
+        )
         if use_morph_fallback:
             from .blender_module import HEAD_FACE_MESH, HEAD_MORPHTARGET
 
@@ -1035,7 +1172,13 @@ def build_project(
     for dp in sorted(all_part_depots):
         if dp == stock_head_depot:
             continue
-        comps = _extract_part_components(wk, dp, verbosity)
+        comps = _extract_part_components(
+            wk,
+            dp,
+            verbosity,
+            entity_json=prefetched_entities,
+            morph_json=prefetched_morphs,
+        )
         # Modded CCXL eyes (Sedth) replace the stock he_ IRIS, but the stock eye
         # part also carries the eyelashes. Keep he_ rendering only the lashes
         # (eyelash appearance) instead of dropping it — else lashes disappear and
@@ -1155,9 +1298,10 @@ def build_project(
     # 3. Hair components
     hair_components = asset_paths.get("hair_components", [])
     hair_color = asset_paths.get("hair_color", "")
-    vanilla_hair_ent = asset_paths.get("vanilla_hair_ent", "")
     if not hair_components and vanilla_hair_ent:
-        hair_components = _load_vanilla_hair_components(wk, vanilla_hair_ent)
+        hair_components = _load_vanilla_hair_components(
+            wk, vanilla_hair_ent, entity_json=prefetched_entities
+        )
         short = vanilla_hair_ent.rsplit("\\", 1)[-1]
         logger.info(f"[Project]   vanilla hair: {short} ({len(hair_components)} chunk(s))")
     hair_has_dangle = False
@@ -1253,17 +1397,7 @@ def build_project(
             genital_selection = s.get("raw", "")
             break
     if genital_selection:
-        if "vagina" in genital_selection:
-            component_specs = [c for c in component_specs if "penis" not in c.get("name", "")]
-        elif "penis" in genital_selection:
-            is_circumcised = "circumcised" in genital_selection
-            component_specs = [
-                c
-                for c in component_specs
-                if "vagina" not in c.get("name", "")
-                and not (is_circumcised and c.get("name", "") == "i0_000_pwa_base__penis")
-                and not (not is_circumcised and "circumcised" in c.get("name", ""))
-            ]
+        component_specs = _filter_genital_components(component_specs, genital_selection)
     if genital_selection:
         logger.info(
             f"[Project] Genitals: {genital_selection.rsplit('__', 1)[0].rsplit('__', 1)[-1] if '__' in genital_selection else genital_selection}"
@@ -1417,6 +1551,22 @@ def build_project(
     )
 
     shutil.rmtree(donor_stage, ignore_errors=True)
+
+    # Photo Mode must be authored while the unpacked source tree still exists.
+    # Its dedicated entity/app intentionally diverge from the normal AMM
+    # entity and are included in the same archive.
+    if photomode_thumbnail is not None:
+        from .photomode import author_photomode_assets
+
+        author_photomode_assets(
+            wk,
+            source_dir=source_dir,
+            mod_id=mod_id,
+            npv_name=npv_name or mod_id,
+            body_rig=body_rig,
+            thumbnail=photomode_thumbnail,
+            artifact_cache=artifact_cache,
+        )
 
     # --- Pack ---
     logger.info("[WolvenKit] Packing archive...")

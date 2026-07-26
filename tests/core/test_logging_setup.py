@@ -26,6 +26,18 @@ def test_reconfigure_does_not_duplicate(capsys):
     assert combined.count("once") == 1
 
 
+def test_reconfigure_preserves_handlers_owned_by_the_embedding_application():
+    package_logger = logging.getLogger("npv_build")
+    external = logging.NullHandler()
+    package_logger.addHandler(external)
+    try:
+        configure_logging(verbosity=1)
+        configure_logging(verbosity=1)
+        assert external in package_logger.handlers
+    finally:
+        package_logger.removeHandler(external)
+
+
 def test_log_file_gets_debug(tmp_path):
     f = tmp_path / "build.log"
     configure_logging(verbosity=0, log_file=f)

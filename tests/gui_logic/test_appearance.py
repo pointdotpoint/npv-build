@@ -1,4 +1,6 @@
 import copy
+import json
+from pathlib import Path
 
 import pytest
 
@@ -142,6 +144,28 @@ def test_apply_overrides_hair_color_without_selection_raises():
         apply_overrides(_cc_without_hair_color_selection(), {"hair_color": "x"})
 
 
+def test_apply_hair_color_to_generic_ccxl_selection():
+    selections = json.loads(
+        (Path(__file__).parents[1] / "fixtures" / "quicksave4_hair_selections.json").read_text()
+    )
+    cc = _cc()
+    cc["selections"] = selections
+    cc["hair"] = {
+        "kind": "modded",
+        "selection_label": "b1w_003_wa",
+        "mesh_appearance": "teal_ombre",
+        "style_id": "b1w_003_wa",
+        "raw": "b1w_003_wa",
+        "vanilla_style": 0,
+    }
+
+    out = apply_overrides(cc, {"hair_color": "06_black_carbon"})
+
+    tpp = next(selection for selection in out["selections"] if selection["slot"] == "hairs")
+    assert tpp["raw"] == "06_black_carbon"
+    assert out["hair"]["mesh_appearance"] == "black_carbon"
+
+
 def test_rows_hair_color_with_empty_value_is_locked_even_with_options():
     rows = inspector_rows(_cc_without_hair_color_selection(), OPTIONS, {})
     by_id = {r["slot_id"]: r for r in rows}
@@ -150,19 +174,24 @@ def test_rows_hair_color_with_empty_value_is_locked_even_with_options():
 
 
 def test_apply_overrides_hair_mod_emulates_ccxl_save():
-    """hair_mod: <token> must reshape cc.hair exactly like a save that used
-    that CCXL hair — mapping.resolve_assets' CCXL branch keys off
-    hair.raw.endswith('_hair') + hair.style_id (see research note
-    2026-07-19-ccxl-hair-input.md)."""
+    """A loaded hair mod uses the same explicit model as save-selected hair."""
     out = apply_overrides(_cc(), {"hair_mod": "edie"})
-    assert out["hair"] == {"style_id": "edie", "raw": "edie_hair"}
+    assert out["hair"] == {
+        "kind": "modded",
+        "selection_label": "edie",
+        "mesh_appearance": "succulent",
+        "style_id": "edie",
+        "raw": "edie",
+        "vanilla_style": 0,
+    }
 
 
 def test_apply_overrides_hair_mod_wins_over_hair_style():
     # UI keeps them mutually exclusive, but the transform must still be
     # deterministic if both arrive: hair_mod wins regardless of dict order.
     out = apply_overrides(_cc(), {"hair_style": "hh_041_pwa__bob", "hair_mod": "edie"})
-    assert out["hair"] == {"style_id": "edie", "raw": "edie_hair"}
+    assert out["hair"]["kind"] == "modded"
+    assert out["hair"]["selection_label"] == "edie"
 
 
 def test_validate_overrides_reports_bad_values():
@@ -177,6 +206,18 @@ def test_validate_overrides_hair_mod_token():
     # hair_mod has no options list — any non-empty token passes, empty fails.
     assert validate_overrides({"hair_mod": "edie"}, OPTIONS) == []
     assert validate_overrides({"hair_mod": ""}, OPTIONS)
+
+
+def test_garment_override_is_validated_but_not_applied_to_cc_settings():
+    overrides = {
+        "garment_legs": (
+            "base\\characters\\garment\\player_equipment\\legs\\"
+            "l1_012_pwa_pants.mesh"
+        )
+    }
+    assert validate_overrides(overrides, {}) == []
+    original = _cc()
+    assert apply_overrides(original, overrides) == original
 
 
 def test_validate_overrides_rejects_unavailable_generic_selection():

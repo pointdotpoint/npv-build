@@ -18,6 +18,7 @@ public static class ComponentInjector
     {
         "entSkinnedMeshComponent",
         "entGarmentSkinnedMeshComponent",
+        "entMorphTargetSkinnedMeshComponent",
     };
 
     private static readonly HashSet<string> s_validTypes = new()
@@ -139,6 +140,20 @@ public static class ComponentInjector
         bool verbose)
     {
         appearance.Components ??= new CArray<entIComponent>();
+
+        // Injection is a replacement operation. This keeps rebuilding an
+        // existing app idempotent and prevents meshes removed by character
+        // customization (for example an unselected genital mesh) from
+        // surviving beside the new component set.
+        var specNames = specs.Select(spec => spec.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        for (var index = appearance.Components.Count - 1; index >= 0; index--)
+        {
+            var existing = appearance.Components[index];
+            var existingType = existing.GetType().Name;
+            var existingName = existing.Name.GetResolvedText() ?? "";
+            if (s_meshTypes.Contains(existingType) || specNames.Contains(existingName))
+                appearance.Components.RemoveAt(index);
+        }
 
         foreach (var spec in specs)
         {

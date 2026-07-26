@@ -247,21 +247,6 @@ def _decode_cc_v195(sc: SaveContainer) -> dict:
     head_sel = by_label("skin_type") or by_prefix_in_cc("h0", exclude_substr="face_rig")
     eyes_sel = by_label("eyes_color")
     teeth_sel = by_label("teeth")
-    # Hair label is the mesh name itself (e.g. fhair_miyavivi_twistup_soft or
-    # edie_hair for CCXL hairs); uk0 there is the colour ("62_molten_marmalade").
-    hair_entry = next((e for e in cc_entries if (e.get("label") or "").startswith("fhair_")), None)
-    if not hair_entry:
-        hair_entry = next(
-            (
-                e
-                for e in cc_entries
-                if (e.get("label") or "").endswith("_hair")
-                and not (e.get("label") or "").endswith("_fpp")
-                and e.get("raw", "") != "default"
-            ),
-            None,
-        )
-
     body_rig = "pwa"
     for sel in selections:
         if "pma" in sel["raw"] or "_ma_" in sel["raw"]:
@@ -272,18 +257,6 @@ def _decode_cc_v195(sc: SaveContainer) -> dict:
             break
 
     skin_tone = head_sel["variant"] if (head_sel and head_sel.get("variant")) else ""
-
-    hair_style = ""
-    hair_raw = ""
-    if hair_entry:
-        hair_mesh = hair_entry.get("label", "")  # fhair_miyavivi_twistup_soft or edie_hair
-        hair_raw = hair_mesh
-        if hair_mesh.startswith("fhair_"):
-            hair_style = hair_mesh[6:]
-        elif hair_mesh.endswith("_hair"):
-            hair_style = hair_mesh[:-5]
-        else:
-            hair_style = hair_mesh
 
     cc_settings = {
         "patch": detect_patch(sc.version),
@@ -296,13 +269,7 @@ def _decode_cc_v195(sc: SaveContainer) -> dict:
         "eyes": {"raw": eyes_sel["raw"] if eyes_sel else ""},
         "teeth": {"raw": teeth_sel["raw"] if teeth_sel else ""},
         "skin": {"tone_id": skin_tone},
-        "hair": {
-            "style_id": hair_style,
-            "raw": hair_raw,
-            # Vanilla CC hairstyle number (1-51); 0 when modded hair is equipped
-            # or no style label exists (bald).
-            "vanilla_style": 0 if hair_entry else vanilla_hair_style_from_selections(selections),
-        },
+        "hair": hair_from_selections(selections),
         "overlays": [e["raw"] for e in cc_entries if e["prefix"] == "hx"],
         "face_morphs": face_morphs,  # {region: morph_name} for Blender bake
     }
@@ -332,6 +299,133 @@ def _resolve_decoder(v3: int) -> Callable[[SaveContainer], dict]:
 _VANILLA_HAIR_LABEL = re.compile(r"^hair_color(?:_cyberware)?_?0*(\d+)$")
 
 
+def _normalized_hair_appearance(raw: str) -> str:
+    """Drop the character-creator option number from a mesh appearance."""
+    return re.sub(r"^\d+_", "", raw or "")
+
+
+def _modded_hair_style_id(label: str) -> str:
+    """Return the legacy style identifier while preserving generic CCXL names."""
+    lower = label.lower()
+    if lower.startswith(("fhair_", "mhair_")):
+        return label[6:]
+    if lower.endswith("_hair"):
+        return label[:-5]
+    return label
+
+
+def hair_from_selections(selections: list[dict]) -> dict:
+    """Return one explicit hair selection from decoded character-creator rows.
+
+    The third-person ``hairs`` slot is authoritative. Mod authors are free to
+    use arbitrary resource names, so anything non-default in that slot which
+    is not a known vanilla label is modded hair. The customization-slot
+    fallback accepts established mod labels or a label with an FPP companion.
+    """
+
+    def usable(selection: dict) -> bool:
+        slot = str(selection.get("slot") or "")
+        label = str(selection.get("label") or "")
+        return bool(label) and "fpp" not in slot.casefold() and not label.casefold().endswith("_fpp")
+
+    tpp_rows = [
+        selection
+        for selection in selections
+        if selection.get("slot") == "hairs" and usable(selection)
+    ]
+    entry = tpp_rows[0] if tpp_rows else None
+
+    if entry is None:
+        labels = {
+            str(selection.get("label") or "").casefold()
+            for selection in selections
+            if selection.get("label")
+        }
+        for selection in selections:
+            if selection.get("slot") != "character_customization" or not usable(selection):
+                continue
+            label = str(selection.get("label") or "")
+            lower = label.casefold()
+            has_fpp_companion = f"{lower}_fpp" in labels
+            if (
+                lower.startswith(("fhair_", "mhair_"))
+                or lower.endswith("_hair")
+                or has_fpp_companion
+            ):
+                entry = selection
+                break
+
+    if entry is None:
+        rejected_hair_rows = [
+            selection
+            for selection in selections
+            if "hair" in str(selection.get("slot") or "").casefold()
+            or "hair" in str(selection.get("label") or "").casefold()
+        ]
+        if rejected_hair_rows:
+            rejected = rejected_hair_rows[0]
+            return {
+                "kind": "unknown",
+                "selection_label": str(rejected.get("label") or ""),
+                "mesh_appearance": _normalized_hair_appearance(
+                    str(rejected.get("raw") or "")
+                ),
+                "style_id": "",
+                "raw": "",
+                "vanilla_style": 0,
+            }
+        return {
+            "kind": "none",
+            "selection_label": "",
+            "mesh_appearance": "",
+            "style_id": "",
+            "raw": "",
+            "vanilla_style": 0,
+        }
+
+    label = str(entry.get("label") or "")
+    appearance = str(entry.get("raw") or "")
+    vanilla = _VANILLA_HAIR_LABEL.fullmatch(label)
+    if vanilla:
+        style = int(vanilla.group(1))
+        return {
+            "kind": "vanilla" if style else "none",
+            "selection_label": label,
+            "mesh_appearance": _normalized_hair_appearance(appearance),
+            "style_id": "",
+            "raw": "",
+            "vanilla_style": style,
+        }
+    if not appearance:
+        return {
+            "kind": "unknown",
+            "selection_label": label,
+            "mesh_appearance": "",
+            "style_id": "",
+            "raw": "",
+            "vanilla_style": 0,
+        }
+    if appearance == "default":
+        return {
+            "kind": "unknown",
+            "selection_label": label,
+            "mesh_appearance": "",
+            "style_id": "",
+            "raw": "",
+            "vanilla_style": 0,
+        }
+    return {
+        "kind": "modded",
+        "selection_label": label,
+        "mesh_appearance": _normalized_hair_appearance(appearance),
+        "style_id": _modded_hair_style_id(label),
+        # Compatibility for callers/manifests written before the explicit
+        # model: ``raw`` historically held the mod selection label.
+        "raw": label,
+        "vanilla_style": 0,
+    }
+
+
 def vanilla_hair_style_from_selections(selections: list[dict]) -> int:
     """Extract the vanilla CC hairstyle number (1-51) from the hairs-slot label.
 
@@ -356,21 +450,7 @@ def hair_color_from_selections(selections: list[dict]) -> str:
     + meshAppearance name) on a hair-labelled selection. Strips the numeric
     prefix. Returns "" when no colour selection is present (e.g. bald).
     """
-    hair_color_raw = ""
-    for s in selections:
-        if s.get("slot") == "character_customization":
-            lbl = (s.get("label") or "").lower()
-            if lbl.startswith("fhair_") or lbl.startswith("mhair_"):
-                hair_color_raw = s.get("raw", "")
-                break
-    if not hair_color_raw:
-        for s in selections:
-            if s.get("slot") in ("character_customization", "hairs"):
-                lbl = (s.get("label") or "").lower()
-                if "hair" in lbl and "fpp" not in lbl and s.get("raw", "") != "default":
-                    hair_color_raw = s.get("raw", "")
-                    break
-    return re.sub(r"^\d+_", "", hair_color_raw)
+    return hair_from_selections(selections)["mesh_appearance"]
 
 
 def parse_save(save_path: Path) -> dict:

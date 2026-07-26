@@ -19,6 +19,21 @@ window.screens.install = {
       `Appearance Menu Mod → Custom Entities after installing.</div>`;
     el.appendChild(card);
 
+    const pmDeps = (s.appState && s.appState.photomode_deps) || {};
+    const pmReady = Object.values(pmDeps).length > 0 &&
+      Object.values(pmDeps).every(Boolean);
+    const pmCard = document.createElement("div");
+    pmCard.className = "card" + (pmReady ? "" : " error-card");
+    pmCard.innerHTML =
+      `<strong>Photo Mode ${pmReady ? "ready ✓" : "needs runtime dependencies"}</strong>` +
+      `<div class="muted">The NPV archive includes its picker thumbnail, dedicated entity, ` +
+      `poses, facial setup, and localization.</div>` +
+      Object.entries(pmDeps).map(([name, ok]) =>
+        `<div class="row"><span>${esc(name)}</span>` +
+        `<span class="${ok ? "ok" : "err"}">${ok ? "✓ found" : "✗ missing"}</span></div>`
+      ).join("");
+    el.appendChild(pmCard);
+
     const zipCard = document.createElement("div");
     zipCard.className = "card zip-summary";
     zipCard.innerHTML = `<div class="muted">Reading mod zip…</div>`;
@@ -72,6 +87,7 @@ window.screens.install = {
     again.className = "secondary"; again.textContent = "Build another";
     again.onclick = () => store.set({
       save: null, preset: null, npvName: "", outputDir: "",
+      photomodeThumbnail: null,
       appearanceBusy: false,
       stepsDone: { source: false, appearance: false, build: false },
       build: { running: false, stages: {}, log: "", error: null, outputDir: null },

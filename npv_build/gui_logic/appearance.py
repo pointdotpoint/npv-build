@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 
 from ..part_resolver import resolve_appearance_to_app
-from ..save_parser import decode_selection
+from ..save_parser import decode_selection, hair_from_selections
 
 EDITABLE_SLOTS = (
     "skin_tone",
@@ -21,6 +21,13 @@ EDITABLE_SLOTS = (
     "hair_color",
     "eye_color",
     "nail_color",
+)
+GARMENT_SLOTS = (
+    "garment_inner_torso",
+    "garment_outer_torso",
+    "garment_legs",
+    "garment_feet",
+    "garment_head",
 )
 
 _CATEGORIES = {
@@ -182,6 +189,16 @@ def _character_customization_options(
 
 
 def _hair_color_selection(cc: dict) -> dict | None:
+    selection_label = str((cc.get("hair") or {}).get("selection_label") or "")
+    if selection_label:
+        for slot in ("hairs", "character_customization"):
+            for selection in cc.get("selections", []):
+                if (
+                    selection.get("slot") == slot
+                    and selection.get("label") == selection_label
+                    and selection.get("raw", "") != "default"
+                ):
+                    return selection
     for s in cc.get("selections", []):
         lbl = (s.get("label") or "").lower()
         if (
@@ -335,6 +352,7 @@ def apply_overrides(cc_settings: dict, overrides: dict) -> dict:
             if sel is None:
                 raise ValueError("hair_color override has no hair-color selection to apply to")
             sel["raw"] = value
+            out.setdefault("hair", {})["mesh_appearance"] = re.sub(r"^\d+_", "", str(value))
         elif slot_id == "eye_color":
             rig = out.get("body_rig", "pwa")
             raw = f"he_000_{rig}__basehead__{value}"
@@ -347,6 +365,11 @@ def apply_overrides(cc_settings: dict, overrides: dict) -> dict:
             out["nails"] = {"appearance": value}
         elif slot_id == "hair_mod":
             pass  # applied last, below — must win over hair_style
+        elif slot_id in GARMENT_SLOTS:
+            # Garments are BuildRequest inputs, not character-customization
+            # selections. The bridge splits them out before this transform in
+            # normal builds; accepting them here keeps the transform robust.
+            pass
         elif slot_id.startswith("cc:"):
             original_label = slot_id[3:]
             try:
@@ -390,12 +413,18 @@ def apply_overrides(cc_settings: dict, overrides: dict) -> dict:
         else:
             raise ValueError(f"Unknown override slot: {slot_id}")
     if "hair_mod" in overrides:
-        # Emulate a save that used this CCXL hair: mapping.resolve_assets'
-        # CCXL branch (hair.raw endswith '_hair' + style_id token) then finds
-        # the installed mod via extract_hair_components. Applied after the
-        # loop so it wins over a simultaneous hair_style regardless of order.
+        # Loaded mods and save-selected CCXL hair share one explicit contract.
+        # Applied last so it wins over hair_style regardless of dict order.
         token = overrides["hair_mod"]
-        out["hair"] = {"style_id": token, "raw": f"{token}_hair"}
+        selected = hair_from_selections(out.get("selections", []))
+        out["hair"] = {
+            "kind": "modded",
+            "selection_label": token,
+            "mesh_appearance": selected.get("mesh_appearance", ""),
+            "style_id": token,
+            "raw": token,
+            "vanilla_style": 0,
+        }
     return out
 
 
@@ -409,6 +438,13 @@ def validate_overrides(overrides: dict, options: dict) -> list[str]:
             # existence check happened at add time (add_hair_mod probe).
             if not value:
                 problems.append("hair_mod: empty hair mod token")
+            continue
+        if slot_id in GARMENT_SLOTS:
+            if isinstance(value, str):
+                if not value.strip():
+                    problems.append(f"{slot_id}: empty garment mesh")
+            elif not isinstance(value, dict):
+                problems.append(f"{slot_id}: invalid garment selection")
             continue
         opts = options.get(slot_id)
         option_values = [

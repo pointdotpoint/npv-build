@@ -301,7 +301,7 @@ def test_appearance_inspector_override_flow(webui_server):
         page.click("text=Continue →")
         expect(page.locator("h1")).to_have_text("Appearance")
         rows = page.locator(".irow")
-        expect(rows).to_have_count(5)  # 4 mock rows + appended hair-mod row
+        expect(rows).to_have_count(9)  # 4 mock + hair-mod + 4 clothing rows
         # Read-only row has no select
         morph = page.locator(".irow", has_text="Eyes (morph preset)")
         expect(morph.locator("select")).to_have_count(0)
@@ -368,6 +368,179 @@ def test_appearance_modded_hair_flow(webui_server):
         browser.close()
 
 
+def test_saved_modded_hair_shows_installed_registration(webui_server):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.evaluate(
+            """() => {
+              const original = window.__mockApi.appearance_data.bind(window.__mockApi);
+              window.__mockApi.appearance_data = async () => {
+                const out = await original();
+                out.saved_hair = {
+                  state: "registered",
+                  selection_label: "b1w_003_wa",
+                  mesh_appearance: "teal_ombre",
+                  source: "b1whair003ccxl.archive.xl",
+                  depot: "b1w\\\\ccxl\\\\hair003\\\\appearances\\\\b1w_003_wa.app",
+                };
+                return out;
+              };
+            }"""
+        )
+        page.locator(".card.selectable.save-card").first.click()
+        page.click("text=Continue →")
+
+        hair = page.locator(".hair-mod-row")
+        expect(hair).to_contain_text("b1w_003_wa")
+        expect(hair).to_have_class(re.compile("saved-loaded"))
+        status = page.locator(".hair-mod-status.loaded")
+        expect(status).to_contain_text("Saved hair is installed and registered")
+        expect(status).to_contain_text("b1whair003ccxl.archive.xl")
+        expect(status).to_contain_text("teal_ombre")
+        browser.close()
+
+
+def test_clothing_picker_flow(webui_server):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.locator(".card.selectable.save-card").first.click()
+        page.click("text=Continue →")
+
+        row = page.locator(".irow", has_text="Inner torso")
+        expect(row).to_contain_text("t1_024_pwa_tshirt__sweater")
+        row.locator("button.browse-garment").click()
+        expect(page.locator(".picker")).to_be_visible()
+        expect(page.locator(".picker-item.disabled", has_text="GHOST SWEATER")).to_be_visible()
+        page.locator(".picker-item", has_text="RED SWEATER").click()
+
+        expect(page.locator(".picker")).to_have_count(0)
+        expect(row).to_have_class(re.compile("overridden"))
+        expect(row).to_contain_text("RED SWEATER")
+        expect(row).to_contain_text("red")
+        page.click("text=Continue →")
+        assert page.evaluate("() => window.__mockApi._overrides") == {
+            "garment_inner_torso": {
+                "item_id": "A",
+                "name": "RED SWEATER",
+                "slot": "inner_torso",
+                "mesh": (
+                    "base\\characters\\garment\\player_equipment\\torso\\"
+                    "t1_024_pwa_tshirt__sweater.mesh"
+                ),
+                "appearance": "red",
+                "occupied_slots": ["inner_torso"],
+                "source_kind": "catalog",
+                "components": [
+                    {
+                        "type": "entGarmentSkinnedMeshComponent",
+                        "name": "red_sweater",
+                        "mesh": (
+                            "base\\characters\\garment\\player_equipment\\torso\\"
+                            "t1_024_pwa_tshirt__sweater.mesh"
+                        ),
+                        "appearance": "red",
+                        "bind_to": "root",
+                        "chunk_mask": "",
+                    }
+                ],
+            }
+        }
+        browser.close()
+
+
+def test_exact_clothing_selection_survives_reload_and_can_be_reverted(
+    webui_server,
+):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.locator(".card.selectable.save-card").first.click()
+        page.click("text=Continue →")
+        row = page.locator(".irow", has_text="Inner torso")
+        row.locator("button.browse-garment").click()
+        page.locator(".picker-item", has_text="RED SWEATER").click()
+        page.click("text=Continue →")
+        expect(page.locator("h1")).to_have_text("Build")
+
+        page.reload()
+        page.locator(".card.selectable.save-card").first.click()
+        page.click("text=Continue →")
+        restored = page.locator(".irow", has_text="Inner torso")
+        expect(restored).to_have_class(re.compile("overridden"))
+        expect(restored).to_contain_text("RED SWEATER")
+        expect(restored).to_contain_text("red")
+
+        restored.locator("button.revert").click()
+        expect(restored).not_to_have_class(re.compile("overridden"))
+        page.click("text=Continue →")
+        assert page.evaluate("() => window.__mockApi._overrides") == {}
+        browser.close()
+
+
+def test_clothing_picker_builds_missing_catalog(webui_server):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.add_init_script(
+            """(() => {
+              window.__mockApi._catalogBuilt = false;
+            })()"""
+        )
+        page.goto(webui_server)
+        page.locator(".card.selectable.save-card").first.click()
+        page.click("text=Continue →")
+        page.locator(".irow", has_text="Inner torso").locator(".browse-garment").click()
+
+        prompt = page.locator(".catalog-build-prompt")
+        expect(prompt).to_contain_text("Build the vanilla clothing catalog")
+        prompt.locator("button", has_text="Build catalog").click()
+        expect(page.locator("#picker-search")).to_be_visible()
+        expect(page.locator(".picker-item", has_text="RED SWEATER")).to_be_visible()
+        browser.close()
+
+
+def test_legacy_mesh_only_garment_requires_reselection(webui_server):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.evaluate(
+            """() => {
+              const original = window.__mockApi.appearance_data.bind(window.__mockApi);
+              window.__mockApi.appearance_data = async () => {
+                const out = await original();
+                out.overrides = {
+                  garment_inner_torso:
+                    "base\\\\characters\\\\garment\\\\player_equipment\\\\torso\\\\t1_024_pwa_tshirt__sweater.mesh",
+                };
+                return out;
+              };
+            }"""
+        )
+        page.locator(".card.selectable.save-card").first.click()
+        page.click("text=Continue →")
+
+        row = page.locator(".irow", has_text="Inner torso")
+        expect(row).to_contain_text("Variant unknown — reselect this garment")
+        expect(page.get_by_role("button", name="Reselect garment to continue")).to_be_disabled()
+
+        row.locator("button.browse-garment").click()
+        page.locator(".picker-item", has_text="RED SWEATER").click()
+        expect(row).to_contain_text("RED SWEATER")
+        expect(page.get_by_role("button", name="Continue →")).to_be_enabled()
+        browser.close()
+
+
 def test_modded_hair_loading_blocks_progress_until_override_is_ready(webui_server):
     """The slow archive probe must be visible and impossible to bypass."""
     with sync_playwright() as p:
@@ -379,6 +552,7 @@ def test_modded_hair_loading_blocks_progress_until_override_is_ready(webui_serve
         page.click("#rig-pwa")
         page.click("text=Continue →")
         expect(page.locator("h1")).to_have_text("Appearance")
+        page.get_by_role("button", name="Choose image…").click()
 
         page.evaluate(
             """() => {
@@ -435,8 +609,9 @@ def test_from_scratch_preset_flow(webui_server):
         page.click("text=Continue →")
 
         expect(page.locator("h1")).to_have_text("Appearance")
+        page.get_by_role("button", name="Choose image…").click()
         expect(page.locator("main")).to_contain_text("pwa")
-        expect(page.locator(".irow")).to_have_count(6)
+        expect(page.locator(".irow")).to_have_count(10)
         cyberware = page.locator(".irow", has_text="Cyberware")
         cyberware.locator("select").select_option(label="Cyberware 02 · 03 ca senna")
         expect(cyberware).to_have_class(re.compile("overridden"))
@@ -448,6 +623,7 @@ def test_from_scratch_preset_flow(webui_server):
         page.click("text=Start build")
         page.wait_for_function("window.__mockApi._startRequests.length === 1")
         [request] = page.evaluate("window.__mockApi._startRequests")
+        assert request["resume"] is True
         assert request["preset_rig"] == "pwa"
         assert "save_path" not in request
         assert request["cc_overrides"]["cc:cyberware_01"].startswith('{"label":"cyberware_02"')

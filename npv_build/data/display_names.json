@@ -10,5 +10,9 @@
   "face_morph_eyes": "Eyes (morph preset)",
   "face_morph_jaw": "Jaw (morph preset)",
   "face_morph_mouth": "Mouth (morph preset)",
-  "face_morph_nose": "Nose (morph preset)"
+  "face_morph_nose": "Nose (morph preset)",
+  "garment_inner_torso": "Inner torso",
+  "garment_outer_torso": "Outer torso",
+  "garment_legs": "Legs",
+  "garment_feet": "Feet"
 }

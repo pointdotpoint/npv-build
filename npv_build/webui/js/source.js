@@ -156,7 +156,7 @@ window.screens.source = {
   },
   async pick(save, card) {
     const token = (this._pickToken = (this._pickToken || 0) + 1);
-    store.set({ save: null, preset: null });
+    store.set({ save: null, preset: null, photomodeThumbnail: null });
     if (card) card.querySelector(".preview").textContent = "Parsing…";
     const preview = await Api.call("preview_save", save.path);
     if (token !== this._pickToken) return; // superseded by a newer click
@@ -174,7 +174,7 @@ window.screens.source = {
   },
   async pickPreset(rig) {
     const token = (this._pickToken = (this._pickToken || 0) + 1);
-    store.set({ save: null, preset: null });
+    store.set({ save: null, preset: null, photomodeThumbnail: null });
     const preview = await Api.call("preview_preset", rig);
     if (token !== this._pickToken) return;
     if (!preview.ok) {

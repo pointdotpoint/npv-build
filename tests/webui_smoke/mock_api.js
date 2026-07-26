@@ -30,9 +30,42 @@ window.__mockApi = {
     if (this._toolPolls === 2) return [{ kind: "tool_done" }];
     return [];
   },
+  _catalogBuilt: true,
+  clothing_catalog_status: async function () {
+    return {
+      ok: true, built: this._catalogBuilt, count: this._catalogBuilt ? 2 : 0,
+    };
+  },
+  clothing_search: async (q, slot, rig) => ({ ok: true, items: [
+    { item_id: "A", name: "RED SWEATER", image: "/i/a.jpg", slot: "inner_torso",
+      mesh: "base\\characters\\garment\\player_equipment\\torso\\t1_024_pwa_tshirt__sweater.mesh",
+      appearance: "red",
+      selection: {
+        item_id: "A", name: "RED SWEATER", slot: "inner_torso",
+        mesh: "base\\characters\\garment\\player_equipment\\torso\\t1_024_pwa_tshirt__sweater.mesh",
+        appearance: "red", occupied_slots: ["inner_torso"],
+        source_kind: "catalog",
+        components: [{
+          type: "entGarmentSkinnedMeshComponent", name: "red_sweater",
+          mesh: "base\\characters\\garment\\player_equipment\\torso\\t1_024_pwa_tshirt__sweater.mesh",
+          appearance: "red", bind_to: "root", chunk_mask: "",
+        }],
+      },
+      buildable: true },
+    { item_id: "C", name: "GHOST SWEATER", image: "/i/c.jpg", slot: "inner_torso",
+      mesh: null, buildable: false },
+  ].filter((item) =>
+    item.slot === slot && (!q || item.name.toLowerCase().includes(q.toLowerCase()))
+  ) }),
+  clothing_thumb: async () => ({ ok: true, b64: null }),
+  build_clothing_catalog: async () => ({ ok: true }),
+  poll_catalog_events: async function () {
+    this._catalogBuilt = true;
+    return [{ kind: "catalog_done", count: 2 }];
+  },
   list_saves: async () => [
     { path: "/saves/good/sav.dat", name: "ManualSave-3", mtime: 1752800000,
-      thumbnail: null, patch: "2.31" },
+      thumbnail: "/saves/good/screenshot.png", patch: "2.31" },
     { path: "/saves/bad/sav.dat", name: "BadSave-1", mtime: 1752700000,
       thumbnail: null, patch: null },
   ],
@@ -61,6 +94,16 @@ window.__mockApi = {
     save: { path: path, name: "DroppedSave", mtime: 1752950000,
             thumbnail: null, patch: "2.31" },
   }),
+  add_photomode_thumbnail: async (path) => ({
+    ok: true,
+    thumbnail: {
+      path: path, name: "screenshot.png", width: 1920, height: 1080,
+      preview: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='%23d02080'/%3E%3C/svg%3E",
+    },
+  }),
+  browse_for_photomode_thumbnail: async function () {
+    return this.add_photomode_thumbnail("/picked/portrait.png");
+  },
   preview_save: async (path) => {
     if (path === "/saves/bad/sav.dat") {
       return { ok: false, error: "Unsupported patch", remediation: "Update npv-build" };
@@ -86,7 +129,11 @@ window.__mockApi = {
   },
   _mods: [{ mod_id: "v_abc", archive_path: "/out/v/archive/pc/mod/v_abc.archive",
             installed: false, built_at: 1752900000, npv_name: "TestV",
-            save_path: "/saves/good/sav.dat" }],
+            save_path: "/saves/good/sav.dat",
+            photomode_thumbnail: {
+              path: "/saves/good/screenshot.png", name: "screenshot.png",
+              width: 1920, height: 1080, preview: null,
+            }, photomode_thumbnail_missing: false }],
   list_mods: async function () { return { ok: true, mods: this._mods }; },
   delete_mod: async function (modId) {
     this._mods = this._mods.filter((m) => m.mod_id !== modId);
@@ -106,7 +153,12 @@ window.__mockApi = {
   appearance_data: async () => ({
     ok: true,
     categories: ["Skin", "Hair", "Eyes", "Body", "Face morphs"],
-    overrides: {},
+    overrides: JSON.parse(localStorage.getItem("npv-test-overrides") || "{}"),
+    garments: {
+      inner_torso: "t1_024_pwa_tshirt__sweater",
+      legs: "l1_012_pwa_pants__jeans_tight",
+      feet: "s1_066_pwa_boot__bovver",
+    },
     rows: [
       { category: "Skin", slot_id: "skin_tone", label: "Skin tone",
         value_label: "01_ca_pale", value_raw: "01_ca_pale", editable: true,
@@ -143,6 +195,7 @@ window.__mockApi = {
     if (overrides.skin_tone === "reject_me")
       return { ok: false, error: "skin_tone: not a known option", remediation: "" };
     this._overrides = overrides;
+    localStorage.setItem("npv-test-overrides", JSON.stringify(overrides));
     return { ok: true };
   },
   browse_for_hair_mod: async () => ({

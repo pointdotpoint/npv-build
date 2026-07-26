@@ -72,16 +72,28 @@ window.screens.library = {
       rebuild.className = "secondary";
       rebuild.style.marginLeft = "8px";
       rebuild.textContent = "Rebuild";
-      if (mod.save_path && mod.npv_name) {
+      if ((mod.save_path || mod.preset_rig) && mod.npv_name) {
         rebuild.onclick = () => {
           const outputDir = mod.archive_path
             .replace(/[\\/]archive[\\/]pc[\\/]mod[\\/][^\\/]+$/, "");
+          const needsThumbnail = mod.photomode_thumbnail_missing ||
+            !mod.photomode_thumbnail;
           store.set({
-            save: { path: mod.save_path, name: mod.npv_name, preview: null },
+            save: mod.save_path
+              ? { path: mod.save_path, name: mod.npv_name, preview: null }
+              : null,
+            preset: mod.preset_rig
+              ? { rig: mod.preset_rig, preview: null, overrides: {} }
+              : null,
+            photomodeThumbnail: mod.photomode_thumbnail || null,
             npvName: mod.npv_name, outputDir,
-            stepsDone: { source: true, appearance: true, build: false },
+            stepsDone: {
+              source: true,
+              appearance: !needsThumbnail,
+              build: false,
+            },
             build: { running: false, stages: {}, log: "", error: null, outputDir: null },
-            screen: "build",
+            screen: needsThumbnail ? "appearance" : "build",
           });
         };
       } else {

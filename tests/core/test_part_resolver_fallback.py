@@ -1,3 +1,4 @@
+import json
 import logging
 
 import pytest
@@ -103,3 +104,176 @@ def test_extract_hair_components_skips_broken_mod_archive_with_warning(
 
     assert result == ([], None, None, None)
     assert any("broken_hair_mod" in rec.message for rec in caplog.records)
+
+
+def test_extract_hair_components_resolves_generic_ccxl_from_aggregate_mod_directory(tmp_path):
+    game_dir = tmp_path / "Cyberpunk 2077"
+    mod_dir = game_dir / "archive" / "pc" / "mod"
+    mod_dir.mkdir(parents=True)
+    (mod_dir / "#B1W_CCXL_S2-g.archive").write_bytes(b"archive")
+    (mod_dir / "b1whair003ccxl.archive.xl").write_text(
+        "resource:\n"
+        "  scope:\n"
+        "    player_wa_hair.app:\n"
+        "      - b1w\\\\ccxl\\\\hair003\\\\appearances\\\\b1w_003_wa.app\n"
+        "      - b1w\\\\ccxl\\\\hair003\\\\appearances\\\\fpp\\\\b1w_003_wa_fpp.app\n"
+    )
+    depot = r"b1w\ccxl\hair003\appearances\b1w_003_wa.app"
+
+    class FakeWk:
+        def __init__(self):
+            self.listed = []
+            self.uncooked_from = None
+
+        def list_archive(self, pattern, *, archive):
+            self.listed.append(archive)
+            return [depot] if archive == mod_dir else []
+
+        def uncook_many(self, pattern, *, archive, dest):
+            self.uncooked_from = archive
+            output = dest / (depot.replace("\\", "/") + ".json")
+            output.parent.mkdir(parents=True)
+            output.write_text(
+                json.dumps(
+                    {
+                        "Data": {
+                            "RootChunk": {
+                                "appearances": [
+                                    {
+                                        "Data": {
+                                            "name": {"$value": "default"},
+                                            "compiledData": {
+                                                "Data": {
+                                                    "Chunks": [
+                                                        {
+                                                            "$type": "entSkinnedMeshComponent",
+                                                            "name": {"$value": "b1w003"},
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                )
+            )
+
+    wk = FakeWk()
+
+    components, source, app_depot, appearance = pr.extract_hair_components(
+        game_dir, "b1w_003_wa", body_rig="pwa", wk=wk
+    )
+
+    assert wk.listed[0] == mod_dir
+    assert wk.uncooked_from == mod_dir
+    assert app_depot == depot
+    assert source == "b1whair003ccxl.archive.xl"
+    assert appearance == "default"
+    assert components[0]["name"]["$value"] == "b1w003"
+
+
+def test_hair_registration_status_finds_saved_ccxl_dependency(tmp_path):
+    mod_dir = tmp_path / "archive" / "pc" / "mod"
+    mod_dir.mkdir(parents=True)
+    (mod_dir / "b1whair003ccxl.archive.xl").write_text(
+        "resource:\n"
+        "  - b1w\\ccxl\\hair003\\appearances\\b1w_003_wa.app\n"
+        "  - b1w\\ccxl\\hair003\\appearances\\fpp\\b1w_003_wa_fpp.app\n"
+    )
+
+    assert pr.hair_registration_status(tmp_path, "b1w_003_wa") == {
+        "state": "registered",
+        "selection_label": "b1w_003_wa",
+        "depot": r"b1w\ccxl\hair003\appearances\b1w_003_wa.app",
+        "source": "b1whair003ccxl.archive.xl",
+    }
+
+
+def test_exact_hair_ranking_prefers_tpp_requested_rig_and_non_cyberware():
+    basename = "shared_hair.app"
+    paths = [
+        r"mods\pwa\fpp\shared_hair.app",
+        r"mods\pma\tpp\shared_hair.app",
+        r"mods\pwa\cyberware\shared_hair.app",
+        r"mods\pwa\tpp\shared_hair.app",
+    ]
+
+    assert pr._select_exact_hair_path(paths, basename, "pwa") == (
+        r"mods\pwa\tpp\shared_hair.app"
+    )
+
+
+def test_exact_hair_ranking_rejects_equal_best_tie():
+    assert (
+        pr._select_exact_hair_path(
+            [
+                r"author_a\pwa\tpp\shared_hair.app",
+                r"author_b\pwa\tpp\shared_hair.app",
+            ],
+            "shared_hair.app",
+            "pwa",
+        )
+        is None
+    )
+
+
+def test_archive_xl_sidecar_never_derives_archive_archive(tmp_path):
+    game_dir = tmp_path / "Cyberpunk 2077"
+    mod_dir = game_dir / "archive" / "pc" / "mod"
+    mod_dir.mkdir(parents=True)
+    archive = mod_dir / "b1whair003ccxl.archive"
+    archive.write_bytes(b"archive")
+    (mod_dir / "b1whair003ccxl.archive.xl").write_text(
+        "resource:\n"
+        "  - b1w\\\\ccxl\\\\hair003\\\\appearances\\\\b1w_003_wa.app\n"
+    )
+    depot = r"b1w\ccxl\hair003\appearances\b1w_003_wa.app"
+
+    class FakeWk:
+        def __init__(self):
+            self.archives = []
+
+        def list_archive(self, pattern, *, archive):
+            self.archives.append(archive)
+            if archive == mod_dir:
+                return []
+            return [depot] if archive == archive_path else []
+
+        def uncook_many(self, pattern, *, archive, dest):
+            output = dest / (depot.replace("\\", "/") + ".json")
+            output.parent.mkdir(parents=True)
+            output.write_text(
+                json.dumps(
+                    {
+                        "Data": {
+                            "RootChunk": {
+                                "appearances": [
+                                    {
+                                        "Data": {
+                                            "name": {"$value": "default"},
+                                            "compiledData": {
+                                                "Data": {"Chunks": []}
+                                            },
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                )
+            )
+
+    archive_path = archive
+    wk = FakeWk()
+    pr.extract_hair_components(
+        game_dir,
+        "b1w_003_wa",
+        body_rig="pwa",
+        wk=wk,
+    )
+
+    assert archive_path in wk.archives
+    assert all(path.name != "b1whair003ccxl.archive.archive" for path in wk.archives)

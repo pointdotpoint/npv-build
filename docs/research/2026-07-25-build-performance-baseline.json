@@ -1,0 +1,42 @@
+{
+  "benchmark_version": 1,
+  "captured_at": "2026-07-25T22:00:00-03:00",
+  "measurement_method": "Existing real pwa build manifest timestamps; identical rebuild timed separately",
+  "profile": {
+    "preset": "pwa",
+    "garment": "t2_002_pwa_vest__puffy.mesh",
+    "photomode": true
+  },
+  "cold": {
+    "core_total_seconds": 502.225443,
+    "stage_durations": {
+      "parse_save": 0.0,
+      "resolve_assets": 25.550443,
+      "assemble": 476.675
+    },
+    "wolvenkit_uncook_processes_estimate": 30,
+    "notes": "Catalog generation was measured separately and is not included."
+  },
+  "identical": {
+    "total_seconds": 0.264,
+    "stages_resumed": [
+      "parse_save",
+      "resolve_assets",
+      "assemble",
+      "emit_amm_lua",
+      "emit_photomode"
+    ]
+  },
+  "wolvenkit_directory_conversion_spike": {
+    "wolvenkit_version": "8.19",
+    "serialize_two_files_supported": true,
+    "serialize_seconds": 7.226,
+    "deserialize_two_files_supported": true,
+    "deserialize_seconds": 7.431,
+    "input_types": [
+      ".app",
+      ".ent"
+    ],
+    "decision": "Use one directory serialize and one directory deserialize for Photo Mode patching."
+  }
+}

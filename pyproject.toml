@@ -12,13 +12,13 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "tomli-w",
-    "lz4"
+    "lz4",
+    "pillow>=10.0.0"
 ]
 
 [project.optional-dependencies]
 gui = [
     "py7zr>=0.20.0",
-    "pillow>=10.0.0",
     "pywebview>=5.0",
     # pywebview's GTK backend needs PyGObject on Linux (plus the system
     # gir1.2-webkit2-4.1 package); Windows uses the built-in WebView2.

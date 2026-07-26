@@ -18,7 +18,7 @@ def test_photomode_files_included_in_package(tmp_path):
     with zipfile.ZipFile(zip_path) as zf:
         names = zf.namelist()
     assert any(n.endswith(f"{mod_id}_photomode.yaml") for n in names)
-    assert any(n.endswith(f"{mod_id}_photomode.archive.xl") for n in names)
+    assert any(n.endswith(f"{mod_id}.archive.xl") for n in names)
 
 
 def test_readme_documents_photomode_dependencies(tmp_path):

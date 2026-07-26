@@ -88,7 +88,11 @@ def main(argv: list[str] | None = None):
         metavar="<depot_path>",
         action="append",
         default=[],
-        help="Add a garment part .ent depot path to the NPV (repeatable). E.g. base\\\\characters\\\\garment\\\\...\\\\t1_097_pwa_tank__corset_doll_prostitute.ent",
+        help=(
+            "Override a garment with a part .ent or raw .mesh depot path "
+            "(repeatable). Raw meshes use appearance 'default'; exact catalog "
+            "variants are selected in the GUI."
+        ),
     )
 
     head_group = parser.add_mutually_exclusive_group()
@@ -126,6 +130,11 @@ def main(argv: list[str] | None = None):
         "--resume",
         action="store_true",
         help="Resume a previous build, skipping stages whose inputs are unchanged.",
+    )
+    parser.add_argument(
+        "--photomode-thumbnail",
+        metavar="<path>",
+        help="Required PNG, JPEG, or WebP portrait used in the Photo Mode NPC picker.",
     )
     parser.add_argument(
         "--log-file",
@@ -216,6 +225,10 @@ def main(argv: list[str] | None = None):
             parser.error("the following arguments are required: --output")
         if not args.save_dat and not args.cc_json:
             parser.error("Either <sav.dat> or --cc-json must be provided.")
+        if args.photomode_thumbnail:
+            thumbnail_path = Path(args.photomode_thumbnail)
+            if not thumbnail_path.is_file():
+                parser.error(f"Photo Mode thumbnail not found: {thumbnail_path}")
 
     if args.template_cache:
         template_cache = Path(args.template_cache).resolve()
@@ -248,6 +261,11 @@ def main(argv: list[str] | None = None):
                 user_head_mesh=Path(args.head_mesh).resolve() if args.head_mesh else None,
                 user_heb_mesh=Path(args.heb_mesh).resolve() if args.heb_mesh else None,
                 restore_head_materials=not args.no_restore_head_materials,
+                photomode_thumbnail=(
+                    Path(args.photomode_thumbnail).resolve()
+                    if args.photomode_thumbnail
+                    else None
+                ),
                 dump_head_glb=Path(args.dump_head_glb).resolve(),
             )
         else:
@@ -266,6 +284,11 @@ def main(argv: list[str] | None = None):
                 user_head_mesh=Path(args.head_mesh).resolve() if args.head_mesh else None,
                 user_heb_mesh=Path(args.heb_mesh).resolve() if args.heb_mesh else None,
                 restore_head_materials=not args.no_restore_head_materials,
+                photomode_thumbnail=(
+                    Path(args.photomode_thumbnail).resolve()
+                    if args.photomode_thumbnail
+                    else None
+                ),
                 resume=args.resume,
             )
             result = PipelineService().build(req)

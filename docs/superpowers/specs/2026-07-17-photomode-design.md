@@ -1,7 +1,12 @@
 # Photo Mode registration for npv-build — design
 
 **Date:** 2026-07-17
-**Status:** Approved (design). Execution deferred to a standalone milestone after the current user-gated items (publish v2.0.0 release, npv-inject deletion).
+**Status:** Superseded by `docs/specs/complete-photomode-support.md` on 2026-07-25.
+
+This document records the original YAML-only design and fallback discussion.
+Do not implement from it. The replacement specification incorporates the
+confirmed PhotoMode-EX registration failure, thumbnail assets, localization,
+ArchiveXL scope, and full `.ent`/`.app` conversion.
 
 ## Goal
 

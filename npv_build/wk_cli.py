@@ -18,12 +18,34 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .core.artifact_cache import (
+    ArchiveFingerprint,
+    ArtifactCache,
+    ToolFingerprint,
+)
 from .core.cancel import CancelToken
 from .core.errors import ToolError
 from .core.proc import run_tool
 from .core.toolpaths import resolve_tool
 
 logger = logging.getLogger(__name__)
+
+MAX_UNCOOK_REGEX_CHARS = 24 * 1024
+
+
+class UncookJsonMissingError(FileNotFoundError):
+    def __init__(self, missing: list[str], results: dict[str, dict]):
+        self.missing = tuple(missing)
+        self.results = dict(results)
+        super().__init__("Uncook produced no JSON for: " + ", ".join(missing))
+
+
+@dataclass
+class WolvenKitStats:
+    cache_hits: int = 0
+    cache_misses: int = 0
+    batch_processes: int = 0
+    batch_resources: int = 0
 
 
 class WolvenKitError(ToolError):
@@ -55,6 +77,7 @@ class WolvenKitConfig:
     verbosity: int = 0
     timeout_s: float = 600.0
     cancel: CancelToken | None = None
+    artifact_cache: ArtifactCache | None = None
 
     @property
     def appearance_archive(self) -> Path:
@@ -66,12 +89,46 @@ class WolvenKitConfig:
 class WolvenKit:
     def __init__(self, config: WolvenKitConfig):
         self._cfg = config
+        self.stats = WolvenKitStats()
 
     @property
     def config(self) -> WolvenKitConfig:
         return self._cfg
 
+    def executable_path(self) -> Path:
+        """Return the resolved CLI executable without launching a process."""
+        binary_name = self._cfg.cli_binary
+        ext = ".exe" if sys.platform == "win32" else ""
+        from .config import get_cache_dir
+
+        cache_tools_dir = get_cache_dir() / "tools" / "wolvenkit"
+        path_hit = shutil.which(binary_name)
+        candidates = [
+            Path(path_hit) if path_hit else None,
+            cache_tools_dir / f"WolvenKit.CLI{ext}",
+            cache_tools_dir / f"cp77tools{ext}",
+        ]
+        return resolve_tool(
+            binary_name, [candidate for candidate in candidates if candidate is not None]
+        )
+
     # -- hero: uncook one file, get parsed JSON back -----------------------
+
+    def _uncook_cache_key(self, filename: str, archive: Path) -> dict:
+        archive_path = archive.expanduser().resolve()
+        archive_stat = archive_path.stat()
+        tool_path = self.executable_path()
+        tool_stat = tool_path.stat()
+        return {
+            "schema": "uncook-json-v1",
+            "archive": ArchiveFingerprint(
+                str(archive_path), archive_stat.st_size, archive_stat.st_mtime_ns
+            ),
+            "tool": ToolFingerprint(
+                str(tool_path), tool_stat.st_size, tool_stat.st_mtime_ns
+            ),
+            "resource": filename,
+        }
 
     def uncook_json(
         self,
@@ -86,6 +143,14 @@ class WolvenKit:
         internally.
         """
         archive = archive or self._cfg.appearance_archive
+        cache = self._cfg.artifact_cache
+        cache_key = self._uncook_cache_key(filename, archive) if cache is not None else None
+        if cache is not None:
+            cached = cache.load_json("uncook-json-v1", cache_key)
+            if cached is not None:
+                self.stats.cache_hits += 1
+                return cached
+        self.stats.cache_misses += 1
         regex = _re.escape(filename) + r"$"
 
         with tempfile.TemporaryDirectory() as td:
@@ -98,7 +163,92 @@ class WolvenKit:
                 raise FileNotFoundError(
                     f"Uncook produced no JSON for '{filename}' in {archive.name}"
                 )
-            return json.loads(matches[0].read_text())
+            value = json.loads(matches[0].read_text())
+            if not isinstance(value, dict):
+                raise WolvenKitError(
+                    f"Uncook produced non-object JSON for '{filename}'",
+                    operation="uncook",
+                )
+            if cache is not None:
+                cache.save_json("uncook-json-v1", cache_key, value)
+            return value
+
+    def uncook_json_many(
+        self,
+        filenames: list[str],
+        *,
+        archive: Path | None = None,
+    ) -> dict[str, dict]:
+        """Return JSON objects by exact requested basename using batched uncooks."""
+        archive = archive or self._cfg.appearance_archive
+        cache = self._cfg.artifact_cache
+        requested = sorted(set(filenames))
+        result: dict[str, dict] = {}
+        cache_keys: dict[str, dict] = {}
+        misses: list[str] = []
+
+        for filename in requested:
+            if cache is None:
+                self.stats.cache_misses += 1
+                misses.append(filename)
+                continue
+            key = self._uncook_cache_key(filename, archive)
+            cache_keys[filename] = key
+            cached = cache.load_json("uncook-json-v1", key)
+            if cached is None:
+                self.stats.cache_misses += 1
+                misses.append(filename)
+            else:
+                self.stats.cache_hits += 1
+                result[filename] = cached
+
+        chunks: list[list[str]] = []
+        current: list[str] = []
+        current_length = len("(?:)$")
+        for filename in misses:
+            escaped_length = len(_re.escape(filename)) + (1 if current else 0)
+            if current and current_length + escaped_length > MAX_UNCOOK_REGEX_CHARS:
+                chunks.append(current)
+                current = []
+                current_length = len("(?:)$")
+                escaped_length = len(_re.escape(filename))
+            current.append(filename)
+            current_length += escaped_length
+        if current:
+            chunks.append(current)
+
+        missing_outputs: list[str] = []
+        for chunk in chunks:
+            self.stats.batch_processes += 1
+            self.stats.batch_resources += len(chunk)
+            regex = "(?:" + "|".join(_re.escape(name) for name in chunk) + r")$"
+            with tempfile.TemporaryDirectory() as td:
+                self._run(
+                    ["uncook", "-p", str(archive), "-r", regex, "-o", td, "-s"],
+                    operation="uncook",
+                )
+                outputs = sorted(Path(td).rglob("*.json"))
+                by_name = {path.name: path for path in outputs}
+                for filename in chunk:
+                    path = by_name.get(filename + ".json")
+                    if path is None:
+                        missing_outputs.append(filename)
+                        continue
+                    value = json.loads(path.read_text())
+                    if not isinstance(value, dict):
+                        raise WolvenKitError(
+                            f"Uncook produced non-object JSON for '{filename}'",
+                            operation="uncook",
+                        )
+                    result[filename] = value
+                    if cache is not None:
+                        cache.save_json(
+                            "uncook-json-v1", cache_keys[filename], value
+                        )
+
+        if missing_outputs:
+            raise UncookJsonMissingError(missing_outputs, result)
+        return {filename: result[filename] for filename in requested}
 
     # -- second most common: list archive contents -------------------------
 
@@ -156,6 +306,36 @@ class WolvenKit:
                 operation="serialize",
             )
         return jsons[0]
+
+    def serialize_many(
+        self,
+        cr2w_files: list[Path],
+        *,
+        dest: Path,
+    ) -> dict[str, Path]:
+        """Serialize several CR2W files with one directory conversion."""
+        dest.mkdir(parents=True, exist_ok=True)
+        names = [path.name for path in cr2w_files]
+        if len(names) != len(set(names)):
+            raise ValueError("serialize_many requires unique input basenames")
+        with tempfile.TemporaryDirectory(prefix="wk_serialize_many_") as temp:
+            input_dir = Path(temp)
+            for source in cr2w_files:
+                shutil.copy2(source, input_dir / source.name)
+            self._run(
+                ["convert", "serialize", str(input_dir), "-o", str(dest)],
+                operation="serialize",
+            )
+        outputs: dict[str, Path] = {}
+        for name in names:
+            matches = list(dest.rglob(name + ".json"))
+            if not matches:
+                raise WolvenKitError(
+                    f"Serialize produced no JSON for {name}",
+                    operation="serialize",
+                )
+            outputs[name] = matches[0]
+        return outputs
 
     def deserialize(self, target: Path) -> None:
         """JSON -> CR2W binary. Accepts a file or directory."""
@@ -316,23 +496,7 @@ class WolvenKit:
         operation: str = "",
         allow_exit_codes: tuple[int, ...] = (),
     ) -> subprocess.CompletedProcess[str]:
-        from .config import get_cache_dir
-
-        binary_name = self._cfg.cli_binary
-        ext = ".exe" if sys.platform == "win32" else ""
-        cache_tools_dir = get_cache_dir() / "tools" / "wolvenkit"
-        # Candidates in order: PATH-resolved binary, cache/WolvenKit.CLI (explicit
-        # install), cache/cp77tools (dotnet tool install shim). resolve_tool()
-        # itself also falls back to a PATH search by name, so this preserves the
-        # original PATH-then-cache-fallback behaviour while always returning an
-        # absolute, existing path.
-        path_hit = shutil.which(binary_name)
-        candidates = [
-            Path(path_hit) if path_hit else None,
-            cache_tools_dir / f"WolvenKit.CLI{ext}",
-            cache_tools_dir / f"cp77tools{ext}",
-        ]
-        binary = str(resolve_tool(binary_name, [c for c in candidates if c is not None]))
+        binary = str(self.executable_path())
         cmd = [binary, *args]
         stream = self._cfg.verbosity >= 2
 

@@ -597,12 +597,12 @@ version = "2.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "lz4" },
+    { name = "pillow" },
     { name = "tomli-w" },
 ]
 
 [package.optional-dependencies]
 gui = [
-    { name = "pillow" },
     { name = "py7zr" },
     { name = "pygobject", marker = "sys_platform == 'linux'" },
     { name = "pywebview" },
@@ -620,7 +620,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "lz4" },
-    { name = "pillow", marker = "extra == 'gui'", specifier = ">=10.0.0" },
+    { name = "pillow", specifier = ">=10.0.0" },
     { name = "py7zr", marker = "extra == 'gui'", specifier = ">=0.20.0" },
     { name = "pygobject", marker = "sys_platform == 'linux' and extra == 'gui'", specifier = ">=3.50" },
     { name = "pywebview", marker = "extra == 'gui'", specifier = ">=5.0" },

@@ -1,0 +1,190 @@
+{
+  "clothes": [
+    {
+      "command": "Game.AddToInventory(\"Items.Shirt_01_basic_01\", 1)",
+      "name": "BLUE TEST SHIRT",
+      "image": "/images/clothes/blue-test-shirt.jpg"
+    },
+    {
+      "command": "Game.AddToInventory(\"Items.Shirt_01_basic_02\", 1)",
+      "name": "BLACK TEST SHIRT",
+      "image": "/images/clothes/black-test-shirt.jpg"
+    },
+    {
+      "command": "Game.AddToInventory(\"Items.Q301_nusa_agent\", 1)",
+      "name": "NUSA AGENT OUTFIT",
+      "image": "/images/clothes/nusa-agent.jpg"
+    }
+  ],
+  "item_records": {
+    "Shirt_01_basic_01": {
+      "appearance_name": "t1_shirt_01_basic_01_",
+      "entity_name": "player_inner_torso_item"
+    },
+    "Shirt_01_basic_02": {
+      "appearance_name": "t1_shirt_01_basic_02_",
+      "entity_name": "player_inner_torso_item"
+    },
+    "Q301_nusa_agent": {
+      "appearance_name": "outfit_01__q301_nusa_agent_",
+      "entity_name": "player_outfit_item_ep1"
+    }
+  },
+  "entity_documents": {
+    "player_inner_torso_item": {
+      "Data": {
+        "RootChunk": {
+          "appearances": [
+            {
+              "appearanceName": {"$value": "basic_01_w"},
+              "appearanceResource": {
+                "DepotPath": {"$value": "base\\characters\\appearances\\player\\items\\torso\\t1_shirt_01.app"}
+              }
+            },
+            {
+              "appearanceName": {"$value": "basic_02_w"},
+              "appearanceResource": {
+                "DepotPath": {"$value": "base\\characters\\appearances\\player\\items\\torso\\t1_shirt_01.app"}
+              }
+            }
+          ]
+        }
+      }
+    },
+    "player_outfit_item_ep1": {
+      "Data": {
+        "RootChunk": {
+          "appearances": [
+            {
+              "appearanceName": {"$value": "_q301_nusa_agent_w"},
+              "appearanceResource": {
+                "DepotPath": {"$value": "ep1\\characters\\appearances\\player\\items\\outfit\\outfit_01.app"}
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "app_documents": {
+    "base\\characters\\appearances\\player\\items\\torso\\t1_shirt_01.app": {
+      "Data": {
+        "RootChunk": {
+          "appearances": [
+            {
+              "Data": {
+                "name": {"$value": "basic_01_w"},
+                "compiledData": {
+                  "Data": {
+                    "Chunks": [
+                      {
+                        "$type": "entGarmentSkinnedMeshComponent",
+                        "name": {"$value": "test_shirt"},
+                        "mesh": {
+                          "DepotPath": {
+                            "$value": "base\\characters\\garment\\player_equipment\\torso\\t1_035_shirt\\t1_035_pwa_shirt.mesh"
+                          }
+                        },
+                        "meshAppearance": {"$value": "blue_moro"}
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "Data": {
+                "name": {"$value": "basic_02_w"},
+                "compiledData": {
+                  "Data": {
+                    "Chunks": [
+                      {
+                        "$type": "entGarmentSkinnedMeshComponent",
+                        "name": {"$value": "test_shirt"},
+                        "mesh": {
+                          "DepotPath": {
+                            "$value": "base\\characters\\garment\\player_equipment\\torso\\t1_035_shirt\\t1_035_pwa_shirt.mesh"
+                          }
+                        },
+                        "meshAppearance": {"$value": "black_psycho"}
+                      },
+                      {
+                        "$type": "entGarmentSkinnedMeshComponent",
+                        "name": {"$value": "test_shirt_cuff"},
+                        "mesh": {
+                          "DepotPath": {
+                            "$value": "base\\characters\\garment\\player_equipment\\torso\\t1_035_shirt\\t1_035_pwa_shirt_cuff.mesh"
+                          }
+                        },
+                        "meshAppearance": {"$value": "black"}
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ep1\\characters\\appearances\\player\\items\\outfit\\outfit_01.app": {
+      "Data": {
+        "RootChunk": {
+          "appearances": [
+            {
+              "Data": {
+                "name": {"$value": "_q301_nusa_agent_w"},
+                "compiledData": {
+                  "Data": {
+                    "Chunks": [
+                      {
+                        "$type": "entGarmentSkinnedMeshComponent",
+                        "name": {"$value": "nusa_agent_coat"},
+                        "mesh": {
+                          "DepotPath": {
+                            "$value": "ep1\\characters\\garment\\player_equipment\\torso\\t2_900_nusa\\t2_900_pwa_nusa.mesh"
+                          }
+                        },
+                        "meshAppearance": {"$value": "nusa_agent"}
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "mesh_documents": {
+    "base\\characters\\garment\\player_equipment\\torso\\t1_035_shirt\\t1_035_pwa_shirt.mesh": {
+      "Data": {
+        "RootChunk": {
+          "appearances": [
+            {"Data": {"name": {"$value": "blue_moro"}}},
+            {"Data": {"name": {"$value": "black_psycho"}}}
+          ]
+        }
+      }
+    },
+    "base\\characters\\garment\\player_equipment\\torso\\t1_035_shirt\\t1_035_pwa_shirt_cuff.mesh": {
+      "Data": {
+        "RootChunk": {
+          "appearances": [
+            {"Data": {"name": {"$value": "black"}}}
+          ]
+        }
+      }
+    },
+    "ep1\\characters\\garment\\player_equipment\\torso\\t2_900_nusa\\t2_900_pwa_nusa.mesh": {
+      "Data": {
+        "RootChunk": {
+          "appearances": [
+            {"Data": {"name": {"$value": "nusa_agent"}}}
+          ]
+        }
+      }
+    }
+  }
+}

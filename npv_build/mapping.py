@@ -3,7 +3,7 @@ import logging
 import re
 from pathlib import Path
 
-from .core.errors import NpvError
+from .core.errors import MappingResolutionError, NpvError
 from .save_parser import hair_color_from_selections
 
 logger = logging.getLogger(__name__)
@@ -140,10 +140,21 @@ def resolve_assets(
     hair_info = cc_settings.get("hair", {})
     hair_raw = hair_info.get("raw", "")
     hair_style = hair_info.get("style_id", "")
-    if hair_raw.startswith("fhair_") or (hair_raw.endswith("_hair") and hair_style):
+    hair_kind = hair_info.get("kind")
+    if not hair_kind:
+        if hair_raw.startswith(("fhair_", "mhair_")) or (
+            hair_raw.endswith("_hair") and hair_style
+        ):
+            hair_kind = "modded"
+        elif hair_info.get("vanilla_style"):
+            hair_kind = "vanilla"
+        else:
+            hair_kind = "none"
+    hair_selection_label = hair_info.get("selection_label") or hair_raw or hair_style
+    if hair_kind == "modded":
         asset_paths["external_dependencies"].append(
             {
-                "selection": hair_raw,
+                "selection": hair_selection_label,
                 "reason": "modded hair not in base game",
             }
         )
@@ -169,6 +180,12 @@ def resolve_assets(
             continue
 
         raw = sel.get("raw")
+        if (
+            hair_kind == "modded"
+            and sel.get("label") == hair_selection_label
+            and sel.get("slot") in ("hairs", "character_customization")
+        ):
+            continue
 
         if prefix == "fhair":
             asset_paths["external_dependencies"].append(
@@ -280,6 +297,8 @@ def resolve_assets(
     for s in selections:
         if s.get("slot") != "character_customization":
             continue
+        if hair_kind == "modded" and s.get("label") == hair_selection_label:
+            continue
         raw = s.get("raw", "")
         # skip rigs/colour-only/non-asset rows and modded hair
         if not raw or raw in ("default",) or raw.startswith("fhair_"):
@@ -314,7 +333,7 @@ def resolve_assets(
     asset_paths["face_morphs"] = cc_settings.get("face_morphs", {})
     asset_paths["_game_dir"] = str(game_dir) if game_dir else None
 
-    hair_color = hair_color_from_selections(selections)
+    hair_color = hair_info.get("mesh_appearance") or hair_color_from_selections(selections)
     asset_paths["hair_color"] = hair_color
 
     # Hair resolution.
@@ -355,51 +374,87 @@ def resolve_assets(
                 comps, src, app_depot, app_name = extract_hair_components(
                     game_dir, ov, body_rig, verbosity=1, wk=wk
                 )
-                if app_depot:
-                    # Prefer attaching the mod's cooked .app by appearance ref
-                    # (rig graph stays intact). Fall back to component copy on
-                    # failure to cook the wrapper.
-                    asset_paths["hair_app"] = app_depot
-                    asset_paths["hair_appearance_name"] = app_name
-                    asset_paths["hair_components"] = comps  # kept for fallback
-                    asset_paths["external_dependencies"].append(
-                        {
-                            "selection": ov,
-                            "reason": f"modded hair from {src} (must stay installed)"
-                            if src
-                            else "modded hair (mod must stay installed)",
-                        }
-                    )
-                    logger.info(
-                        f"[Mapping] Hair override: modded '{ov}' -> {app_depot} '{app_name}'"
-                    )
-                else:
-                    logger.info(f"[Mapping] Hair override '{ov}': no matching mod archive found.")
-                    asset_paths["unresolved"].append(f"hair_override:{ov}")
             except (NpvError, OSError, TypeError) as e:
-                logger.warning(f"hair override extraction failed ({e}); NPV will be bald.")
-    elif (
-        hair_raw.startswith("fhair_") or (hair_raw.endswith("_hair") and hair_style)
-    ) and game_dir:
+                raise MappingResolutionError(
+                    f"Could not load selected hair '{ov}'.",
+                    remediation=(
+                        "Reinstall or load the hair mod, then confirm its files are under "
+                        f"{game_dir / 'archive' / 'pc' / 'mod'}."
+                    ),
+                    details=str(e),
+                    module_name="Mapping",
+                ) from e
+            if not app_depot:
+                raise MappingResolutionError(
+                    f"Could not find the installed .app for selected hair '{ov}'.",
+                    remediation=(
+                        "Reinstall or load the hair mod, then confirm its files are under "
+                        f"{game_dir / 'archive' / 'pc' / 'mod'}."
+                    ),
+                    module_name="Mapping",
+                )
+            # Prefer attaching the mod's cooked .app by appearance ref
+            # (rig graph stays intact). Fall back to component copy on
+            # failure to cook the wrapper.
+            asset_paths["hair_app"] = app_depot
+            asset_paths["hair_appearance_name"] = app_name
+            asset_paths["hair_components"] = comps  # kept for fallback
+            asset_paths["external_dependencies"].append(
+                {
+                    "selection": ov,
+                    "reason": f"modded hair from {src} (must stay installed)"
+                    if src
+                    else "modded hair (mod must stay installed)",
+                }
+            )
+            logger.info(f"[Mapping] Hair override: modded '{ov}' -> {app_depot} '{app_name}'")
+    elif hair_kind == "modded" and game_dir:
         # Modded hair: attach via the mod's cooked .app appearance reference.
-        # For CCXL hairs (label like "edie_hair"), use the style_id as the search token.
-        hair_search_token = hair_raw if hair_raw.startswith("fhair_") else hair_style
+        hair_search_token = hair_selection_label
         from .part_resolver import extract_hair_components
 
         try:
             comps, src, app_depot, app_name = extract_hair_components(
                 game_dir, hair_search_token, body_rig, verbosity=1, wk=wk
             )
-            if app_depot:
-                asset_paths["hair_app"] = app_depot
-                asset_paths["hair_appearance_name"] = app_name
-                asset_paths["hair_components"] = comps
-                for dep in asset_paths["external_dependencies"]:
-                    if dep["selection"] == hair_raw and src:
-                        dep["reason"] = f"modded hair from {src} (must stay installed)"
         except (NpvError, OSError, TypeError) as e:
-            logger.warning(f"hair extraction failed ({e}); NPV will be bald.")
-    elif not hair_raw:
+            raise MappingResolutionError(
+                f"Could not load selected hair '{hair_selection_label}'.",
+                remediation=(
+                    "Reinstall or load the hair mod, then confirm its files are under "
+                    f"{game_dir / 'archive' / 'pc' / 'mod'}."
+                ),
+                details=str(e),
+                module_name="Mapping",
+            ) from e
+        if not app_depot:
+            raise MappingResolutionError(
+                f"Could not find the installed .app for selected hair '{hair_selection_label}'.",
+                remediation=(
+                    "Reinstall or load the hair mod, then confirm its files are under "
+                    f"{game_dir / 'archive' / 'pc' / 'mod'}."
+                ),
+                module_name="Mapping",
+            )
+        asset_paths["hair_app"] = app_depot
+        asset_paths["hair_appearance_name"] = app_name
+        asset_paths["hair_components"] = comps
+        for dep in asset_paths["external_dependencies"]:
+            if dep["selection"] == hair_selection_label and src:
+                dep["reason"] = f"modded hair from {src} (must stay installed)"
+    elif hair_kind == "unknown":
+        raise MappingResolutionError(
+            (
+                "Could not interpret selected hair record "
+                f"'{hair_selection_label or 'unknown'}'."
+            ),
+            remediation=(
+                "Return to Appearance and reselect the hairstyle, or explicitly "
+                "choose the bald/no-hair option."
+            ),
+            module_name="Mapping",
+        )
+    elif hair_kind in ("vanilla", "none"):
         # Vanilla hairstyle from the save (no override, no modded hair). The
         # ent goes into vanilla_hair_ent — NOT part_entities — so the
         # assembler's hair section owns colour + dangle binding.
@@ -419,10 +474,14 @@ def resolve_assets(
                     "NPV will be bald."
                 )
 
-    # Garment overrides: add explicit garment .ent depot paths as parts.
+    # Legacy CLI garment .ent paths are resolved as part entities. Structured
+    # catalog selections (and legacy raw .mesh values) are authored later by
+    # clothing.resolve_clothing and must not be uncooked as entities.
     for g in garments or []:
+        if not isinstance(g, str):
+            continue
         g = g.strip()
-        if g and g not in asset_paths["part_entities"]:
+        if g.lower().endswith(".ent") and g not in asset_paths["part_entities"]:
             asset_paths["part_entities"].append(g)
             logger.info(f"[Mapping] Garment added: {g.split(chr(92))[-1]}")
 

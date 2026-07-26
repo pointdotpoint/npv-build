@@ -9,6 +9,12 @@ from pathlib import Path
 
 _PACKAGE = "npv_build"
 _CONSOLE_LEVELS = {0: logging.WARNING, 1: logging.INFO}
+_OWNED_ATTRIBUTE = "_npv_build_owned"
+
+
+def _mark_owned(handler: logging.Handler, role: str) -> logging.Handler:
+    setattr(handler, _OWNED_ATTRIBUTE, role)
+    return handler
 
 
 class CallbackHandler(logging.Handler):
@@ -33,17 +39,21 @@ def configure_logging(
     pkg.setLevel(logging.DEBUG)
     pkg.propagate = False
     for handler in list(pkg.handlers):
-        pkg.removeHandler(handler)
-        handler.close()
+        if getattr(handler, _OWNED_ATTRIBUTE, None):
+            pkg.removeHandler(handler)
+            if handler is not extra_handler:
+                handler.close()
 
-    console = logging.StreamHandler(stream=sys.stderr)
+    console = _mark_owned(logging.StreamHandler(stream=sys.stderr), "console")
     console.setLevel(_CONSOLE_LEVELS.get(verbosity, logging.DEBUG))
     console.setFormatter(logging.Formatter("%(message)s"))
     pkg.addHandler(console)
 
     if log_file is not None:
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler = _mark_owned(
+            logging.FileHandler(log_file, encoding="utf-8"), "file"
+        )
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(
             logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -51,7 +61,9 @@ def configure_logging(
         pkg.addHandler(file_handler)
 
     if extra_handler is not None:
+        _mark_owned(extra_handler, "callback")
         extra_handler.setLevel(logging.DEBUG)
-        pkg.addHandler(extra_handler)
+        if extra_handler not in pkg.handlers:
+            pkg.addHandler(extra_handler)
 
     return pkg

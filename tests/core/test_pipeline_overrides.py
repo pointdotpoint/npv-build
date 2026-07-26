@@ -39,7 +39,7 @@ def test_parse_checkpoint_stores_unmodified_cc(monkeypatch, tmp_path, synth_save
     with pytest.raises(RuntimeError):
         PipelineService().build(req)
     manifest = json.loads((req.output_dir / ".npv_manifest.json").read_text())
-    stored = manifest["parse_save"]["output"]
+    stored = manifest["stages"]["parse_save"]["output"]
     assert stored["skin"]["tone_id"] != "03_ca_medium"  # checkpoint = raw parse
 
 

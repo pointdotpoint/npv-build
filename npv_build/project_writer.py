@@ -131,8 +131,12 @@ in the game's native Photo Mode:
 
 | File | What it is |
 |------|-----------|
-| `r6/tweaks/npv_build/{mod_id}_photomode.yaml` | TweakXL record registering the puppet |
-| `archive/pc/mod/{mod_id}_photomode.archive.xl` | ArchiveXL control file |
+| `source/archive/.../photomode/{mod_id}_photomode.ent` | Dedicated Photo Mode entity and pose setup |
+| `source/archive/.../photomode/{mod_id}_photomode.app` | Photo Mode facial graph and appearance |
+| `source/archive/.../photomode/{mod_id}_photomode_icon.inkatlas` | NPC picker portrait atlas |
+| `source/archive/.../photomode/{mod_id}_photomode_i18n.json` | Cooked display-name localization |
+| `r6/tweaks/npv_build/{mod_id}_photomode.yaml` | TweakXL character and icon records |
+| `archive/pc/mod/{mod_id}.archive.xl` | ArchiveXL localization and rig resource scope |
 
 **Required mods** (install from Nexus): Photomode NPCs Extended, PhotoMode-EX,
 ArchiveXL, TweakXL, Codeware. After installing, select your NPV in Photo Mode's

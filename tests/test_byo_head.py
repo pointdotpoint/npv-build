@@ -70,6 +70,8 @@ def test_cli_valid_glb_override(mock_load_config, mock_pipeline_service_cls, tmp
 
     cc_json = tmp_path / "cc.json"
     cc_json.write_text("{}")
+    thumbnail = tmp_path / "thumbnail.png"
+    thumbnail.write_bytes(b"test")
 
     mock_service = mock_pipeline_service_cls.return_value
     mock_service.build.return_value = MagicMock(output_dir="out_dir")
@@ -85,6 +87,8 @@ def test_cli_valid_glb_override(mock_load_config, mock_pipeline_service_cls, tmp
             str(cc_json),
             "--head-glb",
             str(valid_glb),
+            "--photomode-thumbnail",
+            str(thumbnail),
         ],
     ):
         main()

@@ -611,6 +611,34 @@ def test_extract_part_components_carries_chunk_mask():
     assert "chunk_mask" not in comps[1]
 
 
+def test_filter_genital_components_removes_detachable_genitals_for_none():
+    """Female ``genitals_none`` uses the anatomy already present on the base
+    body, so neither detachable penis mesh may survive assembly."""
+    from npv_build.wolvenkit import _filter_genital_components
+
+    specs = [
+        {
+            "name": "t0_000_pwa_base__full",
+            "mesh": r"base\characters\common\player_base_bodies\player_female_average"
+            r"\t0_000_pwa_base__full.mesh",
+        },
+        {
+            "name": "i0_000_pwa_base__penis",
+            "mesh": r"base\characters\common\player_base_bodies\player_female_average"
+            r"\genitals\i0_000_pwa_base__penis.mesh",
+        },
+        {
+            "name": "i0_000_pwa_base__penis_circumcised",
+            "mesh": r"base\characters\common\player_base_bodies\player_female_average"
+            r"\genitals\i0_000_pwa_base__penis_circumcised.mesh",
+        },
+    ]
+
+    filtered = _filter_genital_components(specs, "i0_000_pwa_base__genitals_none__03_ca_senna")
+
+    assert [component["name"] for component in filtered] == ["t0_000_pwa_base__full"]
+
+
 def test_asset_paths_carries_equipped_clothing():
     """resolve_assets surfaces cc_settings['clothing'] as asset_paths['equipped_clothing']
     so build_project can pass it to resolve_clothing."""

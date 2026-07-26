@@ -17,7 +17,7 @@ window.screens.build = {
   _polling: false,
   _ticks: 0,
   starts: {},
-  async start(resume) {
+  async start() {
     if (this.timer) clearInterval(this.timer);
     this._logPinned = true;
     const s = store.state;
@@ -32,7 +32,8 @@ window.screens.build = {
       : { save_path: s.save.path };
     const out = await Api.call("start_build", {
       ...source, npv_name: s.npvName, output_dir: s.outputDir,
-      clear_cache: false, resume: !!resume,
+      photomode_thumbnail: s.photomodeThumbnail && s.photomodeThumbnail.path,
+      clear_cache: false, resume: true,
     });
     if (!out.ok) {
       store.set({ build: { ...store.state.build, running: false,
@@ -105,6 +106,8 @@ window.screens.build = {
         (st && st.status === "started"
           ? `<div class="progress"><div style="width:${(b.progress * 100) | 0}%"></div></div>
              <div class="muted" style="font-size:12px">${esc(st.message || "")}</div>` : "") +
+        (st && st.status === "skipped"
+          ? `<div class="muted" style="font-size:12px">${esc(st.message || "")}</div>` : "") +
         (st && st.status === "failed"
           ? `<div class="err" style="font-size:12px">${esc(st.message || "")}</div>` : "");
       left.appendChild(div);
@@ -116,7 +119,7 @@ window.screens.build = {
       left.appendChild(errCard);
       const retry = document.createElement("button");
       retry.textContent = "Retry from failed stage";
-      retry.onclick = () => this.start(true);
+      retry.onclick = () => this.start();
       left.appendChild(retry);
     } else if (b.running) {
       const cancel = document.createElement("button");
@@ -126,7 +129,7 @@ window.screens.build = {
     } else if (!b.outputDir) {
       const startBtn = document.createElement("button");
       startBtn.textContent = "Start build";
-      startBtn.onclick = () => this.start(false);
+      startBtn.onclick = () => this.start();
       left.appendChild(startBtn);
     }
     const logWrap = document.createElement("div");
