@@ -43,5 +43,6 @@ dist/
 build/
 packaging/build/
 packaging/dist/
+packaging/helpers/
 .ruff_cache/
 packaging/.appimagetool/

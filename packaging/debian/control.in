@@ -1,0 +1,10 @@
+Package: npv-build
+Version: @VERSION@
+Section: utils
+Priority: optional
+Architecture: amd64
+Installed-Size: @INSTALLED_SIZE@
+Maintainer: NPV Build maintainers
+Depends: gir1.2-gtk-3.0, gir1.2-webkit2-4.1
+Description: Cyberpunk 2077 NPV builder
+ Build an AMM- and Photo Mode-compatible NPC clone from a Cyberpunk 2077 save.

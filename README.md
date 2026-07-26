@@ -37,17 +37,19 @@ the WolvenKit GUI, no hand-editing `.app`/`.ent` files. The CLI does all of it.
 If you'd rather not build from source, download a prebuilt binary:
 
 ### Windows
-1. Download `npv-build-2.0.0-windows.zip` from [Releases](https://github.com/pointdotpoint/npv-build/releases).
-2. Extract the `.zip`.
-3. Run `npv-build.exe` (double-click for GUI, or use a terminal for CLI).
+1. Download `npv-build-<version>-windows-x86_64-setup.exe` from [Releases](https://github.com/pointdotpoint/npv-build/releases).
+2. Run the installer, then launch **NPV Build** from the Start menu.
+3. Alternatively, download `npv-build-<version>-windows-x86_64.zip`, extract it, and run `npv-build.exe` without installing.
 4. The first run will auto-download and install WolvenKit and Blender (checksum-verified) — **they are not bundled**.
-5. **Note:** Windows binary is unsigned; you may see a SmartScreen warning — this is expected.
+5. **Note:** Windows releases are currently unsigned; you may see a SmartScreen warning.
 
 ### Linux
-1. Download `npv-build-2.0.0-x86_64.AppImage` from [Releases](https://github.com/pointdotpoint/npv-build/releases).
-2. Make it executable: `chmod +x npv-build-2.0.0-x86_64.AppImage`
-3. Run it (double-click for GUI, or use a terminal for CLI): `./npv-build-2.0.0-x86_64.AppImage`
-4. The first run will auto-download and install WolvenKit and Blender (checksum-verified) — **they are not bundled**.
+Choose either format:
+
+- **AppImage:** download `npv-build-<version>-x86_64.AppImage`, run `chmod +x` on it, then launch it directly.
+- **Debian/Ubuntu:** download `npv-build_<version>_amd64.deb` and install it with `sudo apt install ./npv-build_<version>_amd64.deb`.
+
+The first run will auto-download and install WolvenKit and Blender (checksum-verified) — **they are not bundled**. WebKitGTK is a system dependency; the `.deb` installs it automatically, while AppImage users may need to install `gir1.2-webkit2-4.1`.
 
 Both artifacts include the GUI and CLI in a single executable:
 - **Double-click** or run with **no arguments** → launches the GUI.
@@ -79,8 +81,8 @@ You point the tool at a save and a name; it hands you an installable mod. The
 |------|---------|-------|
 | [WolvenKit CLI](https://github.com/WolvenKit/WolvenKit) | 8.18.x | Must be on `PATH`. A different version only **warns** — it won't stop the build, but isn't guaranteed to work. |
 | [Blender](https://www.blender.org/) | 4.x | Used headless to bake face morphs. Native `blender` on `PATH`, **or** a Flatpak install (see note below). |
-| Python | ≥ 3.9 | `tomli` / `tomli-w` are installed automatically. |
-| .NET 8 SDK | 8.x | Needed to build `npv-inject` (the component injector). **Not shipped pre-built** — you build it once. |
+| Python | ≥ 3.11 | Only required when running from source; release packages include Python. |
+| .NET 8 SDK | 8.x | Used to install WolvenKit.CLI when running from source. Release packages include NPV Build's native helper tools. |
 | [AMM](https://www.nexusmods.com/cyberpunk2077/mods/790) | any | Required in-game to spawn the NPC. |
 | WebKitGTK (Linux only) | 2.4.x+ | Required for the GUI. On Debian/Ubuntu: `sudo apt install gir1.2-webkit2-4.1`. Windows uses WebView2 (preinstalled). |
 

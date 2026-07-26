@@ -14,12 +14,7 @@ cp -r "$DIST/npv-build" "$APPDIR/usr/bin/npv-build"
 cp "$PKG/AppRun" "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun"
 cp "$PKG/npv-build.desktop" "$APPDIR/npv-build.desktop"
-# minimal icon (1x1 png is valid; a real icon can replace it later)
-if [ ! -f "$PKG/npv-build.png" ]; then
-  printf '\x89PNG\r\n\x1a\n' > "$APPDIR/npv-build.png"  # placeholder
-else
-  cp "$PKG/npv-build.png" "$APPDIR/npv-build.png"
-fi
+cp "$PKG/npv-build.svg" "$APPDIR/npv-build.svg"
 
 # fetch appimagetool if not present — into a tool dir OUTSIDE $DIST so it never
 # matches the release's `*.AppImage` upload glob (would otherwise be attached to

@@ -22,6 +22,7 @@ from .clothing import resolve_clothing
 from .config_editor import _MESH_COMPONENT_TYPES
 from .core.app_inject import InjectError
 from .core.app_inject import inject_components as _py_inject_components
+from .core.bundled_tools import bundled_tool_path
 from .core.errors import NpvError, ToolError
 from .core.proc import run_tool
 from .head_bake import find_stock_head_part, prepare_head, verify_morphtarget
@@ -35,6 +36,9 @@ INJECT_BINARY = "npv-inject"
 def _resolve_inject_binary() -> str:
     if shutil.which(INJECT_BINARY):
         return INJECT_BINARY
+    bundled = bundled_tool_path(INJECT_BINARY)
+    if bundled is not None:
+        return str(bundled)
     tools_dir = Path(__file__).parent.parent / "tools" / "npv-inject"
     for candidate in [
         tools_dir / "bin" / "Release" / "net8.0" / INJECT_BINARY,

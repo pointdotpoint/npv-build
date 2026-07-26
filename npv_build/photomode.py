@@ -23,6 +23,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from PIL import __version__ as PILLOW_VERSION
 
 from .core.artifact_cache import ArtifactCache
+from .core.bundled_tools import bundled_tool_path
 from .core.errors import NpvError
 from .core.proc import run_tool
 from .wk_cli import WolvenKit, WolvenKitError
@@ -249,6 +250,9 @@ def _helper_binary() -> Path:
     on_path = shutil.which("npv-photomode")
     if on_path:
         return Path(on_path)
+    bundled = bundled_tool_path("npv-photomode")
+    if bundled is not None:
+        return bundled
 
     repo_root = Path(__file__).resolve().parents[1]
     project = repo_root / "tools" / "npv-photomode" / "npv-photomode.csproj"

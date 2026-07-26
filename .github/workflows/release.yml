@@ -3,75 +3,213 @@ name: release
 on:
   push:
     tags:
-      - "v*"
+      - "v*.*.*"
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-linux:
+    name: Linux AppImage + deb
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
-          submodules: false
-      - uses: astral-sh/setup-uv@v6
+          submodules: recursive
+      - uses: astral-sh/setup-uv@v9
         with:
           python-version: "3.11"
-      - run: uv sync --locked --extra gui
-      - run: sudo apt-get update && sudo apt-get install -y libfuse2
-      - name: Build one-dir bundle
-        run: cd packaging && uv run pyinstaller --clean --noconfirm npv-build.spec
-      - name: Build AppImage
-        run: packaging/build_appimage.sh "${GITHUB_REF_NAME#v}"
-      - uses: actions/upload-artifact@v4
+          enable-cache: true
+      - uses: actions/setup-dotnet@v6
         with:
-          name: linux
-          path: packaging/dist/npv-build-*-x86_64.AppImage
+          dotnet-version: "8.0.x"
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc \
+            pkg-config \
+            python3-dev \
+            libcairo2-dev \
+            libgirepository-2.0-dev \
+            gir1.2-gtk-3.0 \
+            gir1.2-webkit2-4.1 \
+            libfuse2
+      - run: uv sync --locked --extra gui
+      - name: Validate release version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PROJECT_VERSION="$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          test "$VERSION" = "$PROJECT_VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Publish self-contained helpers
+        run: uv run python scripts/build_release_helpers.py --rid linux-x64 --output packaging/helpers
+      - name: Build portable application
+        run: cd packaging && uv run pyinstaller --clean --noconfirm npv-build.spec
+      - name: Smoke portable application and bundled helpers
+        run: |
+          packaging/dist/npv-build/npv-build --help
+          for helper in npv-inject npv-photomode npv-tweakdb; do
+            path="packaging/dist/npv-build/_internal/npv_helpers/$helper"
+            test -x "$path"
+            if output="$("$path" 2>&1)"; then
+              status=0
+            else
+              status=$?
+            fi
+            test "$status" -eq 1
+            test -n "$output"
+          done
+      - name: Build AppImage and Debian package
+        run: |
+          packaging/build_appimage.sh "$VERSION"
+          packaging/build_deb.sh "$VERSION"
+      - name: Smoke release packages
+        run: |
+          APPIMAGE="packaging/dist/npv-build-${VERSION}-x86_64.AppImage"
+          DEB="packaging/dist/npv-build_${VERSION}_amd64.deb"
+          "$APPIMAGE" --appimage-extract-and-run --help
+          dpkg-deb --info "$DEB"
+          dpkg-deb -x "$DEB" "$RUNNER_TEMP/npv-deb-smoke"
+          "$RUNNER_TEMP/npv-deb-smoke/usr/lib/npv-build/npv-build" --help
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-release
+          if-no-files-found: error
+          path: |
+            packaging/dist/npv-build-*-x86_64.AppImage
+            packaging/dist/npv-build_*_amd64.deb
 
   build-windows:
+    name: Windows installer + portable zip
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
-          submodules: false
-      - uses: astral-sh/setup-uv@v6
+          submodules: recursive
+      - uses: astral-sh/setup-uv@v9
         with:
           python-version: "3.11"
+          enable-cache: true
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
       - run: uv sync --locked --extra gui
-      - name: Build one-dir bundle
-        run: cd packaging; uv run pyinstaller --clean --noconfirm npv-build.spec
-      - name: Zip the one-dir bundle
+      - name: Validate release version
         shell: pwsh
         run: |
-          $v = "${env:GITHUB_REF_NAME}".TrimStart("v")
-          Compress-Archive -Path packaging/dist/npv-build/* -DestinationPath "packaging/dist/npv-build-$v-windows.zip"
-      - name: Smoke the frozen CLI
+          $version = "${env:GITHUB_REF_NAME}".TrimStart("v")
+          $projectVersion = uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])'
+          if ($version -ne $projectVersion) {
+            throw "Tag version $version does not match pyproject version $projectVersion"
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Publish self-contained helpers
+        run: uv run python scripts/build_release_helpers.py --rid win-x64 --output packaging/helpers
+      - name: Build portable application
+        run: cd packaging; uv run pyinstaller --clean --noconfirm npv-build.spec
+      - name: Smoke portable application and bundled helpers
         shell: pwsh
         run: |
           & packaging/dist/npv-build/npv-build.exe --help
-      - uses: actions/upload-artifact@v4
+          @("npv-inject", "npv-photomode", "npv-tweakdb") | ForEach-Object {
+            $helper = "packaging/dist/npv-build/_internal/npv_helpers/$_.exe"
+            if (-not (Test-Path $helper)) {
+              throw "Missing bundled helper: $helper"
+            }
+            & $helper *> $null
+            if ($LASTEXITCODE -ne 1) {
+              throw "Bundled helper failed its launch smoke test: $helper"
+            }
+          }
+      - name: Build portable zip
+        shell: pwsh
+        run: |
+          $zip = "packaging/dist/npv-build-$env:VERSION-windows-x86_64.zip"
+          Compress-Archive -Path packaging/dist/npv-build/* -DestinationPath $zip
+      - name: Build Inno Setup installer
+        shell: pwsh
+        run: |
+          $compiler = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6/ISCC.exe"
+          if (-not (Test-Path $compiler)) {
+            choco install innosetup --no-progress -y
+          }
+          if (-not (Test-Path $compiler)) {
+            throw "Inno Setup compiler not found: $compiler"
+          }
+          $source = (Resolve-Path "packaging/dist/npv-build").Path
+          $output = (Resolve-Path "packaging/dist").Path
+          & $compiler `
+            "/DMyAppVersion=$env:VERSION" `
+            "/DSourceDir=$source" `
+            "/DOutputDir=$output" `
+            "packaging/windows/npv-build.iss"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup failed with exit code $LASTEXITCODE"
+          }
+      - name: Smoke Windows installer
+        shell: pwsh
+        run: |
+          $installer = "packaging/dist/npv-build-$env:VERSION-windows-x86_64-setup.exe"
+          $installDir = Join-Path $env:RUNNER_TEMP "npv-build-install-smoke"
+          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/DIR=$installDir"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installer failed with exit code $LASTEXITCODE"
+          }
+          & "$installDir/npv-build.exe" --help
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installed application smoke test failed"
+          }
+          & "$installDir/unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+      - uses: actions/upload-artifact@v7
         with:
-          name: windows
-          path: packaging/dist/*.zip
+          name: windows-release
+          if-no-files-found: error
+          path: |
+            packaging/dist/npv-build-*-windows-x86_64-setup.exe
+            packaging/dist/npv-build-*-windows-x86_64.zip
 
   release:
+    name: Draft GitHub Release
     needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
-      - name: Collect + checksum
+          merge-multiple: true
+      - name: Validate and checksum release assets
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p release
-          find artifacts -type f \( -name "*.AppImage" -o -name "*.zip" \) -exec cp {} release/ \;
-          cd release && sha256sum * > SHA256SUMS && cat SHA256SUMS
-      - name: Draft release
-        uses: softprops/action-gh-release@v2
+          expected=(
+            "npv-build-${VERSION}-windows-x86_64-setup.exe"
+            "npv-build-${VERSION}-windows-x86_64.zip"
+            "npv-build-${VERSION}-x86_64.AppImage"
+            "npv-build_${VERSION}_amd64.deb"
+          )
+          for asset in "${expected[@]}"; do
+            test -f "artifacts/$asset"
+            cp "artifacts/$asset" "release/$asset"
+          done
+          test "$(find release -maxdepth 1 -type f | wc -l)" -eq 4
+          (
+            cd release
+            sha256sum "${expected[@]}" > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
+      - name: Create draft release
+        uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ github.ref_name }}
+          name: NPV Build ${{ github.ref_name }}
           draft: true
           files: release/*
           body_path: CHANGELOG.md
           generate_release_notes: false
+          fail_on_unmatched_files: true

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from ..config import get_cache_dir
+from ..core.bundled_tools import bundled_tool_path
 from ..core.errors import NpvError
 from ..core.proc import run_tool
 
@@ -442,6 +443,9 @@ def _tweakdb_helper_binary() -> Path:
     on_path = shutil.which("npv-tweakdb")
     if on_path:
         return Path(on_path)
+    bundled = bundled_tool_path("npv-tweakdb")
+    if bundled is not None:
+        return bundled
     repo_root = Path(__file__).resolve().parents[2]
     project = repo_root / "tools" / "npv-tweakdb" / "npv-tweakdb.csproj"
     binary = (

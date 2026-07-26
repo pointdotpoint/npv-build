@@ -1,8 +1,16 @@
 # Release QA Checklist
 
-Run before publishing a release (both Windows and Linux). Fresh machine / clean user profile ideal.
+Run before publishing a release on a fresh machine or clean user profile where possible.
 
-## Per platform (Windows .zip, Linux AppImage)
+## Required release assets
+
+- [ ] Windows installer: `npv-build-<version>-windows-x86_64-setup.exe`
+- [ ] Windows portable bundle: `npv-build-<version>-windows-x86_64.zip`
+- [ ] Linux AppImage: `npv-build-<version>-x86_64.AppImage`
+- [ ] Debian package: `npv-build_<version>_amd64.deb`
+- [ ] `SHA256SUMS` covers exactly those four assets.
+
+## Per platform and format
 
 ### Web UI flow
 - [ ] Artifact downloads and its SHA-256 matches the line in `SHA256SUMS`.
@@ -15,12 +23,17 @@ Run before publishing a release (both Windows and Linux). Fresh machine / clean 
 - [ ] Install screen shows install instructions; after copying to game folder, NPV spawns in-game via AMM.
 - [ ] My NPVs screen lists previously built NPVs.
 - [ ] (Linux only) Verify WebKitGTK is present (`gir1.2-webkit2-4.1` installed); on a clean system, first run should prompt or fail gracefully if missing.
+- [ ] Windows installer creates Start menu/uninstall entries and cleanly uninstalls.
+- [ ] Windows portable ZIP runs after extraction without installation.
+- [ ] AppImage runs after `chmod +x` without extracting it manually.
+- [ ] `.deb` installs with `apt`, exposes `/usr/bin/npv-build`, and cleanly removes.
 
 ### CLI and integration
 - [ ] CLI works from a terminal: `npv-build --probe-save <save>` prints the patch.
-- [ ] `npv-build-gui` from the terminal launches the web UI.
+- [ ] Running the packaged executable with no arguments launches the web UI.
+- [ ] Bundled `npv-inject`, `npv-photomode`, and `npv-tweakdb` helpers are present.
 - [ ] Spawn a built NPV in-game via AMM → correct face/clothing/animation, no T-pose.
 
 ## Artifact hygiene
-- [ ] No third-party binaries in the artifact (no WolvenKit/Blender/.NET/CDPR assets) — inspect the bundle.
-- [ ] SHA256SUMS covers every attached artifact.
+- [ ] No standalone WolvenKit, Blender, or CDPR payloads are bundled — inspect the artifact.
+- [ ] Only NPV Build's self-contained helper binaries are bundled; WolvenKit, Blender, and CDPR assets are not.
