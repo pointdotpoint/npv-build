@@ -271,9 +271,7 @@ class TestUncookJsonMany:
             for number, filename in enumerate(filenames):
                 output = out_dir / "base" / f"{filename}.json"
                 output.parent.mkdir(parents=True, exist_ok=True)
-                output.write_text(
-                    json.dumps({"Data": {"number": number}}), encoding="utf-8"
-                )
+                output.write_text(json.dumps({"Data": {"number": number}}), encoding="utf-8")
 
         monkeypatch.setattr(adapter, "_run", fake_run)
 
@@ -287,9 +285,7 @@ class TestUncookJsonMany:
         assert adapter.stats.batch_processes == 1
         assert adapter.stats.batch_resources == 10
 
-    def test_reports_missing_names_without_discarding_successes(
-        self, monkeypatch, tmp_path
-    ):
+    def test_reports_missing_names_without_discarding_successes(self, monkeypatch, tmp_path):
         archive = tmp_path / "appearance.archive"
         archive.write_bytes(b"archive")
         adapter = WolvenKit(WolvenKitConfig(game_dir=tmp_path))
@@ -301,9 +297,7 @@ class TestUncookJsonMany:
         monkeypatch.setattr(adapter, "_run", fake_run)
 
         with pytest.raises(UncookJsonMissingError) as raised:
-            adapter.uncook_json_many(
-                ["found.ent", "missing.ent"], archive=archive
-            )
+            adapter.uncook_json_many(["found.ent", "missing.ent"], archive=archive)
 
         assert raised.value.missing == ("missing.ent",)
         assert set(raised.value.results) == {"found.ent"}
@@ -366,9 +360,7 @@ class TestUncookJsonMany:
 
         assert list(cache_dir.rglob("*.json")) == []
 
-    def test_uncook_without_cache_preserves_process_per_call(
-        self, monkeypatch, tmp_path
-    ):
+    def test_uncook_without_cache_preserves_process_per_call(self, monkeypatch, tmp_path):
         archive = tmp_path / "appearance.archive"
         archive.write_bytes(b"archive")
         adapter = WolvenKit(WolvenKitConfig(game_dir=tmp_path, artifact_cache=None))

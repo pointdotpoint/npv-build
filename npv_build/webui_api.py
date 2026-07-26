@@ -112,11 +112,7 @@ def _display_names() -> dict:
 def load_clothing_catalog() -> list[dict] | None:
     """Load the default runtime catalog through a monkeypatchable bridge seam."""
     settings = load_settings()
-    expected = (
-        catalog_source_fingerprints(Path(settings.game_dir))
-        if settings.game_dir
-        else None
-    )
+    expected = catalog_source_fingerprints(Path(settings.game_dir)) if settings.game_dir else None
     return load_catalog(
         get_cache_dir() / "clothing_catalog.json",
         expected_fingerprints=expected,
@@ -349,12 +345,8 @@ class WebUiApi:
             buildable = bool(item.get(f"buildable_{rig}"))
             item["buildable"] = buildable
             item["mesh"] = item.get(f"mesh_{rig}") if buildable else None
-            item["appearance"] = (
-                item.get(f"appearance_{rig}") if buildable else None
-            )
-            item["components"] = (
-                item.get(f"components_{rig}") if buildable else []
-            )
+            item["appearance"] = item.get(f"appearance_{rig}") if buildable else None
+            item["components"] = item.get(f"components_{rig}") if buildable else []
             item["selection"] = catalog_selection(item, rig)
             result.append(item)
         result.sort(
@@ -950,9 +942,7 @@ class WebUiApi:
             save_path = Path(source_save_path)
             stored_overrides = load_overrides(source_save_path)
             garment_values = {
-                key: value
-                for key, value in stored_overrides.items()
-                if key.startswith("garment_")
+                key: value for key, value in stored_overrides.items() if key.startswith("garment_")
             }
             if garment_values:
                 try:
@@ -965,13 +955,9 @@ class WebUiApi:
                     return {
                         "ok": False,
                         "error": "; ".join(problems),
-                        "remediation": (
-                            "Return to Appearance and reselect the garment."
-                        ),
+                        "remediation": ("Return to Appearance and reselect the garment."),
                     }
-            cc_overrides, garments = _split_garment_overrides(
-                stored_overrides
-            )
+            cc_overrides, garments = _split_garment_overrides(stored_overrides)
             extra = {
                 "cc_overrides": cc_overrides,
                 "garments": garments,

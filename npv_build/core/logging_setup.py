@@ -51,9 +51,7 @@ def configure_logging(
 
     if log_file is not None:
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = _mark_owned(
-            logging.FileHandler(log_file, encoding="utf-8"), "file"
-        )
+        file_handler = _mark_owned(logging.FileHandler(log_file, encoding="utf-8"), "file")
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(
             logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")

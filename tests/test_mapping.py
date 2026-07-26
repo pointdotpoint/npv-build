@@ -129,9 +129,7 @@ def test_resolve_assets_uses_explicit_generic_ccxl_hair(monkeypatch, tmp_path):
     ]
 
 
-def test_selected_modded_hair_must_resolve_instead_of_silently_building_bald(
-    monkeypatch, tmp_path
-):
+def test_selected_modded_hair_must_resolve_instead_of_silently_building_bald(monkeypatch, tmp_path):
     from npv_build import part_resolver
 
     monkeypatch.setattr(

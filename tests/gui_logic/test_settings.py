@@ -30,13 +30,15 @@ def test_save_settings_with_none_fields_is_toml_serializable(monkeypatch):
     monkeypatch.setattr(st, "load_config", lambda: dict(store))
     monkeypatch.setattr(st, "save_config", lambda c: store.clear() or store.update(c))
 
-    save_settings(Settings(
-        game_dir="/g",
-        output_dir=None,
-        log_verbosity=1,
-        patch_override=None,
-        check_updates=True,
-    ))
+    save_settings(
+        Settings(
+            game_dir="/g",
+            output_dir=None,
+            log_verbosity=1,
+            patch_override=None,
+            check_updates=True,
+        )
+    )
     assert store["game_dir"] == "/g"
     assert "output_dir" not in store and "patch_override" not in store
     tomli_w.dumps(store)  # must not raise

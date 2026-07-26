@@ -158,9 +158,7 @@ def primary_mesh_groups(meshes: list[str]) -> dict[str, list[dict[str, str]]]:
     return groups
 
 
-def join_item(
-    value: str, groups: dict[str, list[dict[str, str]]]
-) -> dict[str, str] | None:
+def join_item(value: str, groups: dict[str, list[dict[str, str]]]) -> dict[str, str] | None:
     key = item_key(value)
     if not key:
         return None

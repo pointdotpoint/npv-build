@@ -45,9 +45,7 @@ def main() -> int:
             args.cache,
         )
 
-    selected = [
-        entry for entry in entries if entry.get("item_id") in set(args.item_ids)
-    ]
+    selected = [entry for entry in entries if entry.get("item_id") in set(args.item_ids)]
     print(json.dumps(selected, indent=2))
     missing = sorted(set(args.item_ids) - {entry["item_id"] for entry in selected})
     if missing:

@@ -69,9 +69,7 @@ def test_exact_catalog_preserves_item_mesh_appearance_and_child_components():
     )
     blue = next(entry for entry in entries if entry["item_id"] == "Shirt_01_basic_01")
     black = next(entry for entry in entries if entry["item_id"] == "Shirt_01_basic_02")
-    expansion = next(
-        entry for entry in entries if entry["item_id"] == "Q301_nusa_agent"
-    )
+    expansion = next(entry for entry in entries if entry["item_id"] == "Q301_nusa_agent")
 
     assert blue["mesh_pwa"] == black["mesh_pwa"]
     assert blue["appearance_pwa"] == "blue_moro"
@@ -134,9 +132,7 @@ def test_cache_rejects_changed_source_fingerprint(tmp_path):
     )
 
 
-def test_build_catalog_from_game_follows_exact_graph_and_caches(
-    tmp_path, monkeypatch
-):
+def test_build_catalog_from_game_follows_exact_graph_and_caches(tmp_path, monkeypatch):
     fixture = json.loads(
         (Path(__file__).parents[1] / "fixtures" / "quicksave4_garment_case.json").read_text()
     )
@@ -144,12 +140,8 @@ def test_build_catalog_from_game_follows_exact_graph_and_caches(
     content = game / "archive" / "pc" / "content"
     content.mkdir(parents=True)
     (game / "archive" / "pc" / "ep1").mkdir(parents=True)
-    entity_depot = (
-        "base\\gameplay\\items\\equipment\\player_inner_torso_item.ent"
-    )
-    expansion_entity_depot = (
-        "ep1\\gameplay\\items\\equipment\\outfit\\player_outfit_item_ep1.ent"
-    )
+    entity_depot = "base\\gameplay\\items\\equipment\\player_inner_torso_item.ent"
+    expansion_entity_depot = "ep1\\gameplay\\items\\equipment\\outfit\\player_outfit_item_ep1.ent"
     documents = {
         entity_depot: fixture["entity_documents"]["player_inner_torso_item"],
         expansion_entity_depot: fixture["entity_documents"]["player_outfit_item_ep1"],
@@ -163,11 +155,7 @@ def test_build_catalog_from_game_follows_exact_graph_and_caches(
 
         def list_archive(self, pattern, *, archive):
             self.calls.append(("list", pattern, archive))
-            return [
-                depot
-                for depot in documents
-                if re.search(pattern, depot, re.IGNORECASE)
-            ]
+            return [depot for depot in documents if re.search(pattern, depot, re.IGNORECASE)]
 
         def uncook_many(self, pattern, *, archive, dest):
             self.calls.append(("uncook", pattern, archive))
@@ -191,9 +179,7 @@ def test_build_catalog_from_game_follows_exact_graph_and_caches(
 
     blue = next(entry for entry in entries if entry["item_id"] == "Shirt_01_basic_01")
     black = next(entry for entry in entries if entry["item_id"] == "Shirt_01_basic_02")
-    expansion = next(
-        entry for entry in entries if entry["item_id"] == "Q301_nusa_agent"
-    )
+    expansion = next(entry for entry in entries if entry["item_id"] == "Q301_nusa_agent")
     assert blue["appearance_pwa"] == "blue_moro"
     assert black["appearance_pwa"] == "black_psycho"
     assert [component["name"] for component in black["components_pwa"]] == [

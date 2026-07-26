@@ -35,12 +35,13 @@ def entry_for_path(sav: Path) -> SaveEntry:
     """Build a SaveEntry for one explicitly chosen sav.dat file."""
     sav = Path(sav)
     name = sav.parent.name if sav.name == "sav.dat" else sav.stem
-    thumb = next(
-        (sav.parent / n for n in _THUMB_NAMES if (sav.parent / n).is_file()), None
-    )
+    thumb = next((sav.parent / n for n in _THUMB_NAMES if (sav.parent / n).is_file()), None)
     return SaveEntry(
-        path=sav, name=name, mtime=sav.stat().st_mtime,
-        thumbnail=thumb, patch=_probe_patch(sav),
+        path=sav,
+        name=name,
+        mtime=sav.stat().st_mtime,
+        thumbnail=thumb,
+        patch=_probe_patch(sav),
     )
 
 

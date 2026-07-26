@@ -36,6 +36,7 @@ def fake_stages(monkeypatch, tmp_path):
         (arch_dir / f"{mod_id}.archive").write_bytes(b"fake-archive")
 
     monkeypatch.setattr(pl, "_run_assemble", fake_assemble)
+
     def fake_write_amm(mod_id, npv_name, body_rig, output_dir, **kw):
         calls.append("emit_amm_lua")
         path = (
@@ -105,9 +106,7 @@ def test_events_emitted(fake_stages, tmp_path):
     assert kinds[-1] == "finished"
 
 
-def test_build_logs_one_cache_batch_and_resume_summary(
-    fake_stages, tmp_path, monkeypatch
-):
+def test_build_logs_one_cache_batch_and_resume_summary(fake_stages, tmp_path, monkeypatch):
     messages = []
     monkeypatch.setattr(pl.logger, "info", lambda message, *args: messages.append(message % args))
 
@@ -149,9 +148,7 @@ def test_zero_byte_expected_archive_forces_assemble_rerun(fake_stages, tmp_path)
     svc = PipelineService()
     first = svc.build(_req(tmp_path))
     fake_stages.clear()
-    archive = (
-        tmp_path / "out" / "archive" / "pc" / "mod" / f"{first.mod_id}.archive"
-    )
+    archive = tmp_path / "out" / "archive" / "pc" / "mod" / f"{first.mod_id}.archive"
     archive.write_bytes(b"")
 
     result = svc.build(_req(tmp_path, resume=True))
@@ -160,9 +157,7 @@ def test_zero_byte_expected_archive_forces_assemble_rerun(fake_stages, tmp_path)
     assert "assemble" in result.stages_run
 
 
-def test_changed_tool_fingerprint_forces_assemble_rerun(
-    fake_stages, tmp_path, monkeypatch
-):
+def test_changed_tool_fingerprint_forces_assemble_rerun(fake_stages, tmp_path, monkeypatch):
     fingerprint = {"wolvenkit": {"path": "/tool", "size": 1, "mtime_ns": 1}}
     monkeypatch.setattr(
         pl,
@@ -247,18 +242,14 @@ def test_garment_appearance_is_part_of_checkpoint_hash(fake_stages, tmp_path):
     assert "assemble" in fake_stages
 
 
-def test_changed_thumbnail_reruns_assemble_and_photomode_only(
-    fake_stages, tmp_path
-):
+def test_changed_thumbnail_reruns_assemble_and_photomode_only(fake_stages, tmp_path):
     svc = PipelineService()
     svc.build(_req(tmp_path))
     fake_stages.clear()
     changed_thumbnail = tmp_path / "changed-thumbnail.png"
     Image.new("RGB", (200, 200), "cyan").save(changed_thumbnail)
 
-    result = svc.build(
-        _req(tmp_path, photomode_thumbnail=changed_thumbnail, resume=True)
-    )
+    result = svc.build(_req(tmp_path, photomode_thumbnail=changed_thumbnail, resume=True))
 
     assert "parse_save" in result.stages_resumed
     assert "resolve_assets" in result.stages_resumed
@@ -286,9 +277,7 @@ def test_changed_name_reruns_mod_id_dependent_stages(fake_stages, tmp_path):
         '{"format_version": 99, "stages": {}}',
     ],
 )
-def test_legacy_corrupt_or_future_manifest_is_a_clean_miss(
-    fake_stages, tmp_path, manifest_text
-):
+def test_legacy_corrupt_or_future_manifest_is_a_clean_miss(fake_stages, tmp_path, manifest_text):
     req = _req(tmp_path, resume=True)
     req.output_dir.mkdir(parents=True, exist_ok=True)
     (req.output_dir / pl.MANIFEST_NAME).write_text(manifest_text, encoding="utf-8")

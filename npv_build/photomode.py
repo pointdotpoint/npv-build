@@ -79,9 +79,7 @@ def runtime_dependency_status(game_dir: Path | None) -> dict[str, bool]:
         "TweakXL": (plugins / "TweakXL" / "TweakXL.dll").is_file(),
         "PhotoMode-EX": (plugins / "PhotoModeEx" / "PhotoModeEx.dll").is_file(),
         "Photomode NPCs Extended": (
-            any(mod_dir.glob("Photomode_NPCs_Extended*.archive"))
-            if mod_dir.is_dir()
-            else False
+            any(mod_dir.glob("Photomode_NPCs_Extended*.archive")) if mod_dir.is_dir() else False
         ),
         "Codeware": (plugins / "Codeware" / "Codeware.dll").is_file(),
         "redscript": (
@@ -221,9 +219,7 @@ def _normalize_thumbnail(
         }
         cache_preview = artifact_cache.path_for("photomode-icon-v1", key, ".png")
         cache_dds = artifact_cache.path_for("photomode-icon-v1", key, ".dds")
-        if _valid_cached_icon(cache_preview, "PNG") and _valid_cached_icon(
-            cache_dds, "DDS"
-        ):
+        if _valid_cached_icon(cache_preview, "PNG") and _valid_cached_icon(cache_dds, "DDS"):
             shutil.copy2(cache_preview, artifacts.preview)
             shutil.copy2(cache_dds, artifacts.dds)
             return

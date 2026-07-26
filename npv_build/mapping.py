@@ -142,9 +142,7 @@ def resolve_assets(
     hair_style = hair_info.get("style_id", "")
     hair_kind = hair_info.get("kind")
     if not hair_kind:
-        if hair_raw.startswith(("fhair_", "mhair_")) or (
-            hair_raw.endswith("_hair") and hair_style
-        ):
+        if hair_raw.startswith(("fhair_", "mhair_")) or (hair_raw.endswith("_hair") and hair_style):
             hair_kind = "modded"
         elif hair_info.get("vanilla_style"):
             hair_kind = "vanilla"
@@ -444,10 +442,7 @@ def resolve_assets(
                 dep["reason"] = f"modded hair from {src} (must stay installed)"
     elif hair_kind == "unknown":
         raise MappingResolutionError(
-            (
-                "Could not interpret selected hair record "
-                f"'{hair_selection_label or 'unknown'}'."
-            ),
+            (f"Could not interpret selected hair record '{hair_selection_label or 'unknown'}'."),
             remediation=(
                 "Return to Appearance and reselect the hairstyle, or explicitly "
                 "choose the bald/no-hair option."

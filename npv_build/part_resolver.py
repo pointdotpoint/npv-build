@@ -570,11 +570,7 @@ def extract_hair_components(
     # the aggregate mod directory before using legacy archive-name heuristics.
     exact_basename = f"{base}.app"
     registration = hair_registration_status(game_dir, base)
-    sidecar_source = (
-        registration["source"]
-        if registration.get("state") == "registered"
-        else None
-    )
+    sidecar_source = registration["source"] if registration.get("state") == "registered" else None
 
     exact_paths = []
     exact_regex = re.escape(exact_basename) + r"$"
@@ -599,8 +595,7 @@ def extract_hair_components(
         exact_paths = [
             path
             for path in exact_lines
-            if path.replace("\\", "/").rsplit("/", 1)[-1].casefold()
-            == exact_basename.casefold()
+            if path.replace("\\", "/").rsplit("/", 1)[-1].casefold() == exact_basename.casefold()
         ]
     except ToolError as error:
         logger.warning("Could not scan aggregate mod directory: %s", error.user_message)

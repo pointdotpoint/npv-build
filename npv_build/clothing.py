@@ -88,39 +88,25 @@ def resolve_clothing(
                 raise ValueError("Invalid catalog garment selection")
             components = garment.get("components")
             if not isinstance(components, list) or not components:
-                raise ValueError(
-                    f"Catalog garment '{item_id}' has no validated components"
-                )
+                raise ValueError(f"Catalog garment '{item_id}' has no validated components")
             occupied_slots = garment.get("occupied_slots") or [slot]
             if (
                 not isinstance(occupied_slots, list)
                 or slot not in occupied_slots
                 or not all(isinstance(value, str) and value for value in occupied_slots)
             ):
-                raise ValueError(
-                    f"Catalog garment '{item_id}' has invalid occupied slots"
-                )
+                raise ValueError(f"Catalog garment '{item_id}' has invalid occupied slots")
             overridden_slots.update(occupied_slots)
             for component in components:
                 component_mesh = str(component.get("mesh") or "").strip()
-                component_appearance = str(
-                    component.get("appearance") or ""
-                ).strip()
+                component_appearance = str(component.get("appearance") or "").strip()
                 if not component_mesh or not component_appearance:
-                    raise ValueError(
-                        f"Catalog garment '{item_id}' has an invalid component"
-                    )
-                basename = (
-                    component_mesh.replace("\\", "/")
-                    .rsplit("/", 1)[-1]
-                    .lower()
-                )
+                    raise ValueError(f"Catalog garment '{item_id}' has an invalid component")
+                basename = component_mesh.replace("\\", "/").rsplit("/", 1)[-1].lower()
                 override_specs.append(
                     {
-                        "comp_type": component.get("type")
-                        or "entGarmentSkinnedMeshComponent",
-                        "name": component.get("name")
-                        or basename.rsplit(".", 1)[0],
+                        "comp_type": component.get("type") or "entGarmentSkinnedMeshComponent",
+                        "name": component.get("name") or basename.rsplit(".", 1)[0],
                         "mesh": component_mesh,
                         "appearance": component_appearance,
                         "bind_to": component.get("bind_to") or "root",

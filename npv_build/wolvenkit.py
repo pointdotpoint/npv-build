@@ -287,11 +287,7 @@ def _collect_prefetch_entity_depots(
         if isinstance(part, str) and part.lower().endswith(".ent"):
             depots.add(part)
     for recipe_part in asset_paths.get("recipe_parts", []):
-        depot = (
-            recipe_part.get("resource", {})
-            .get("DepotPath", {})
-            .get("$value", "")
-        )
+        depot = recipe_part.get("resource", {}).get("DepotPath", {}).get("$value", "")
         if depot and depot.lower().endswith(".ent"):
             depots.add(depot)
     return depots
@@ -326,15 +322,9 @@ def _prefetch_component_json(
     morph_names: set[str] = set()
     for data in entity_json.values():
         for component in _component_chunks(data):
-            morph_depot = (
-                component.get("morphResource", {})
-                .get("DepotPath", {})
-                .get("$value", "")
-            )
+            morph_depot = component.get("morphResource", {}).get("DepotPath", {}).get("$value", "")
             if morph_depot:
-                morph_names.add(
-                    morph_depot.replace("\\", "/").rsplit("/", 1)[-1]
-                )
+                morph_names.add(morph_depot.replace("\\", "/").rsplit("/", 1)[-1])
     if not morph_names:
         return entity_json, {}
     try:
@@ -999,9 +989,7 @@ def build_project(
     stock_head_depot = find_stock_head_part(asset_paths)
     vanilla_hair_ent = asset_paths.get("vanilla_hair_ent", "")
     prefetch_depots = _collect_prefetch_entity_depots(asset_paths, stock_head_depot)
-    prefetched_entities, prefetched_morphs = _prefetch_component_json(
-        wk, prefetch_depots
-    )
+    prefetched_entities, prefetched_morphs = _prefetch_component_json(wk, prefetch_depots)
     all_part_depots = set(prefetch_depots)
     if stock_head_depot:
         all_part_depots.discard(stock_head_depot)

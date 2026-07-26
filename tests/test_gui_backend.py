@@ -77,12 +77,17 @@ def test_preview_save_hair_color_from_selections(monkeypatch):
             "skin": {"tone_id": "01_ca_pale"},
             "hair": {"style_id": "winona_2", "raw": "winona_2_hair"},
             "selections": [
-                {"slot": "character_customization", "label": "eyes_color",
-                 "raw": "he_000_pwa__basehead__11_gradient_blue"},
-                {"slot": "character_customization", "label": "winona_2_hair",
-                 "raw": "51_succulent"},
-                {"slot": "character_customization", "label": "winona_2_hair_fpp",
-                 "raw": "default"},
+                {
+                    "slot": "character_customization",
+                    "label": "eyes_color",
+                    "raw": "he_000_pwa__basehead__11_gradient_blue",
+                },
+                {
+                    "slot": "character_customization",
+                    "label": "winona_2_hair",
+                    "raw": "51_succulent",
+                },
+                {"slot": "character_customization", "label": "winona_2_hair_fpp", "raw": "default"},
             ],
         }
 
@@ -254,8 +259,14 @@ def test_build_worker_emits_stage_tuples(monkeypatch, tmp_path):
     w = gui_backend.BuildWorker(q)
     save = tmp_path / "s.dat"
     save.write_bytes(b"x")
-    w.start(save_path=save, npv_name="V", output_dir=tmp_path, game_dir=tmp_path,
-            template_cache=tmp_path, clear_cache=False)
+    w.start(
+        save_path=save,
+        npv_name="V",
+        output_dir=tmp_path,
+        game_dir=tmp_path,
+        template_cache=tmp_path,
+        clear_cache=False,
+    )
     w._thread.join(timeout=10)
     items = _drain(q)
     stages = [val for kind, val in items if kind == "stage"]

@@ -201,9 +201,7 @@ def test_exact_hair_ranking_prefers_tpp_requested_rig_and_non_cyberware():
         r"mods\pwa\tpp\shared_hair.app",
     ]
 
-    assert pr._select_exact_hair_path(paths, basename, "pwa") == (
-        r"mods\pwa\tpp\shared_hair.app"
-    )
+    assert pr._select_exact_hair_path(paths, basename, "pwa") == (r"mods\pwa\tpp\shared_hair.app")
 
 
 def test_exact_hair_ranking_rejects_equal_best_tie():
@@ -227,8 +225,7 @@ def test_archive_xl_sidecar_never_derives_archive_archive(tmp_path):
     archive = mod_dir / "b1whair003ccxl.archive"
     archive.write_bytes(b"archive")
     (mod_dir / "b1whair003ccxl.archive.xl").write_text(
-        "resource:\n"
-        "  - b1w\\\\ccxl\\\\hair003\\\\appearances\\\\b1w_003_wa.app\n"
+        "resource:\n  - b1w\\\\ccxl\\\\hair003\\\\appearances\\\\b1w_003_wa.app\n"
     )
     depot = r"b1w\ccxl\hair003\appearances\b1w_003_wa.app"
 
@@ -254,9 +251,7 @@ def test_archive_xl_sidecar_never_derives_archive_archive(tmp_path):
                                     {
                                         "Data": {
                                             "name": {"$value": "default"},
-                                            "compiledData": {
-                                                "Data": {"Chunks": []}
-                                            },
+                                            "compiledData": {"Data": {"Chunks": []}},
                                         }
                                     }
                                 ]

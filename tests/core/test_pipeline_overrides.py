@@ -1,4 +1,5 @@
 """cc_overrides apply after the parse checkpoint and change the mod id."""
+
 import pytest
 
 from npv_build.core.pipeline import BuildRequest, PipelineService
@@ -6,8 +7,11 @@ from npv_build.core.pipeline import BuildRequest, PipelineService
 
 def _req(tmp_path, overrides):
     return BuildRequest(
-        save_path=tmp_path / "sav.dat", npv_name="V", output_dir=tmp_path / "o",
-        game_dir=tmp_path, template_cache=tmp_path / "tc",
+        save_path=tmp_path / "sav.dat",
+        npv_name="V",
+        output_dir=tmp_path / "o",
+        game_dir=tmp_path,
+        template_cache=tmp_path / "tc",
         cc_overrides=overrides,
     )
 

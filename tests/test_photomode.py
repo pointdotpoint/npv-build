@@ -93,9 +93,7 @@ def test_changed_thumbnail_misses_and_corrupt_dds_regenerates(tmp_path):
     assert sum(dds.stat().st_size > 128 for dds in cached_dds) == 1
 
 
-def test_photomode_authoring_uses_one_conversion_pair_and_one_helper_start(
-    monkeypatch, tmp_path
-):
+def test_photomode_authoring_uses_one_conversion_pair_and_one_helper_start(monkeypatch, tmp_path):
     source_dir = tmp_path / "source"
     mod_id = "photo_test"
     normal_dir = source_dir / "base" / "npv-build" / mod_id
@@ -171,13 +169,14 @@ def test_patch_entity_adds_photo_component_pose_sets_and_app_link():
     }
     _patch_entity(data, "pwa", "test_id", "base\\test\\photo.app")
     root = data["Data"]["RootChunk"]
-    assert root["appearances"][0]["appearanceResource"]["DepotPath"]["$value"].endswith(
-        "photo.app"
+    assert root["appearances"][0]["appearanceResource"]["DepotPath"]["$value"].endswith("photo.app")
+    assert (
+        sum(
+            component["$type"] == "PhotoModePlayerEntityComponent"
+            for component in root["components"]
+        )
+        == 1
     )
-    assert sum(
-        component["$type"] == "PhotoModePlayerEntityComponent"
-        for component in root["components"]
-    ) == 1
     encoded = json.dumps(root)
     assert "photomode__female__idle.anims" in encoded
     assert "photomode__female__action.anims" in encoded
@@ -188,8 +187,7 @@ def test_patch_app_switches_graph_and_adds_facial_sets():
         "$type": "entAnimationSetupExtensionComponent",
         "name": {"$value": "face_rig"},
         "graph": _ref(
-            "base\\animations\\facial\\_facial_graphs\\"
-            "player_woman_paperdoll_sermo.animgraph"
+            "base\\animations\\facial\\_facial_graphs\\player_woman_paperdoll_sermo.animgraph"
         ),
         "animations": {"gameplay": [], "cinematics": []},
     }

@@ -4,8 +4,7 @@ from npv_build.gui_logic import overrides_store
 def test_roundtrip_and_delete(monkeypatch, tmp_path):
     monkeypatch.setattr(overrides_store, "_overrides_dir", lambda: tmp_path)
     overrides_store.save_overrides("/saves/a/sav.dat", {"skin_tone": "03_ca_medium"})
-    assert overrides_store.load_overrides("/saves/a/sav.dat") == {
-        "skin_tone": "03_ca_medium"}
+    assert overrides_store.load_overrides("/saves/a/sav.dat") == {"skin_tone": "03_ca_medium"}
     # distinct saves don't collide
     assert overrides_store.load_overrides("/saves/b/sav.dat") == {}
     # empty dict removes the file

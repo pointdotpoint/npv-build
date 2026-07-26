@@ -289,9 +289,9 @@ def _copy_infrastructure(
     source_components = source_appearance.get("components") or []
     # Parallel array, index-matched to source_components — see
     # _inline_handle_refs for why this is needed.
-    source_chunks = (
-        ((source_appearance.get("compiledData") or {}).get("Data") or {}).get("Chunks") or []
-    )
+    source_chunks = ((source_appearance.get("compiledData") or {}).get("Data") or {}).get(
+        "Chunks"
+    ) or []
 
     for index, comp in enumerate(source_components):
         comp_type = comp.get("$type")

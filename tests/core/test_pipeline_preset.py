@@ -76,10 +76,7 @@ def test_preset_build_resumes_parse_stage(monkeypatch, tmp_path):
 
     manifest = json.loads((tmp_path / "o" / ".npv_manifest.json").read_text())
     assert manifest["stages"]["parse_save"]["output"]["body_rig"] == "pma"
-    assert any(
-        event.kind == "stage_skipped" and event.stage == "parse_save"
-        for event in events
-    )
+    assert any(event.kind == "stage_skipped" and event.stage == "parse_save" for event in events)
 
 
 def test_changed_preset_invalidates_parse_checkpoint(monkeypatch, tmp_path):
@@ -100,7 +97,4 @@ def test_changed_preset_invalidates_parse_checkpoint(monkeypatch, tmp_path):
 
     manifest = json.loads((tmp_path / "o" / ".npv_manifest.json").read_text())
     assert manifest["stages"]["parse_save"]["output"]["body_rig"] == "pwa"
-    assert any(
-        event.kind == "stage_completed" and event.stage == "parse_save"
-        for event in events
-    )
+    assert any(event.kind == "stage_completed" and event.stage == "parse_save" for event in events)

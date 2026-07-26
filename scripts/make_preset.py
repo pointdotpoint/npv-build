@@ -19,9 +19,7 @@ PRESET_DIR = Path(__file__).parents[1] / "npv_build" / "data" / "presets"
 def make_preset(save_path: Path, rig: str) -> dict:
     cc = parse_save(Path(save_path))
     if cc.get("body_rig") != rig:
-        sys.exit(
-            f"Save decodes as body_rig={cc.get('body_rig')!r}, expected {rig!r}."
-        )
+        sys.exit(f"Save decodes as body_rig={cc.get('body_rig')!r}, expected {rig!r}.")
     return cc
 
 

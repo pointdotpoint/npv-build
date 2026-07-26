@@ -248,9 +248,7 @@ def _artifacts_are_nonempty(paths: object) -> bool:
         isinstance(paths, list)
         and bool(paths)
         and all(
-            isinstance(path, str)
-            and Path(path).is_file()
-            and Path(path).stat().st_size > 0
+            isinstance(path, str) and Path(path).is_file() and Path(path).stat().st_size > 0
             for path in paths
         )
     )
@@ -317,9 +315,7 @@ class PipelineService:
                 elif kind in {"stage_completed", "stage_skipped", "failed"}:
                     started_at = stage_started_at.pop(stage, None)
                     if started_at is not None:
-                        stage_durations[stage] = max(
-                            0.0, time.perf_counter() - started_at
-                        )
+                        stage_durations[stage] = max(0.0, time.perf_counter() - started_at)
             if on_event is not None:
                 on_event(PipelineEvent(kind=kind, stage=stage, message=message))
 
@@ -373,7 +369,7 @@ class PipelineService:
                     save_stat,
                     str(req.cc_json_path),
                     req.cc_settings_override,
-                ]
+                ],
             )
             prior = stage_manifest.get(current_stage)
             if req.resume and prior is not None and prior.get("input_hash") == parse_hash:
@@ -476,7 +472,7 @@ class PipelineService:
                     req.restore_head_materials,
                     thumbnail.sha256,
                     _assemble_tool_fingerprints(wk),
-                ]
+                ],
             )
             prior = stage_manifest.get(current_stage)
             expected_artifacts = _expected_assemble_artifacts(req.output_dir, mod_id)
@@ -512,9 +508,7 @@ class PipelineService:
                 cancel.raise_if_cancelled()
 
             body_rig = asset_paths.get("body_rig", "pwa")
-            lua_hash = _stage_hash(
-                current_stage, [mod_id, req.npv_name, body_rig, asset_paths]
-            )
+            lua_hash = _stage_hash(current_stage, [mod_id, req.npv_name, body_rig, asset_paths])
             prior = stage_manifest.get(current_stage)
             lua_path_str = prior.get("output") if prior else None
             lua_exists = bool(lua_path_str) and Path(lua_path_str).exists()
@@ -549,9 +543,7 @@ class PipelineService:
             if cancel is not None:
                 cancel.raise_if_cancelled()
 
-            pm_hash = _stage_hash(
-                current_stage, [mod_id, req.npv_name, body_rig, thumbnail.sha256]
-            )
+            pm_hash = _stage_hash(current_stage, [mod_id, req.npv_name, body_rig, thumbnail.sha256])
             prior = stage_manifest.get(current_stage)
             pm_output = prior.get("output") if prior else None
             pm_exists = bool(pm_output) and Path(pm_output).exists()

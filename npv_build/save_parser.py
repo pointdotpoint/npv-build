@@ -326,7 +326,9 @@ def hair_from_selections(selections: list[dict]) -> dict:
     def usable(selection: dict) -> bool:
         slot = str(selection.get("slot") or "")
         label = str(selection.get("label") or "")
-        return bool(label) and "fpp" not in slot.casefold() and not label.casefold().endswith("_fpp")
+        return (
+            bool(label) and "fpp" not in slot.casefold() and not label.casefold().endswith("_fpp")
+        )
 
     tpp_rows = [
         selection
@@ -367,9 +369,7 @@ def hair_from_selections(selections: list[dict]) -> dict:
             return {
                 "kind": "unknown",
                 "selection_label": str(rejected.get("label") or ""),
-                "mesh_appearance": _normalized_hair_appearance(
-                    str(rejected.get("raw") or "")
-                ),
+                "mesh_appearance": _normalized_hair_appearance(str(rejected.get("raw") or "")),
                 "style_id": "",
                 "raw": "",
                 "vanilla_style": 0,

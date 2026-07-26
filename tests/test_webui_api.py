@@ -801,15 +801,11 @@ def test_set_overrides_rejects_tampered_or_legacy_catalog_garment(monkeypatch):
         "npv_build.webui_api.parse_save_for_inspector",
         lambda path: {"patch": "2.31", "body_rig": "pwa"},
     )
-    monkeypatch.setattr(
-        "npv_build.webui_api.load_clothing_catalog", lambda: CATALOG
-    )
+    monkeypatch.setattr("npv_build.webui_api.load_clothing_catalog", lambda: CATALOG)
     selection = catalog_selection(CATALOG[1], "pwa")
     api = WebUiApi()
 
-    assert api.set_overrides(
-        "/s/sav.dat", {"garment_legs": selection}
-    ) == {"ok": True}
+    assert api.set_overrides("/s/sav.dat", {"garment_legs": selection}) == {"ok": True}
     tampered = {**selection, "appearance": "red"}
     out = api.set_overrides("/s/sav.dat", {"garment_legs": tampered})
     assert out["ok"] is False
@@ -873,9 +869,7 @@ def test_start_build_preserves_exact_garment_selection(monkeypatch, tmp_path):
 
     garment = catalog_selection(CATALOG[1], "pwa")
     monkeypatch.setattr("npv_build.webui_api.BuildWorker", FakeWorker)
-    monkeypatch.setattr(
-        "npv_build.webui_api.load_clothing_catalog", lambda: CATALOG
-    )
+    monkeypatch.setattr("npv_build.webui_api.load_clothing_catalog", lambda: CATALOG)
     monkeypatch.setattr(
         "npv_build.webui_api.parse_save_for_inspector",
         lambda path: {"body_rig": "pwa"},

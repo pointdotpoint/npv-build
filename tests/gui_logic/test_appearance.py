@@ -210,10 +210,7 @@ def test_validate_overrides_hair_mod_token():
 
 def test_garment_override_is_validated_but_not_applied_to_cc_settings():
     overrides = {
-        "garment_legs": (
-            "base\\characters\\garment\\player_equipment\\legs\\"
-            "l1_012_pwa_pants.mesh"
-        )
+        "garment_legs": ("base\\characters\\garment\\player_equipment\\legs\\l1_012_pwa_pants.mesh")
     }
     assert validate_overrides(overrides, {}) == []
     original = _cc()

@@ -50,20 +50,29 @@ def test_source_can_be_resolved_from_parent_of_images_layout(tmp_path):
 
 def test_missing_dir_file_or_invalid_image_degrades_to_none(tmp_path):
     assert thumbnail_b64("/images/clothes/foo.jpg", None, tmp_path) is None
-    assert thumbnail_b64(
-        "/images/clothes/foo.jpg",
-        str(tmp_path / "nope"),
-        tmp_path,
-    ) is None
+    assert (
+        thumbnail_b64(
+            "/images/clothes/foo.jpg",
+            str(tmp_path / "nope"),
+            tmp_path,
+        )
+        is None
+    )
     (tmp_path / "imgs").mkdir()
-    assert thumbnail_b64(
-        "/images/clothes/ghost.jpg",
-        str(tmp_path / "imgs"),
-        tmp_path,
-    ) is None
+    assert (
+        thumbnail_b64(
+            "/images/clothes/ghost.jpg",
+            str(tmp_path / "imgs"),
+            tmp_path,
+        )
+        is None
+    )
     (tmp_path / "imgs" / "bad.jpg").write_text("not an image")
-    assert thumbnail_b64(
-        "/images/clothes/bad.jpg",
-        str(tmp_path / "imgs"),
-        tmp_path,
-    ) is None
+    assert (
+        thumbnail_b64(
+            "/images/clothes/bad.jpg",
+            str(tmp_path / "imgs"),
+            tmp_path,
+        )
+        is None
+    )

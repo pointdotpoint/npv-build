@@ -124,9 +124,7 @@ class WolvenKit:
             "archive": ArchiveFingerprint(
                 str(archive_path), archive_stat.st_size, archive_stat.st_mtime_ns
             ),
-            "tool": ToolFingerprint(
-                str(tool_path), tool_stat.st_size, tool_stat.st_mtime_ns
-            ),
+            "tool": ToolFingerprint(str(tool_path), tool_stat.st_size, tool_stat.st_mtime_ns),
             "resource": filename,
         }
 
@@ -242,9 +240,7 @@ class WolvenKit:
                         )
                     result[filename] = value
                     if cache is not None:
-                        cache.save_json(
-                            "uncook-json-v1", cache_keys[filename], value
-                        )
+                        cache.save_json("uncook-json-v1", cache_keys[filename], value)
 
         if missing_outputs:
             raise UncookJsonMissingError(missing_outputs, result)

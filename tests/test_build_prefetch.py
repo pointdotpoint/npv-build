@@ -11,9 +11,7 @@ def _entity_json(number: int) -> dict:
     component = {
         "$type": "entMorphTargetSkinnedMeshComponent",
         "name": {"$value": f"part_{number}"},
-        "morphResource": {
-            "DepotPath": {"$value": f"base\\morph_{number}.morphtarget"}
-        },
+        "morphResource": {"DepotPath": {"$value": f"base\\morph_{number}.morphtarget"}},
         "meshAppearance": {"$value": "default"},
         "chunkMask": str(100 + number),
     }
@@ -22,11 +20,7 @@ def _entity_json(number: int) -> dict:
 
 def _morph_json(number: int) -> dict:
     return {
-        "Data": {
-            "RootChunk": {
-                "baseMesh": {"DepotPath": {"$value": f"base\\mesh_{number}.mesh"}}
-            }
-        }
+        "Data": {"RootChunk": {"baseMesh": {"DepotPath": {"$value": f"base\\mesh_{number}.mesh"}}}}
     }
 
 
@@ -37,14 +31,8 @@ def test_prefetch_uses_one_entity_and_one_morphtarget_batch() -> None:
         def uncook_json_many(self, filenames):
             calls.append(filenames)
             if filenames[0].endswith(".ent"):
-                return {
-                    filename: _entity_json(number)
-                    for number, filename in enumerate(filenames)
-                }
-            return {
-                filename: _morph_json(number)
-                for number, filename in enumerate(filenames)
-            }
+                return {filename: _entity_json(number) for number, filename in enumerate(filenames)}
+            return {filename: _morph_json(number) for number, filename in enumerate(filenames)}
 
     depots = [f"base\\part_{number}.ent" for number in range(10)]
     entities, morphs = _prefetch_component_json(FakeWk(), depots)

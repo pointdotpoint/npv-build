@@ -571,9 +571,7 @@ def test_modded_hair_loading_blocks_progress_until_override_is_ready(webui_serve
             "Loading and validating the hair mod"
         )
         expect(page.get_by_role("button", name="Waiting for hair to load…")).to_be_disabled()
-        expect(page.locator(".rail-item", has_text="3 · Build")).to_have_class(
-            re.compile("locked")
-        )
+        expect(page.locator(".rail-item", has_text="3 · Build")).to_have_class(re.compile("locked"))
 
         page.evaluate(
             """() => window.__resolveHairMod({

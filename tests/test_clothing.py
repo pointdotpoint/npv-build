@@ -110,18 +110,12 @@ def test_structured_garment_preserves_exact_appearance_and_components():
     blue_specs = resolve_clothing("pwa", garment_overrides=[blue])
     black_specs = resolve_clothing("pwa", garment_overrides=[black])
 
-    assert next(s for s in blue_specs if s["name"] == "test_shirt")[
-        "appearance"
-    ] == "blue_moro"
-    assert next(s for s in black_specs if s["name"] == "test_shirt")[
-        "appearance"
-    ] == "black_psycho"
-    assert next(s for s in black_specs if s["name"] == "test_shirt_cuff")[
-        "appearance"
-    ] == "black"
-    assert "Shirt_01_basic_02" in next(
-        s for s in black_specs if s["name"] == "test_shirt"
-    )["source"]
+    assert next(s for s in blue_specs if s["name"] == "test_shirt")["appearance"] == "blue_moro"
+    assert next(s for s in black_specs if s["name"] == "test_shirt")["appearance"] == "black_psycho"
+    assert next(s for s in black_specs if s["name"] == "test_shirt_cuff")["appearance"] == "black"
+    assert (
+        "Shirt_01_basic_02" in next(s for s in black_specs if s["name"] == "test_shirt")["source"]
+    )
 
 
 def test_multi_slot_catalog_outfit_replaces_every_occupied_layer():

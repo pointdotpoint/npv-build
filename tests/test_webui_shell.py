@@ -73,9 +73,11 @@ def test_main_reports_missing_webkitgtk(monkeypatch, capsys):
     from npv_build import webui_shell
 
     monkeypatch.setattr(webui_shell.sys, "platform", "linux")
-    monkeypatch.setattr(webui_shell, "check_webview_runtime",
-                        lambda: "WebKitGTK runtime not found.\n"
-                                "sudo apt install gir1.2-webkit2-4.1")
+    monkeypatch.setattr(
+        webui_shell,
+        "check_webview_runtime",
+        lambda: "WebKitGTK runtime not found.\nsudo apt install gir1.2-webkit2-4.1",
+    )
     assert webui_shell.main() == 1
     assert "gir1.2-webkit2-4.1" in capsys.readouterr().err
 

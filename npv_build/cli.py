@@ -262,9 +262,7 @@ def main(argv: list[str] | None = None):
                 user_heb_mesh=Path(args.heb_mesh).resolve() if args.heb_mesh else None,
                 restore_head_materials=not args.no_restore_head_materials,
                 photomode_thumbnail=(
-                    Path(args.photomode_thumbnail).resolve()
-                    if args.photomode_thumbnail
-                    else None
+                    Path(args.photomode_thumbnail).resolve() if args.photomode_thumbnail else None
                 ),
                 dump_head_glb=Path(args.dump_head_glb).resolve(),
             )
@@ -285,9 +283,7 @@ def main(argv: list[str] | None = None):
                 user_heb_mesh=Path(args.heb_mesh).resolve() if args.heb_mesh else None,
                 restore_head_materials=not args.no_restore_head_materials,
                 photomode_thumbnail=(
-                    Path(args.photomode_thumbnail).resolve()
-                    if args.photomode_thumbnail
-                    else None
+                    Path(args.photomode_thumbnail).resolve() if args.photomode_thumbnail else None
                 ),
                 resume=args.resume,
             )

@@ -53,8 +53,7 @@ class BenchmarkWorkspace:
             if directory.exists() and not (directory / _SENTINEL).is_file():
                 if any(directory.iterdir()):
                     raise ValueError(
-                        f"Refusing to adopt non-empty directory without {_SENTINEL}: "
-                        f"{directory}"
+                        f"Refusing to adopt non-empty directory without {_SENTINEL}: {directory}"
                     )
             directory.mkdir(parents=True, exist_ok=True)
             (directory / _SENTINEL).write_text(

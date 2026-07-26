@@ -19,10 +19,7 @@ def preset_path(rig: str) -> Path:
 
 
 def list_presets() -> list[dict]:
-    return [
-        {"rig": rig, "available": preset_path(rig).is_file()}
-        for rig in RIGS
-    ]
+    return [{"rig": rig, "available": preset_path(rig).is_file()} for rig in RIGS]
 
 
 def load_preset(rig: str) -> dict:
@@ -39,8 +36,7 @@ def load_preset(rig: str) -> dict:
         raise NpvError(
             f"No default-V preset for {rig} is bundled yet.",
             remediation=(
-                "Generate it with scripts/make_preset.py from an untouched "
-                "default-V save."
+                "Generate it with scripts/make_preset.py from an untouched default-V save."
             ),
         ) from error
     except ValueError as error:

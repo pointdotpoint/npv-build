@@ -109,8 +109,6 @@ def validate(s: Settings) -> list[str]:
 
     if s.clothing_images_dir is not None:
         if not Path(s.clothing_images_dir).is_dir():
-            problems.append(
-                f"Clothing images directory does not exist: {s.clothing_images_dir}"
-            )
+            problems.append(f"Clothing images directory does not exist: {s.clothing_images_dir}")
 
     return problems

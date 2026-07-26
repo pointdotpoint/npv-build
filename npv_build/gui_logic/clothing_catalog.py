@@ -152,9 +152,7 @@ def _primary_groups(mesh_paths: list[str]) -> dict[str, list[dict[str, str]]]:
     return groups
 
 
-def _matching_group(
-    value: str, groups: dict[str, list[dict[str, str]]]
-) -> dict[str, str] | None:
+def _matching_group(value: str, groups: dict[str, list[dict[str, str]]]) -> dict[str, str] | None:
     key = _item_key(value)
     if not key:
         return None
@@ -231,16 +229,12 @@ def _app_identity_for_item(
         .get("RootChunk", {})
         .get("appearances", [])
     ):
-        depot = (
-            template.get("appearanceResource", {})
-            .get("DepotPath", {})
-            .get("$value", "")
-        )
+        depot = template.get("appearanceResource", {}).get("DepotPath", {}).get("$value", "")
         stem = depot.replace("\\", "/").rsplit("/", 1)[-1].removesuffix(".app")
         prefix = f"{stem}_"
         if not depot or not appearance_key.casefold().startswith(prefix.casefold()):
             continue
-        target = f"{appearance_key[len(prefix):]}_{rig_suffix}"
+        target = f"{appearance_key[len(prefix) :]}_{rig_suffix}"
         if _component_value(template, "appearanceName") != target:
             continue
         candidates.append((depot, target))
@@ -273,9 +267,7 @@ def _components_for_item(
         return []
 
     components = []
-    for chunk in (
-        matching[0].get("compiledData", {}).get("Data", {}).get("Chunks", [])
-    ):
+    for chunk in matching[0].get("compiledData", {}).get("Data", {}).get("Chunks", []):
         component_type = str(chunk.get("$type") or "")
         if component_type not in (
             "entGarmentSkinnedMeshComponent",
@@ -286,10 +278,7 @@ def _components_for_item(
         if not mesh:
             continue
         bind_to = (
-            chunk.get("skinning", {})
-            .get("Data", {})
-            .get("bindName", {})
-            .get("$value", "root")
+            chunk.get("skinning", {}).get("Data", {}).get("bindName", {}).get("$value", "root")
         )
         components.append(
             {
@@ -408,9 +397,7 @@ def catalog_selection(entry: dict, rig: str) -> dict | None:
         "mesh": str(mesh),
         "appearance": str(appearance),
         "components": components,
-        "occupied_slots": entry.get(f"occupied_slots_{rig}") or [
-            str(entry.get("slot") or "")
-        ],
+        "occupied_slots": entry.get(f"occupied_slots_{rig}") or [str(entry.get("slot") or "")],
         "source_kind": "catalog",
     }
 
@@ -496,11 +483,7 @@ def catalog_source_fingerprints(game_dir: Path) -> dict[str, dict[str, int]]:
         / ("npv-tweakdb.exe" if os.name == "nt" else "npv-tweakdb")
     )
     helper = (
-        Path(configured).expanduser()
-        if configured
-        else Path(on_path)
-        if on_path
-        else repo_binary
+        Path(configured).expanduser() if configured else Path(on_path) if on_path else repo_binary
     )
     candidates["npv_tweakdb"] = helper
     fingerprints = {}
@@ -591,19 +574,14 @@ def _uncook_documents(
     for root, depots in by_root.items():
         with tempfile.TemporaryDirectory(prefix="npv-clothing-uncook-") as temp:
             destination = Path(temp)
-            basenames = [
-                depot.replace("\\", "/").rsplit("/", 1)[-1]
-                for depot in depots
-            ]
+            basenames = [depot.replace("\\", "/").rsplit("/", 1)[-1] for depot in depots]
             pattern = "(?:" + "|".join(re.escape(name) for name in basenames) + r")$"
             wk.uncook_many(pattern, archive=root, dest=destination)
             for depot in depots:
                 path = destination / (depot.replace("\\", "/") + ".json")
                 if not path.is_file():
                     candidates = list(
-                        destination.rglob(
-                            depot.replace("\\", "/").rsplit("/", 1)[-1] + ".json"
-                        )
+                        destination.rglob(depot.replace("\\", "/").rsplit("/", 1)[-1] + ".json")
                     )
                     if len(candidates) != 1:
                         continue
@@ -635,9 +613,7 @@ def _validate_catalog_meshes(
             components = entry.get(components_key) or []
             valid = bool(components)
             for component in components:
-                appearances = _mesh_appearances(
-                    mesh_documents.get(component.get("mesh", "")) or {}
-                )
+                appearances = _mesh_appearances(mesh_documents.get(component.get("mesh", "")) or {})
                 if component.get("appearance") not in appearances:
                     valid = False
                     break
