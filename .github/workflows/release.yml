@@ -156,15 +156,23 @@ jobs:
         run: |
           $installer = "packaging/dist/npv-build-$env:VERSION-windows-x86_64-setup.exe"
           $installDir = Join-Path $env:RUNNER_TEMP "npv-build-install-smoke"
-          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- "/DIR=$installDir"
-          if ($LASTEXITCODE -ne 0) {
-            throw "Installer failed with exit code $LASTEXITCODE"
+          $install = Start-Process -FilePath $installer -ArgumentList @(
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/DIR=$installDir"
+          ) -Wait -PassThru
+          if ($install.ExitCode -ne 0) {
+            throw "Installer failed with exit code $($install.ExitCode)"
           }
-          & "$installDir/npv-build.exe" --help
-          if ($LASTEXITCODE -ne 0) {
+          $app = Start-Process -FilePath "$installDir/npv-build.exe" `
+            -ArgumentList "--help" -Wait -PassThru
+          if ($app.ExitCode -ne 0) {
             throw "Installed application smoke test failed"
           }
-          & "$installDir/unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+          $uninstall = Start-Process -FilePath "$installDir/unins000.exe" -ArgumentList @(
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"
+          ) -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) {
+            throw "Uninstaller failed with exit code $($uninstall.ExitCode)"
+          }
       - uses: actions/upload-artifact@v7
         with:
           name: windows-release
