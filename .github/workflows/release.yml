@@ -121,8 +121,8 @@ jobs:
             if (-not (Test-Path $helper)) {
               throw "Missing bundled helper: $helper"
             }
-            & $helper *> $null
-            if ($LASTEXITCODE -ne 1) {
+            $process = Start-Process -FilePath $helper -Wait -PassThru
+            if ($process.ExitCode -ne 1) {
               throw "Bundled helper failed its launch smoke test: $helper"
             }
           }

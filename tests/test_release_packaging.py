@@ -24,6 +24,7 @@ def test_release_workflow_bundles_helpers_on_both_platforms():
     assert workflow.count("npv-inject") >= 2
     assert workflow.count("npv-photomode") >= 2
     assert workflow.count("npv-tweakdb") >= 2
+    assert "Start-Process -FilePath $helper -Wait -PassThru" in workflow
 
 
 def test_packagers_reference_versioned_outputs():
