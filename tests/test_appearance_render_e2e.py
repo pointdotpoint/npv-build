@@ -33,7 +33,8 @@ import pytest
 
 pytestmark = pytest.mark.e2e
 
-GOLDEN_DIR = Path.home() / ".cache" / "npv" / "preview_goldens"
+_REAL_CACHE_DIR = Path.home() / ".cache"
+GOLDEN_DIR = _REAL_CACHE_DIR / "npv" / "preview_goldens"
 
 
 def _build_dir():
@@ -57,10 +58,9 @@ def test_render_matches_goldens(monkeypatch):
     if not game_dir or not Path(game_dir).is_dir():
         pytest.skip("no valid game_dir (set NPV_GAME_DIR or configure game_dir)")
 
-    real_cache = str(Path.home() / ".cache")
-    monkeypatch.setenv("XDG_CACHE_HOME", real_cache)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(_REAL_CACHE_DIR))
 
-    render_root = Path.home() / ".cache" / "npv" / "e2e_render_out"
+    render_root = _REAL_CACHE_DIR / "npv" / "e2e_render_out"
     render_root.mkdir(parents=True, exist_ok=True)
     out_dir = Path(tempfile.mkdtemp(dir=render_root))
     try:

@@ -168,7 +168,7 @@ def _locate_cr2w(wk, depot: str, stage: Path, build_dir: Path, mod_hits: dict[st
 
 
 def _base_archive_misses(wk, depots: list[str], stage: Path) -> list[str]:
-    """Depots not extendable from the base appearance archive, batched into one call."""
+    """Depots not extractable from the base appearance archive, batched into one call."""
     extract_dir = stage / "extract"
     combined_regex = "|".join(re.escape(d) for d in depots)
     try:
@@ -222,6 +222,17 @@ def _gather_meshes(wk, build_dir: Path, stage: Path, cancel) -> tuple[list[dict]
             # MaterialRepo we don't have; skip it, we only need geometry.
             glb = wk.export(cr2w, dest=glb_dir, with_materials=False)
         except WolvenKitError as e:
+            if depot.startswith(_MOD_SCOPED_PREFIX):
+                # A mod-scoped mesh (the build's own output) failing to export
+                # always means the build itself is broken — never best-effort,
+                # matching _locate_cr2w's hard-fail for a missing mod-scoped
+                # mesh above.
+                raise NpvError(
+                    f"RenderFailed: mod-scoped mesh failed to export: {depot}",
+                    remediation="Rebuild the mod before rendering a preview.",
+                    module_name="Appearance Render",
+                    details=str(e),
+                ) from e
             # Preview rendering is best-effort (unlike the main build, which
             # hard-fails): a small subset of meshes fail WolvenKit's classic
             # mesh exporter for structural reasons unrelated to npv-build

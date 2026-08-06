@@ -195,6 +195,37 @@ def test_gather_meshes_soft_skips_unlocatable_external_mesh(tmp_path):
     }]
 
 
+def test_gather_meshes_hard_fails_on_unexportable_mod_scoped_mesh(tmp_path):
+    """A located mod-scoped mesh (the build's own output) that fails to export
+    is a hard failure, not a soft skip — unlike an external depot's export
+    failure (test_gather_meshes_soft_skips_unexportable_mesh below), a
+    mod-scoped export failure always means the build itself is broken, same
+    as a mod-scoped mesh that can't be located at all
+    (test_gather_meshes_hard_fails_on_unlocatable_mod_scoped_mesh above)."""
+    depot = "base\\npv-build\\qa_x\\qa_x_head.mesh"
+    build = _build_dir(tmp_path, [
+        {"type": "entSkinnedMeshComponent", "name": "head", "mesh": depot,
+         "meshAppearance": "", "bindTo": "root", "chunkMask": ""},
+    ])
+    local = build / "source" / "archive" / "base" / "npv-build" / "qa_x" / "qa_x_head.mesh"
+    local.parent.mkdir(parents=True)
+    local.write_bytes(b"cr2w")
+
+    from npv_build.wk_cli import WolvenKitError
+
+    class FakeWk:
+        def export(self, cr2w_file, *, dest, with_materials=True):
+            raise WolvenKitError("export failed: boom", operation="export")
+
+        def extract(self, regex, *, archive=None, dest=None):
+            raise AssertionError("mod-scoped mesh must not hit game archives")
+
+    stage = tmp_path / "stage"
+    stage.mkdir()
+    with pytest.raises(NpvError, match="qa_x_head.mesh"):
+        ar._gather_meshes(FakeWk(), build, stage, None)
+
+
 def test_gather_meshes_soft_skips_unexportable_mesh(tmp_path):
     """A located mesh that WolvenKit's exporter rejects is recorded, not raised —
     confirmed live against femv_vtk_headpatch.mesh, which returns a clean `false`
