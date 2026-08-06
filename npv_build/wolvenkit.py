@@ -45,8 +45,45 @@ def _resolve_inject_binary() -> str:
         tools_dir / "bin" / "Debug" / "net8.0" / INJECT_BINARY,
     ]:
         if candidate.exists():
+            _check_inject_binary_freshness(candidate, tools_dir)
             return str(candidate)
     return INJECT_BINARY
+
+
+_INJECT_SOURCE_SUFFIXES = {".cs", ".csproj"}
+
+
+def _newest_inject_source_mtime(project_dir: Path) -> float | None:
+    """Newest mtime among npv-inject sources, ignoring bin/ and obj/ outputs."""
+    newest: float | None = None
+    for path in project_dir.rglob("*"):
+        if path.suffix not in _INJECT_SOURCE_SUFFIXES:
+            continue
+        if "bin" in path.parts or "obj" in path.parts:
+            continue
+        mtime = path.stat().st_mtime
+        if newest is None or mtime > newest:
+            newest = mtime
+    return newest
+
+
+def _check_inject_binary_freshness(binary: Path, project_dir: Path) -> None:
+    """Hard-fail when the locally built npv-inject predates its source.
+
+    A stale binary fails mid-build with misleading errors (seen live:
+    'Unknown component type' for a type the newer source handles). Only
+    called for binaries resolved from tools/npv-inject/bin — PATH and
+    bundled binaries have no adjacent source tree.
+    """
+    newest_source = _newest_inject_source_mtime(project_dir)
+    if newest_source is None or not binary.exists():
+        return
+    if newest_source > binary.stat().st_mtime:
+        raise WolvenKitError(
+            f"npv-inject binary is older than its source: {binary}. "
+            "Rebuild with: dotnet build tools/npv-inject -c Release",
+            operation="inject",
+        )
 
 
 def _inject_components(

@@ -4,6 +4,9 @@ import os
 
 import pytest
 
+from npv_build.wk_cli import WolvenKitError
+from npv_build.wolvenkit import _check_inject_binary_freshness
+
 GAME_DIR = os.environ.get("NPV_GAME_DIR", "")
 SKIP_REASON = "Set NPV_GAME_DIR to run integration tests"
 
@@ -659,3 +662,47 @@ def test_asset_paths_carries_equipped_clothing():
     }
     ap = resolve_assets(cc, game_dir=None)
     assert ap["equipped_clothing"] == cc["clothing"]
+
+
+def _fake_inject_tree(tmp_path, source_mtime, binary_mtime):
+    project = tmp_path / "npv-inject"
+    (project / "bin" / "Release" / "net8.0").mkdir(parents=True)
+    source = project / "Program.cs"
+    source.write_text("// source")
+    os.utime(source, (source_mtime, source_mtime))
+    binary = project / "bin" / "Release" / "net8.0" / "npv-inject"
+    binary.write_bytes(b"\x7fELF")
+    os.utime(binary, (binary_mtime, binary_mtime))
+    return binary, project
+
+
+def test_stale_inject_binary_hard_fails(tmp_path):
+    """Source newer than the built binary must stop the build with a
+    rebuild command, not fail later with a confusing component error."""
+    binary, project = _fake_inject_tree(tmp_path, source_mtime=2000.0, binary_mtime=1000.0)
+    with pytest.raises(WolvenKitError, match="dotnet build tools/npv-inject"):
+        _check_inject_binary_freshness(binary, project)
+
+
+def test_fresh_inject_binary_passes(tmp_path):
+    binary, project = _fake_inject_tree(tmp_path, source_mtime=1000.0, binary_mtime=2000.0)
+    _check_inject_binary_freshness(binary, project)  # must not raise
+
+
+def test_freshness_check_skips_without_sources(tmp_path):
+    """No .cs/.csproj sources next to the binary (e.g. stripped tree):
+    nothing to compare, never block the build."""
+    binary, project = _fake_inject_tree(tmp_path, source_mtime=2000.0, binary_mtime=1000.0)
+    (project / "Program.cs").unlink()
+    _check_inject_binary_freshness(binary, project)  # must not raise
+
+
+def test_freshness_ignores_bin_and_obj_artifacts(tmp_path):
+    """Build artifacts under bin/ and obj/ carry .cs files (AssemblyInfo);
+    they are outputs, not sources, and must not trigger staleness."""
+    binary, project = _fake_inject_tree(tmp_path, source_mtime=1000.0, binary_mtime=2000.0)
+    obj_cs = project / "obj" / "Release" / "AssemblyInfo.cs"
+    obj_cs.parent.mkdir(parents=True)
+    obj_cs.write_text("// generated")
+    os.utime(obj_cs, (3000.0, 3000.0))
+    _check_inject_binary_freshness(binary, project)  # must not raise
