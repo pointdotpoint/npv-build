@@ -4,6 +4,12 @@ Skips unless NPV_PREVIEW_BUILD_DIR points at a real build output dir on a
 machine with the game + WolvenKit + Blender. Goldens live OUTSIDE the repo
 (rendered pixels are CDPR-derivative) at ~/.cache/npv/preview_goldens/.
 Bless new goldens with NPV_UPDATE_GOLDENS=1.
+
+Game dir: prefers NPV_GAME_DIR (same convention as test_build_project.py's
+integration test) over the user's real config.toml, because the autouse
+_isolate_user_dirs fixture in conftest.py redirects XDG_CONFIG_HOME to an
+empty tmp dir for every test — load_config() alone can never see the real
+config inside the suite, so this test would always skip without the env var.
 """
 
 import os
@@ -34,9 +40,9 @@ def test_render_matches_goldens(tmp_path):
     from npv_build.wk_cli import WolvenKit, WolvenKitConfig
 
     build = _build_dir()
-    game_dir = (load_config() or {}).get("game_dir", "")
+    game_dir = os.environ.get("NPV_GAME_DIR", "") or (load_config() or {}).get("game_dir", "")
     if not game_dir or not Path(game_dir).is_dir():
-        pytest.skip("no valid game_dir in config")
+        pytest.skip("no valid game_dir (set NPV_GAME_DIR or configure game_dir)")
 
     wk = WolvenKit(WolvenKitConfig(game_dir=Path(game_dir)))
     pngs = render_appearance(wk, build, out_dir=tmp_path)

@@ -25,3 +25,23 @@ def test_script_renders_every_view_deterministically():
     assert "views" in text and "yaw_deg" in text
     for banned in ("random", "time.time", "datetime"):
         assert banned not in text
+
+
+def test_script_camera_faces_plus_y():
+    """Regression guard for the live-gate finding (2026-08-06): WolvenKit glb
+    exports face +Y, not -Y — confirmed by eye against a real render (camera
+    on the -Y side showed the back of the character). If this flips back to
+    -Y without a verified reason, every render will show the back again."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "math.cos(yaw) * dist, 0))" in text
+    assert "-math.cos(yaw) * dist, 0))" not in text
+
+
+def test_script_applies_clay_material_to_visible_meshes():
+    """Regression guard: WolvenKit's materials-off glb export is a stub
+    (pbrMetallicRoughness: {}), which glTF defaults to fully metallic + fully
+    rough — with no environment lighting that renders near-black. Verified by
+    eye against a real render before this fix landed."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "_apply_clay_material" in text
+    assert 'inputs["Metallic"].default_value = 0.0' in text
