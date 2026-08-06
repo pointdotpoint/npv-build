@@ -1,5 +1,12 @@
 # Face Preview Implementation Plan
 
+> **SUPERSEDED (2026-08-06):** replaced by
+> `docs/superpowers/plans/2026-08-06-appearance-preview-render.md` — full-body
+> appearance render with golden-image validation, targeting the current web UI
+> (this plan targeted the retired customtkinter GUI). Do not execute this plan.
+> Its research conclusions (scraping infeasible, `screenshot.png` unreliable,
+> render-the-real-meshes) carry over and are cited by the successor.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give the GUI save browser an **opt-in "Generate face preview"** action that renders the character's baked head to a PNG headlessly in Blender, so the user can see a real face (not just the unreliable in-game `screenshot.png`) before committing to a full build.

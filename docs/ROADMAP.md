@@ -40,9 +40,12 @@ Plan files for the above live in `docs/superpowers/plans/` (`2026-07-19-*`,
 
 ## Not started
 
-- **Face preview** (`docs/superpowers/plans/2026-07-17-face-preview.md`):
-  headless Blender render of the baked head shown in the GUI — plan written,
-  nothing built.
+- **Appearance preview render + golden validation**
+  (`docs/superpowers/plans/2026-08-06-appearance-preview-render.md`): headless
+  Blender render of a built NPV's full appearance (head, hair, garments,
+  tattoos) with golden-image regression — verifies looks without launching the
+  game. Supersedes the 2026-07-17 face-preview plan. Plan written, dispatchable;
+  starts with a CP77 Blender add-on materials spike.
 - **M3 H2-v2:** optional donor-entity retirement re-test.
 - **Multi-appearance "Add appearance…" UI hook** (deferred since M5).
 
