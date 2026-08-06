@@ -28,6 +28,41 @@ Run before publishing a release on a fresh machine or clean user profile where p
 - [ ] AppImage runs after `chmod +x` without extracting it manually.
 - [ ] `.deb` installs with `apt`, exposes `/usr/bin/npv-build`, and cleanly removes.
 
+## Cross-distribution Linux spot-check
+
+The AppImage bundles its own Qt WebEngine runtime, but glibc floor, GPU/EGL
+stack, and sandbox behavior differ per distro. CI only proves Ubuntu under
+Xvfb. Before (or shortly after) publishing, spot-check the release AppImage
+on at least one distro from a different family than the last release's check.
+Rotate through:
+
+| Family | Example distro | Notes |
+| --- | --- | --- |
+| Debian-based | Ubuntu LTS (CI-covered), Mint | baseline |
+| Fedora/RHEL | Fedora Workstation (current) | newer glibc, Wayland default |
+| Arch-based | Arch, EndeavourOS | rolling glibc/Mesa |
+| openSUSE | Tumbleweed | rolling, AppArmor default |
+
+Per distro, on a real desktop session (not a container):
+
+1. Download the release `.AppImage` + `SHA256SUMS`; verify
+   `sha256sum -c SHA256SUMS` passes for it.
+2. `chmod +x` and double-click (or run) with **no arguments** — the GUI must
+   open and render the Source screen (no blank/white window, no missing-lib
+   dialog).
+3. Wayland session if available: confirm the window renders (Qt may fall back
+   to XWayland — fallback is acceptable, a blank window is not).
+4. From a terminal, run CLI mode against any real save:
+   `./npv-build-*.AppImage <sav.dat> "QA V" --output /tmp/qa_v` — it must
+   parse the save and report the patch version (full build optional; needs a
+   game install).
+5. Record distro, version, session type (X11/Wayland), and result in the
+   release notes draft.
+
+Failures here are release blockers only if the GUI cannot launch at all on a
+mainstream current distro; render glitches get an issue with the distro +
+session details instead.
+
 ### CLI and integration
 - [ ] CLI works from a terminal: `npv-build --probe-save <save>` prints the patch.
 - [ ] Running the packaged executable with no arguments launches the web UI.
