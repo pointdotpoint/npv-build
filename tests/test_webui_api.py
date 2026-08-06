@@ -723,6 +723,25 @@ def test_appearance_data_rows_and_overrides(monkeypatch, tmp_path):
     assert out["overrides"] == {"skin_tone": "03_ca_medium"}
 
 
+def test_appearance_data_missing_file_returns_structured_error(tmp_path):
+    """Bridge boundary: a nonexistent save path must come back as a JSON
+    error dict, never an exception into JS."""
+    result = WebUiApi().appearance_data(str(tmp_path / "does_not_exist.dat"))
+    assert result["ok"] is False
+    assert result["error"]
+    assert "remediation" in result
+
+
+def test_appearance_data_corrupt_save_returns_structured_error(tmp_path):
+    """Garbage bytes (no CSAV magic) must produce a structured parse error."""
+    bad_save = tmp_path / "sav.dat"
+    bad_save.write_bytes(b"\x00\xff" * 64)
+    result = WebUiApi().appearance_data(str(bad_save))
+    assert result["ok"] is False
+    assert result["error"]
+    assert "remediation" in result
+
+
 def test_set_overrides_validates_and_persists(monkeypatch):
     saved = {}
     monkeypatch.setattr("npv_build.webui_api.save_overrides", lambda p, o: saved.update({p: o}))
