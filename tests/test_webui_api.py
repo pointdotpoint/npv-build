@@ -1313,3 +1313,61 @@ def test_start_build_requires_exactly_one_source(monkeypatch, tmp_path):
 
     assert api.start_build(base)["ok"] is False
     assert api.start_build({**base, "save_path": "/s/sav.dat", "preset_rig": "pwa"})["ok"] is False
+
+
+def test_render_npv_preview_returns_data_urls(monkeypatch, tmp_path):
+    from PIL import Image
+
+    import npv_build.webui_api as api_mod
+
+    build = tmp_path / "build"
+    build.mkdir()
+    (build / "npv_components.json").write_text("{}")
+    pngs = []
+    for name in ("full_front", "face_front", "face_34"):
+        p = build / "preview" / f"{name}.png"
+        p.parent.mkdir(exist_ok=True)
+        Image.new("RGBA", (4, 4), (255, 0, 0, 255)).save(p)
+        pngs.append(p)
+
+    monkeypatch.setattr(api_mod, "render_appearance", lambda wk, build_dir, **k: pngs)
+
+    class FakeSettings:
+        game_dir = str(tmp_path)
+
+    monkeypatch.setattr(api_mod, "load_settings", lambda: FakeSettings())
+
+    result = api_mod.WebUiApi().render_npv_preview(str(build))
+    assert result["ok"] is True
+    assert [i["view"] for i in result["images"]] == ["full_front", "face_front", "face_34"]
+    assert all(i["data_url"].startswith("data:image/png;base64,") for i in result["images"])
+
+
+def test_render_npv_preview_maps_npv_error(monkeypatch, tmp_path):
+    import npv_build.webui_api as api_mod
+    from npv_build.core.errors import NpvError
+
+    def boom(wk, build_dir, **k):
+        raise NpvError("blender missing", remediation="install blender")
+
+    monkeypatch.setattr(api_mod, "render_appearance", boom)
+
+    class FakeSettings:
+        game_dir = str(tmp_path)
+
+    monkeypatch.setattr(api_mod, "load_settings", lambda: FakeSettings())
+
+    result = api_mod.WebUiApi().render_npv_preview(str(tmp_path))
+    assert result["ok"] is False and "blender missing" in result["error"]
+    assert result["remediation"] == "install blender"
+
+
+def test_render_npv_preview_requires_game_dir(monkeypatch, tmp_path):
+    import npv_build.webui_api as api_mod
+
+    class FakeSettings:
+        game_dir = ""
+
+    monkeypatch.setattr(api_mod, "load_settings", lambda: FakeSettings())
+    result = api_mod.WebUiApi().render_npv_preview(str(tmp_path))
+    assert result["ok"] is False and result["remediation"]

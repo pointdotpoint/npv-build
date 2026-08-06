@@ -6,12 +6,14 @@ stay import-safe without a webview (it is unit-tested headless).
 
 from __future__ import annotations
 
+import base64
 import logging
 import queue
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
+from .appearance_render import render_appearance
 from .config import get_cache_dir, load_config
 from .core.errors import NpvError
 from .core.platform import find_game_dirs
@@ -738,6 +740,7 @@ class WebUiApi:
                         "preset_rig": meta.get("preset_rig"),
                         "photomode_thumbnail": thumbnail,
                         "photomode_thumbnail_missing": bool(thumbnail_path and not thumbnail),
+                        "output_dir": str(m.archive_path.parents[3]),
                     }
                 )
         except NpvError as e:
@@ -808,6 +811,33 @@ class WebUiApi:
             load_overrides(save_path),
             saved_hair=saved_hair,
         )
+
+    def render_npv_preview(self, output_dir: str) -> dict:
+        settings = load_settings()
+        if not settings.game_dir:
+            return {
+                "ok": False,
+                "error": "Game directory not configured.",
+                "remediation": "Set the game directory in Settings",
+            }
+        try:
+            wk = WolvenKit(WolvenKitConfig(game_dir=Path(settings.game_dir)))
+            paths = render_appearance(wk, Path(output_dir))
+        except NpvError as e:
+            return {"ok": False, "error": e.user_message, "remediation": e.remediation or ""}
+        except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
+            return {"ok": False, "error": str(e), "remediation": ""}
+        images = []
+        for p in paths:
+            data = base64.b64encode(p.read_bytes()).decode("ascii")
+            images.append(
+                {
+                    "view": p.stem,
+                    "path": str(p),
+                    "data_url": f"data:image/png;base64,{data}",
+                }
+            )
+        return {"ok": True, "images": images}
 
     def preset_appearance_data(self, rig: str) -> dict:
         try:
