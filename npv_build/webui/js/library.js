@@ -114,6 +114,15 @@ window.screens.library = {
         try {
           const out = await Api.call("render_npv_preview", mod.output_dir);
           if (out.ok) {
+            if (out.skipped && out.skipped.length) {
+              const warn = document.createElement("p");
+              warn.className = "err";
+              const names = out.skipped.map((s) => s.name).join(", ");
+              warn.textContent =
+                `Preview is incomplete: ${out.skipped.length} component(s) could not be ` +
+                `rendered (${names}).`;
+              previewArea.appendChild(warn);
+            }
             const strip = document.createElement("div");
             strip.className = "preview-strip";
             for (const img of out.images) {

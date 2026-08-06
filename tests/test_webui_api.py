@@ -1341,6 +1341,42 @@ def test_render_npv_preview_returns_data_urls(monkeypatch, tmp_path):
     assert result["ok"] is True
     assert [i["view"] for i in result["images"]] == ["full_front", "face_front", "face_34"]
     assert all(i["data_url"].startswith("data:image/png;base64,") for i in result["images"])
+    assert result["skipped"] == []
+
+
+def test_render_npv_preview_surfaces_skipped_components(monkeypatch, tmp_path):
+    """render_appearance is best-effort and writes render_report.json next to the PNGs;
+    the bridge must surface it so the preview is never presented as complete when it isn't."""
+    import json as json_mod
+
+    from PIL import Image
+
+    import npv_build.webui_api as api_mod
+
+    build = tmp_path / "build"
+    build.mkdir()
+    (build / "npv_components.json").write_text("{}")
+    preview_dir = build / "preview"
+    preview_dir.mkdir()
+    pngs = []
+    for name in ("full_front", "face_front", "face_34"):
+        p = preview_dir / f"{name}.png"
+        Image.new("RGBA", (4, 4), (255, 0, 0, 255)).save(p)
+        pngs.append(p)
+    skipped = [{"name": "femv_vtk_headpatch", "depot": "base\\vtk\\femv_vtk_headpatch.mesh",
+                "reason": "export failed: boom"}]
+    (preview_dir / "render_report.json").write_text(json_mod.dumps({"skipped": skipped}))
+
+    monkeypatch.setattr(api_mod, "render_appearance", lambda wk, build_dir, **k: pngs)
+
+    class FakeSettings:
+        game_dir = str(tmp_path)
+
+    monkeypatch.setattr(api_mod, "load_settings", lambda: FakeSettings())
+
+    result = api_mod.WebUiApi().render_npv_preview(str(build))
+    assert result["ok"] is True
+    assert result["skipped"] == skipped
 
 
 def test_render_npv_preview_maps_npv_error(monkeypatch, tmp_path):

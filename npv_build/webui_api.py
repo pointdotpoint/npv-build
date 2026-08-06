@@ -7,6 +7,7 @@ stay import-safe without a webview (it is unit-tested headless).
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import queue
 from importlib.metadata import PackageNotFoundError
@@ -837,7 +838,17 @@ class WebUiApi:
                     "data_url": f"data:image/png;base64,{data}",
                 }
             )
-        return {"ok": True, "images": images}
+        # render_appearance is best-effort: some components may have been
+        # skipped (mesh not found, or WolvenKit couldn't export it). Surface
+        # that so the preview is never presented as complete when it isn't.
+        skipped = []
+        report_path = paths[0].parent / "render_report.json" if paths else None
+        if report_path and report_path.exists():
+            try:
+                skipped = json.loads(report_path.read_text(encoding="utf-8")).get("skipped", [])
+            except (OSError, ValueError):
+                skipped = []
+        return {"ok": True, "images": images, "skipped": skipped}
 
     def preset_appearance_data(self, rig: str) -> dict:
         try:
