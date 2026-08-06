@@ -102,6 +102,41 @@ window.screens.library = {
       }
       card.appendChild(rebuild);
 
+      const render = document.createElement("button");
+      render.className = "secondary btn-render-preview";
+      render.style.marginLeft = "8px";
+      render.textContent = "Render preview";
+      const previewArea = document.createElement("div");
+      render.onclick = async () => {
+        render.disabled = true;
+        render.textContent = "Rendering…";
+        previewArea.innerHTML = "";
+        try {
+          const out = await Api.call("render_npv_preview", mod.output_dir);
+          if (out.ok) {
+            const strip = document.createElement("div");
+            strip.className = "preview-strip";
+            for (const img of out.images) {
+              const el = document.createElement("img");
+              el.className = "preview-img";
+              el.src = img.data_url;
+              el.alt = img.view;
+              strip.appendChild(el);
+            }
+            previewArea.appendChild(strip);
+          } else {
+            const err = document.createElement("p");
+            err.className = "err";
+            err.textContent = out.error + (out.remediation ? " — " + out.remediation : "");
+            previewArea.appendChild(err);
+          }
+        } finally {
+          render.disabled = false;
+          render.textContent = "Render preview";
+        }
+      };
+      card.appendChild(render);
+
       const del = document.createElement("button");
       del.className = "secondary";
       del.style.marginLeft = "8px";
@@ -122,6 +157,7 @@ window.screens.library = {
         }
       };
       card.appendChild(del);
+      card.appendChild(previewArea);
       grid.appendChild(card);
     }
     if (!this.mods.length) {

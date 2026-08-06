@@ -193,6 +193,22 @@ def test_library_built_date_rebuild_delete(webui_server):
         browser.close()
 
 
+def test_library_render_preview_shows_images(webui_server):
+    """My NPVs entry -> Render preview -> image strip appears from bridge data URLs."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.click("text=My NPVs")
+        page.wait_for_selector(".btn-render-preview")
+        page.click(".btn-render-preview")
+        page.wait_for_selector(".preview-strip .preview-img")
+        images = page.eval_on_selector_all(".preview-strip .preview-img", "els => els.map(e => e.src)")
+        assert len(images) == 2 and all(src.startswith("data:image/png") for src in images)
+        browser.close()
+
+
 def test_settings_tools_cache_and_clothing_dir(webui_server):
     with sync_playwright() as p:
         browser = p.chromium.launch()

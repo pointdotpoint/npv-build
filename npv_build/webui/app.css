@@ -179,3 +179,8 @@ label { display: block; color: var(--muted); font-size: 12px;
   margin-left: 6px; color: #e0a83c; font-size: 11px; text-transform: uppercase;
 }
 .photomode-thumbnail.loaded .required-mark { color: var(--ok); }
+.preview-strip { display: flex; flex-wrap: wrap; gap: var(--pad-s); margin-top: var(--pad-s); }
+.preview-img {
+  width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius-s);
+  border: 1px solid var(--border); background: #0f0f14;
+}

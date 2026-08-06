@@ -129,7 +129,7 @@ window.__mockApi = {
   },
   _mods: [{ mod_id: "v_abc", archive_path: "/out/v/archive/pc/mod/v_abc.archive",
             installed: false, built_at: 1752900000, npv_name: "TestV",
-            save_path: "/saves/good/sav.dat",
+            save_path: "/saves/good/sav.dat", output_dir: "/out/v",
             photomode_thumbnail: {
               path: "/saves/good/screenshot.png", name: "screenshot.png",
               width: 1920, height: 1080, preview: null,
@@ -140,6 +140,15 @@ window.__mockApi = {
     return { ok: true };
   },
   install_mod: async () => ({ ok: true }),
+  render_npv_preview: async (outputDir) => ({
+    ok: true,
+    images: [
+      { view: "full_front", path: "/out/x/preview/full_front.png",
+        data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==" },
+      { view: "face_front", path: "/out/x/preview/face_front.png",
+        data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==" },
+    ],
+  }),
   cancel_build: async () => ({ ok: true }),
   zip_info: async () => ({ ok: true, zip: {
     path: "/out/v/v_abc.zip", size: 6626117,
