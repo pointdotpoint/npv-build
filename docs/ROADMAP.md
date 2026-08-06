@@ -40,12 +40,17 @@ Plan files for the above live in `docs/superpowers/plans/` (`2026-07-19-*`,
 
 ## Not started
 
-- **Appearance preview render + golden validation**
-  (`docs/superpowers/plans/2026-08-06-appearance-preview-render.md`): headless
-  Blender render of a built NPV's full appearance (head, hair, garments,
-  tattoos) with golden-image regression — verifies looks without launching the
-  game. Supersedes the 2026-07-17 face-preview plan. Plan written, dispatchable;
-  starts with a CP77 Blender add-on materials spike.
+- ~~Appearance preview render~~ — ✅ shipped 2026-08-06 (branch
+  `appearance-preview-render`, plan
+  `docs/superpowers/plans/2026-08-06-appearance-preview-render.md`): headless
+  Blender clay render of a built NPV (full body + face views), "Render
+  preview" button in My NPVs, and golden-image regression via
+  `NPV_PREVIEW_BUILD_DIR=<build> [NPV_UPDATE_GOLDENS=1] uv run pytest
+  tests/test_appearance_render_e2e.py` (goldens live in
+  `~/.cache/npv/preview_goldens/`, never in the repo). Color/texture materials
+  remain clay-only until WolvenKit-Linux can uncook `.xbm` textures
+  (DirectXTexNet native crash — retest recipe in
+  `docs/research/2026-08-06-cp77-addon-headless.md`).
 - **M3 H2-v2:** optional donor-entity retirement re-test.
 - **Multi-appearance "Add appearance…" UI hook** (deferred since M5).
 
