@@ -365,3 +365,67 @@ def test_resolve_assets_carries_selected_nail_appearance(monkeypatch):
     assets = resolve_assets(cc_settings)
 
     assert assets["nail_color"] == "01_all_red__multilayer"
+
+
+def test_resolve_assets_body_tattoo_follows_effective_skin_tone():
+    """When cc_settings carries a skin tone (e.g. after a skin_tone override),
+    the tattoo appearance must be re-keyed to that tone, not the save's
+    original tone embedded in the selection raw."""
+    cc_settings = {
+        "patch": "2.13",
+        "body_rig": "pwa",
+        "skin": {"tone_id": "03_ca_senna"},
+        "selections": [
+            {
+                "slot": "head",
+                "prefix": "h0",
+                "index": 0,
+                "rig": "pwa",
+                "group": "basehead",
+                "variant": "01_ca_pale",
+                "raw": "h0_000_pwa__basehead__01_ca_pale",
+                "cname_hash": 1,
+            },
+            {
+                "slot": "TPP_Body",
+                "prefix": "",
+                "index": 0,
+                "rig": "",
+                "group": "01_ca_pale",
+                "variant": "",
+                "raw": "w__01_ca_pale",
+                "label": "body_tattoo_02",
+                "cname_hash": 2,
+            },
+        ],
+    }
+
+    assets = resolve_assets(cc_settings)
+
+    assert assets["body_tattoo"] == {"shape": "02", "appearance": "w__03_ca_senna"}
+
+
+def test_resolve_assets_body_tattoo_keeps_raw_without_skin_tone():
+    """No skin tone in cc_settings (or empty) -> tattoo raw passes through."""
+    cc_settings = {
+        "patch": "2.13",
+        "body_rig": "pwa",
+        "skin": {"tone_id": ""},
+        "selections": [
+            {
+                "slot": "TPP_Body",
+                "prefix": "",
+                "index": 0,
+                "rig": "",
+                "group": "01_ca_pale",
+                "variant": "",
+                "raw": "w__01_ca_pale",
+                "label": "body_tattoo_02",
+                "cname_hash": 2,
+            },
+        ],
+    }
+
+    assets = resolve_assets(cc_settings)
+
+    assert assets["body_tattoo"]["appearance"] == "w__01_ca_pale"

@@ -15,6 +15,11 @@ class MappingError(Exception):
         self.module_name = "Mapping"
 
 
+# Skin-tone segment inside tone-keyed appearance names, e.g. the
+# "__01_ca_pale" in "w__01_ca_pale". Same shape as
+# gui_logic.appearance._appearance_matches_rig_and_tone.
+_TONE_SEGMENT_RE = re.compile(r"__\d{2}_(?:ca|bl)_[a-z]+")
+
 # Marketing patches that share one vendored asset-table set. CDPR kept the save
 # format (build 2310 / CC struct v3=195) AND the head/appearance assets stable
 # across 2.13 -> 2.31, so all of them resolve to the "2.13" tables. When a future
@@ -255,13 +260,23 @@ def resolve_assets(
         m = re.match(r"^body_tattoo_(\d+)$", sel.get("label", "") or "")
         if m and sel.get("raw"):
             shape = m.group(1).zfill(2)
-            asset_paths["body_tattoo"] = {"shape": shape, "appearance": sel["raw"]}
+            appearance = sel["raw"]
+            tone_id = (cc_settings.get("skin") or {}).get("tone_id") or ""
+            if tone_id:
+                rekeyed = _TONE_SEGMENT_RE.sub(f"__{tone_id}", appearance)
+                if rekeyed != appearance:
+                    logger.info(
+                        f"[Mapping] Body tattoo re-keyed to effective skin tone: "
+                        f"{appearance} -> {rekeyed}"
+                    )
+                appearance = rekeyed
+            asset_paths["body_tattoo"] = {"shape": shape, "appearance": appearance}
             tx_ent = (
                 "base\\characters\\common\\player_base_bodies\\appearances\\entity\\"
                 f"tx_000_{body_rig}_base__full_tattoo_{shape}.ent"
             )
             part_entities.append(tx_ent)
-            logger.info(f"[Mapping] Body tattoo {shape} -> {sel['raw']}")
+            logger.info(f"[Mapping] Body tattoo {shape} -> {appearance}")
             break
 
     # If the selections array was empty or mock settings are loaded, check compatibility fallbacks
