@@ -243,10 +243,13 @@ def _gather_meshes(wk, build_dir: Path, stage: Path, cancel) -> tuple[list[dict]
     return meshes, skipped
 
 
-def _run_blender(manifest_path: Path, stage: Path, verbosity: int) -> None:
+_OUTPUT_TAIL_CHARS = 1500
+
+
+def _run_blender(manifest_path: Path, stage: Path, verbosity: int):
     local_script = stage / "render_npv.py"
     shutil.copy2(RENDER_SCRIPT, local_script)
-    _run(
+    return _run(
         _blender_cmd() + ["--background", "--python", str(local_script), "--", str(manifest_path)],
         verbosity,
         "RenderFailed",
@@ -299,16 +302,20 @@ def render_appearance(
         manifest_path = stage / "manifest.json"
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
-        _run_blender(manifest_path, stage, verbosity)
+        blender_result = _run_blender(manifest_path, stage, verbosity)
 
         pngs = []
         for view in views:
             png = out_dir / f"{view['name']}.png"
             if not png.exists():
+                stderr = getattr(blender_result, "stderr", "") or ""
+                stdout = getattr(blender_result, "stdout", "") or ""
+                tail = (stderr + stdout)[-_OUTPUT_TAIL_CHARS:]
                 raise NpvError(
                     f"RenderFailed: view {view['name']} missing",
                     remediation="Check the Blender render log for errors.",
                     module_name="Appearance Render",
+                    details=tail,
                 )
             pngs.append(png)
         return pngs
