@@ -7,6 +7,7 @@ cooperative cancellation, structured ToolError on failure.
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import time
 from collections.abc import Sequence
@@ -47,10 +48,15 @@ def run_tool(
     cwd: Path | None = None,
     allow_exit_codes: tuple[int, ...] = (),
     logger: logging.Logger | None = None,
+    extra_env: dict[str, str] | None = None,
 ) -> ToolResult:
     log = logger or logging.getLogger(__name__)
     argv = [str(a) for a in argv]
     log.debug("run_tool start: %s (timeout=%ss)", " ".join(argv), timeout)
+
+    env = None
+    if extra_env:
+        env = {**os.environ, **extra_env}
 
     try:
         proc = subprocess.Popen(
@@ -59,6 +65,7 @@ def run_tool(
             stderr=subprocess.PIPE,
             text=True,
             cwd=str(cwd) if cwd else None,
+            env=env,
         )
     except FileNotFoundError as e:
         raise ToolError(

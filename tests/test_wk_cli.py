@@ -432,7 +432,15 @@ def test_run_routes_through_run_tool(monkeypatch, tmp_path):
     calls = {}
 
     def fake_run_tool(
-        argv, *, tool, timeout, cancel=None, cwd=None, allow_exit_codes=(), logger=None
+        argv,
+        *,
+        tool,
+        timeout,
+        cancel=None,
+        cwd=None,
+        allow_exit_codes=(),
+        logger=None,
+        extra_env=None,
     ):
         calls["argv"] = list(argv)
         calls["timeout"] = timeout
@@ -485,7 +493,15 @@ def test_run_resolves_cp77tools_shim_in_cache(monkeypatch, tmp_path):
     calls = {}
 
     def fake_run_tool(
-        argv, *, tool, timeout, cancel=None, allow_exit_codes=(), logger=None, cwd=None
+        argv,
+        *,
+        tool,
+        timeout,
+        cancel=None,
+        allow_exit_codes=(),
+        logger=None,
+        cwd=None,
+        extra_env=None,
     ):
         calls["argv"] = list(argv)
         return ToolResult(argv=list(argv), returncode=0, stdout="8.19.0\n", stderr="")

@@ -378,14 +378,24 @@ class WolvenKit:
 
     # -- mesh export / import ----------------------------------------------
 
-    def export(self, cr2w_file: Path, *, dest: Path) -> Path:
-        """Export .morphtarget/.mesh to .glb. Returns path to produced .glb."""
+    def export(self, cr2w_file: Path, *, dest: Path, with_materials: bool = True) -> Path:
+        """Export .morphtarget/.mesh to .glb. Returns path to produced .glb.
+
+        with_materials=False skips material generation (no MaterialRepo needed).
+        WolvenKit CLI 8.19.0's `export` command has no flag for this; it is set
+        via the .NET generic-host env var convention (MeshExportArgs__withMaterials)
+        since `export --help` exposes no equivalent option.
+        """
         if not self._cfg.game_dir:
             raise WolvenKitError("game_dir required for export", operation="export")
         dest.mkdir(parents=True, exist_ok=True)
+        extra_env = None
+        if not with_materials:
+            extra_env = {"MeshExportArgs__withMaterials": "false"}
         self._run(
             ["export", str(cr2w_file), "-o", str(dest), "-gp", str(self._cfg.game_dir)],
             operation="export",
+            extra_env=extra_env,
         )
         glbs = list(dest.glob("*.glb"))
         if not glbs:
@@ -491,6 +501,7 @@ class WolvenKit:
         *,
         operation: str = "",
         allow_exit_codes: tuple[int, ...] = (),
+        extra_env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         binary = str(self.executable_path())
         cmd = [binary, *args]
@@ -507,6 +518,7 @@ class WolvenKit:
                 cancel=self._cfg.cancel,
                 allow_exit_codes=tuple(allow_exit_codes),
                 logger=logger,
+                extra_env=extra_env,
             )
         except WolvenKitError:
             raise
