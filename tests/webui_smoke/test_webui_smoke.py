@@ -642,3 +642,20 @@ def test_from_scratch_preset_flow(webui_server):
         assert "save_path" not in request
         assert request["cc_overrides"]["cc:cyberware_01"].startswith('{"label":"cyberware_02"')
         browser.close()
+
+
+def test_library_render_preview_shows_progress_counter(webui_server):
+    """While the render bridge call is pending, the button polls progress and
+    shows a live counter instead of a bare 'Rendering…'."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.click("text=My NPVs")
+        page.wait_for_selector(".btn-render-preview")
+        page.click(".btn-render-preview")
+        page.wait_for_selector("text=Rendering… 12/28", timeout=5000)
+        page.wait_for_selector(".preview-strip .preview-img")
+        assert page.locator(".btn-render-preview").first.text_content() == "Render preview"
+        browser.close()

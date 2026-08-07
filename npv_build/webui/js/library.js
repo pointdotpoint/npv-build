@@ -111,6 +111,18 @@ window.screens.library = {
         render.disabled = true;
         render.textContent = "Rendering…";
         previewArea.innerHTML = "";
+        const updateProgress = async () => {
+          try {
+            const p = await Api.call("render_preview_progress", mod.output_dir);
+            if (p.active && p.total) {
+              render.textContent = `Rendering… ${p.current}/${p.total}`;
+            }
+          } catch (e) {
+            /* progress is best-effort; the render call itself reports errors */
+          }
+        };
+        updateProgress();
+        const poll = setInterval(updateProgress, 1000);
         try {
           const out = await Api.call("render_npv_preview", mod.output_dir);
           if (out.ok) {
@@ -140,6 +152,7 @@ window.screens.library = {
             previewArea.appendChild(err);
           }
         } finally {
+          clearInterval(poll);
           render.disabled = false;
           render.textContent = "Render preview";
         }

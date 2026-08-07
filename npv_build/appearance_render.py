@@ -178,7 +178,9 @@ def _base_archive_misses(wk, depots: list[str], stage: Path) -> list[str]:
     return [d for d in depots if not (extract_dir / Path(*d.split("\\"))).exists()]
 
 
-def _gather_meshes(wk, build_dir: Path, stage: Path, cancel) -> tuple[list[dict], list[dict]]:
+def _gather_meshes(
+    wk, build_dir: Path, stage: Path, cancel, progress=None
+) -> tuple[list[dict], list[dict]]:
     """Returns (meshes, skipped). `skipped` entries are {name, depot, reason} —
     see render_appearance's render_report.json for why this isn't just a log line:
     a preview must never look complete while quietly missing parts."""
@@ -200,6 +202,8 @@ def _gather_meshes(wk, build_dir: Path, stage: Path, cancel) -> tuple[list[dict]
     for i, comp in enumerate(components):
         if cancel is not None:
             cancel.raise_if_cancelled()
+        if progress is not None:
+            progress(f"Exporting {comp['name']}", i + 1, len(components))
 
         depot = comp["mesh"]
         try:
@@ -277,6 +281,7 @@ def render_appearance(
     materials="clay",
     verbosity: int = 0,
     cancel=None,
+    progress=None,
 ) -> list[Path]:
     build_dir = Path(build_dir)
     out_dir = Path(out_dir) if out_dir is not None else build_dir / "preview"
@@ -289,7 +294,7 @@ def render_appearance(
         if cancel is not None:
             cancel.raise_if_cancelled()
 
-        meshes, skipped = _gather_meshes(wk, build_dir, stage, cancel)
+        meshes, skipped = _gather_meshes(wk, build_dir, stage, cancel, progress=progress)
 
         report_path = out_dir / "render_report.json"
         report_path.write_text(json.dumps({"skipped": skipped}, indent=2), encoding="utf-8")
@@ -313,6 +318,9 @@ def render_appearance(
         manifest_path = stage / "manifest.json"
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
+        if progress is not None:
+            total = len(meshes) + len(skipped)
+            progress("Rendering views in Blender", total, total)
         blender_result = _run_blender(manifest_path, stage, verbosity)
 
         pngs = []

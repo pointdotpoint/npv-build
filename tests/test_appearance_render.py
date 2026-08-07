@@ -19,7 +19,7 @@ def _build_dir(tmp_path, components):
 def test_render_appearance_writes_manifest_and_returns_pngs(monkeypatch, tmp_path):
     build = _build_dir(tmp_path, [])
     meshes = [{"glb": "/tmp/a.glb", "name": "head", "appearance": "01_ca_pale", "chunk_mask": ""}]
-    monkeypatch.setattr(ar, "_gather_meshes", lambda wk, b, s, c: (meshes, []))
+    monkeypatch.setattr(ar, "_gather_meshes", lambda wk, b, s, c, progress=None: (meshes, []))
 
     seen = {}
 
@@ -45,7 +45,10 @@ def test_render_appearance_hard_fails_when_a_view_is_missing(monkeypatch, tmp_pa
     monkeypatch.setattr(
         ar,
         "_gather_meshes",
-        lambda wk, b, s, c: ([{"glb": "/tmp/a.glb", "name": "h", "appearance": "", "chunk_mask": ""}], []),
+        lambda wk, b, s, c, progress=None: (
+            [{"glb": "/tmp/a.glb", "name": "h", "appearance": "", "chunk_mask": ""}],
+            [],
+        ),
     )
     monkeypatch.setattr(ar, "_run_blender", lambda m, s, v: None)  # renders nothing
     with pytest.raises(NpvError):
@@ -57,7 +60,7 @@ def test_render_appearance_writes_render_report_with_skips(monkeypatch, tmp_path
     meshes = [{"glb": "/tmp/a.glb", "name": "head", "appearance": "", "chunk_mask": ""}]
     skipped = [{"name": "femv_vtk_headpatch", "depot": "base\\vtk\\femv_vtk_headpatch.mesh",
                 "reason": "export failed: boom"}]
-    monkeypatch.setattr(ar, "_gather_meshes", lambda wk, b, s, c: (meshes, skipped))
+    monkeypatch.setattr(ar, "_gather_meshes", lambda wk, b, s, c, progress=None: (meshes, skipped))
 
     def fake_blender(manifest_path, stage, verbosity):
         manifest = json.loads(manifest_path.read_text())
@@ -76,7 +79,7 @@ def test_render_appearance_writes_render_report_with_skips(monkeypatch, tmp_path
 def test_render_appearance_writes_empty_render_report_when_nothing_skipped(monkeypatch, tmp_path):
     build = _build_dir(tmp_path, [])
     meshes = [{"glb": "/tmp/a.glb", "name": "head", "appearance": "", "chunk_mask": ""}]
-    monkeypatch.setattr(ar, "_gather_meshes", lambda wk, b, s, c: (meshes, []))
+    monkeypatch.setattr(ar, "_gather_meshes", lambda wk, b, s, c, progress=None: (meshes, []))
 
     def fake_blender(manifest_path, stage, verbosity):
         manifest = json.loads(manifest_path.read_text())
@@ -257,3 +260,57 @@ def test_gather_meshes_soft_skips_unexportable_mesh(tmp_path):
     assert skipped[0]["name"] == "dress"
     assert skipped[0]["depot"] == depot
     assert "export failed" in skipped[0]["reason"]
+
+
+def test_gather_meshes_reports_per_component_progress(tmp_path):
+    """Each component export reports (message, current, total) so the GUI can
+    show a live counter during the slow WolvenKit export phase."""
+    depots = {
+        "head": "base\\npv-build\\qa_x\\qa_x_head.mesh",
+        "dress": "base\\npv-build\\qa_x\\qa_x_dress.mesh",
+    }
+    build = _build_dir(
+        tmp_path,
+        [
+            {"type": "entSkinnedMeshComponent", "name": name, "mesh": depot,
+             "meshAppearance": "", "bindTo": "root", "chunkMask": ""}
+            for name, depot in depots.items()
+        ],
+    )
+    for depot in depots.values():
+        local = build / "source" / "archive" / Path(*depot.split("\\"))
+        local.parent.mkdir(parents=True, exist_ok=True)
+        local.write_bytes(b"cr2w")
+
+    class FakeWk:
+        def export(self, cr2w_file, *, dest, with_materials=True):
+            glb = dest / (Path(cr2w_file).stem + ".glb")
+            glb.write_bytes(b"glb")
+            return glb
+
+    calls = []
+    stage = tmp_path / "stage"
+    stage.mkdir()
+    ar._gather_meshes(FakeWk(), build, stage, None, progress=lambda m, c, t: calls.append((m, c, t)))
+
+    assert calls == [("Exporting head", 1, 2), ("Exporting dress", 2, 2)]
+
+
+def test_render_appearance_reports_blender_phase_progress(monkeypatch, tmp_path):
+    build = _build_dir(tmp_path, [])
+    meshes = [{"glb": "/tmp/a.glb", "name": "head", "appearance": "", "chunk_mask": ""}]
+    monkeypatch.setattr(ar, "_gather_meshes", lambda wk, b, s, c, progress=None: (meshes, []))
+
+    def fake_blender(manifest_path, stage, verbosity):
+        manifest = json.loads(manifest_path.read_text())
+        for view in manifest["views"]:
+            Path(manifest["out_dir"], view["name"] + ".png").write_bytes(b"png")
+
+    monkeypatch.setattr(ar, "_run_blender", fake_blender)
+
+    calls = []
+    ar.render_appearance(
+        wk=object(), build_dir=build, progress=lambda m, c, t: calls.append((m, c, t))
+    )
+
+    assert calls[-1] == ("Rendering views in Blender", 1, 1)

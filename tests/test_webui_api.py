@@ -1407,3 +1407,44 @@ def test_render_npv_preview_requires_game_dir(monkeypatch, tmp_path):
     monkeypatch.setattr(api_mod, "load_settings", lambda: FakeSettings())
     result = api_mod.WebUiApi().render_npv_preview(str(tmp_path))
     assert result["ok"] is False and result["remediation"]
+
+
+def test_render_preview_progress_visible_during_render(monkeypatch, tmp_path):
+    """While render_npv_preview blocks, a concurrent render_preview_progress
+    poll must expose the live counter; after completion it reports inactive."""
+    from PIL import Image
+
+    import npv_build.webui_api as api_mod
+
+    build = tmp_path / "build"
+    build.mkdir()
+    api = api_mod.WebUiApi()
+    during = {}
+
+    def fake_render(wk, build_dir, progress=None, **k):
+        progress("Exporting torso", 3, 28)
+        during.update(api.render_preview_progress(str(build_dir)))
+        p = build / "preview" / "full_front.png"
+        p.parent.mkdir(exist_ok=True)
+        Image.new("RGBA", (4, 4), (0, 255, 0, 255)).save(p)
+        return [p]
+
+    monkeypatch.setattr(api_mod, "render_appearance", fake_render)
+
+    class FakeSettings:
+        game_dir = str(tmp_path)
+
+    monkeypatch.setattr(api_mod, "load_settings", lambda: FakeSettings())
+
+    result = api.render_npv_preview(str(build))
+    assert result["ok"] is True
+    assert during == {"active": True, "message": "Exporting torso", "current": 3, "total": 28}
+    after = api.render_preview_progress(str(build))
+    assert after["active"] is False
+
+
+def test_render_preview_progress_inactive_for_unknown_dir(tmp_path):
+    from npv_build.webui_api import WebUiApi
+
+    state = WebUiApi().render_preview_progress(str(tmp_path / "never_rendered"))
+    assert state == {"active": False, "message": "", "current": 0, "total": 0}

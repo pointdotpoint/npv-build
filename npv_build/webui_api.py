@@ -813,6 +813,18 @@ class WebUiApi:
             saved_hair=saved_hair,
         )
 
+    # Live progress per output_dir, written by render_npv_preview's callback and
+    # polled concurrently by the frontend (pywebview dispatches each JS bridge
+    # call on its own thread, so render_preview_progress can answer while
+    # render_npv_preview blocks).
+    _render_progress: dict = {}
+
+    def render_preview_progress(self, output_dir: str) -> dict:
+        state = self._render_progress.get(str(output_dir))
+        if not state:
+            return {"active": False, "message": "", "current": 0, "total": 0}
+        return dict(state)
+
     def render_npv_preview(self, output_dir: str) -> dict:
         settings = load_settings()
         if not settings.game_dir:
@@ -821,13 +833,24 @@ class WebUiApi:
                 "error": "Game directory not configured.",
                 "remediation": "Set the game directory in Settings",
             }
+
+        def _progress(message: str, current: int, total: int) -> None:
+            self._render_progress[str(output_dir)] = {
+                "active": True,
+                "message": message,
+                "current": current,
+                "total": total,
+            }
+
         try:
             wk = WolvenKit(WolvenKitConfig(game_dir=Path(settings.game_dir)))
-            paths = render_appearance(wk, Path(output_dir))
+            paths = render_appearance(wk, Path(output_dir), progress=_progress)
         except NpvError as e:
             return {"ok": False, "error": e.user_message, "remediation": e.remediation or ""}
         except Exception as e:  # noqa: BLE001 - bridge boundary must not raise into JS
             return {"ok": False, "error": str(e), "remediation": ""}
+        finally:
+            self._render_progress.pop(str(output_dir), None)
         images = []
         for p in paths:
             data = base64.b64encode(p.read_bytes()).decode("ascii")

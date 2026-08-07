@@ -140,7 +140,17 @@ window.__mockApi = {
     return { ok: true };
   },
   install_mod: async () => ({ ok: true }),
-  render_npv_preview: async (outputDir) => ({
+  _renderActive: false,
+  render_preview_progress: async function (outputDir) {
+    if (!this._renderActive) return { active: false, message: "", current: 0, total: 0 };
+    return { active: true, message: "Exporting torso", current: 12, total: 28 };
+  },
+  render_npv_preview: async function (outputDir) {
+    this._renderActive = true;
+    // Long enough for the frontend's progress poll to fire at least once.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    this._renderActive = false;
+    return {
     ok: true,
     images: [
       { view: "full_front", path: "/out/x/preview/full_front.png",
@@ -148,7 +158,8 @@ window.__mockApi = {
       { view: "face_front", path: "/out/x/preview/face_front.png",
         data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==" },
     ],
-  }),
+    };
+  },
   cancel_build: async () => ({ ok: true }),
   zip_info: async () => ({ ok: true, zip: {
     path: "/out/v/v_abc.zip", size: 6626117,
