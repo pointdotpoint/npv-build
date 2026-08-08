@@ -144,6 +144,13 @@ window.__mockApi = {
     return { ok: true };
   },
   install_mod: async () => ({ ok: true }),
+  existing_npv_preview: async (outputDir) => (outputDir === "/out/v" ? {
+    ok: true, fidelity: "clay",
+    fidelity_note: "Untextured preview: shape, outfit and hairstyle are accurate, but colours and patterns (skin tone, tattoos, makeup, hair colour) are not shown. Check those in game.",
+    images: [{ view: "full_front", path: "/out/v/preview/full_front.png",
+      data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==" }],
+    skipped: [],
+  } : { ok: true, images: [], skipped: [] }),
   _renderActive: false,
   render_preview_progress: async function (outputDir) {
     if (!this._renderActive) return { active: false, message: "", current: 0, total: 0 };

@@ -14,7 +14,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
-from .appearance_render import render_appearance
+from .appearance_render import DEFAULT_VIEWS, render_appearance
 from .config import get_cache_dir, load_config
 from .core.errors import NpvError
 from .core.platform import find_game_dirs
@@ -851,6 +851,22 @@ class WebUiApi:
             return {"ok": False, "error": str(e), "remediation": ""}
         finally:
             self._render_progress.pop(str(output_dir), None)
+        return self._preview_payload(paths)
+
+    # The render is untextured geometry (see docs/research/
+    # 2026-08-06-cp77-addon-headless.md): WolvenKit on Linux cannot uncook .xbm
+    # textures, so meshAppearance is not applied. Every choice that lives in a
+    # mesh's appearance rather than its geometry — skin tone, tattoo pattern,
+    # makeup, hair colour — is invisible here even when the build carries it
+    # correctly. Say so rather than let a correct build look broken.
+    _FIDELITY_NOTE = (
+        "Untextured preview: shape, outfit and hairstyle are accurate, but "
+        "colours and patterns (skin tone, tattoos, makeup, hair colour) are "
+        "not shown. Check those in game."
+    )
+
+    @classmethod
+    def _preview_payload(cls, paths: list) -> dict:
         images = []
         for p in paths:
             data = base64.b64encode(p.read_bytes()).decode("ascii")
@@ -861,9 +877,9 @@ class WebUiApi:
                     "data_url": f"data:image/png;base64,{data}",
                 }
             )
-        # render_appearance is best-effort: some components may have been
-        # skipped (mesh not found, or WolvenKit couldn't export it). Surface
-        # that so the preview is never presented as complete when it isn't.
+        # Rendering is best-effort: some components may have been skipped (mesh
+        # not found, or WolvenKit couldn't export it). Surface that so the
+        # preview is never presented as complete when it isn't.
         skipped = []
         report_path = paths[0].parent / "render_report.json" if paths else None
         if report_path and report_path.exists():
@@ -871,24 +887,32 @@ class WebUiApi:
                 skipped = json.loads(report_path.read_text(encoding="utf-8")).get("skipped", [])
             except (OSError, ValueError):
                 skipped = []
-        # The render is untextured geometry (see docs/research/
-        # 2026-08-06-cp77-addon-headless.md): WolvenKit on Linux cannot uncook
-        # .xbm textures, so meshAppearance is not applied. Every choice that
-        # lives in a mesh's appearance rather than its geometry — skin tone,
-        # tattoo pattern, makeup, hair colour — is invisible here even when the
-        # build carries it correctly. Say so rather than let a correct build
-        # look broken.
         return {
             "ok": True,
             "images": images,
             "skipped": skipped,
             "fidelity": "clay",
-            "fidelity_note": (
-                "Untextured preview: shape, outfit and hairstyle are accurate, but "
-                "colours and patterns (skin tone, tattoos, makeup, hair colour) are "
-                "not shown. Check those in game."
-            ),
+            "fidelity_note": cls._FIDELITY_NOTE,
         }
+
+    def existing_npv_preview(self, output_dir: str) -> dict:
+        """Previously rendered preview images, without re-rendering.
+
+        A render costs minutes, so the library shows what is already on disk
+        instead of making the user re-run one to see a preview again.
+        """
+        preview_dir = Path(output_dir) / "preview"
+        try:
+            paths = [
+                p
+                for name in [v["name"] for v in DEFAULT_VIEWS]
+                if (p := preview_dir / f"{name}.png").exists()
+            ]
+            if not paths:
+                return {"ok": True, "images": [], "skipped": []}
+            return self._preview_payload(paths)
+        except OSError as e:
+            return {"ok": False, "error": str(e), "remediation": ""}
 
     def preset_appearance_data(self, rig: str) -> dict:
         try:

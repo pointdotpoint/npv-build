@@ -1475,3 +1475,36 @@ def test_render_npv_preview_reports_clay_fidelity(monkeypatch, tmp_path):
     assert result["fidelity"] == "clay"
     note = result["fidelity_note"].lower()
     assert "colour" in note or "color" in note
+
+
+def test_existing_preview_is_returned_without_rendering(monkeypatch, tmp_path):
+    """A previously rendered preview must be readable instantly. Re-rendering
+    costs ~15 minutes, so the library needs to show what is already on disk."""
+    from PIL import Image
+
+    import npv_build.webui_api as api_mod
+
+    build = tmp_path / "build"
+    preview = build / "preview"
+    preview.mkdir(parents=True)
+    for view in ("full_front", "face_front"):
+        Image.new("RGBA", (4, 4), (10, 20, 30, 255)).save(preview / f"{view}.png")
+    (preview / "render_report.json").write_text('{"skipped": []}')
+
+    def boom(*a, **k):
+        raise AssertionError("must not render when a preview already exists")
+
+    monkeypatch.setattr(api_mod, "render_appearance", boom)
+
+    result = api_mod.WebUiApi().existing_npv_preview(str(build))
+    assert result["ok"] is True
+    assert [i["view"] for i in result["images"]] == ["full_front", "face_front"]
+    assert all(i["data_url"].startswith("data:image/png;base64,") for i in result["images"])
+    assert result["fidelity"] == "clay"
+
+
+def test_existing_preview_reports_absence(tmp_path):
+    from npv_build.webui_api import WebUiApi
+
+    result = WebUiApi().existing_npv_preview(str(tmp_path / "never_built"))
+    assert result == {"ok": True, "images": [], "skipped": []}

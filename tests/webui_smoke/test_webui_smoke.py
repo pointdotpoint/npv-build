@@ -658,7 +658,8 @@ def test_library_render_preview_shows_progress_counter(webui_server):
         page.click(".btn-render-preview")
         page.wait_for_selector("text=Rendering… 12/28", timeout=5000)
         page.wait_for_selector(".preview-strip .preview-img")
-        assert page.locator(".btn-render-preview").first.text_content() == "Render preview"
+        # With a preview now on the card, the button offers to re-run it.
+        assert page.locator(".btn-render-preview").first.text_content() == "Re-render preview"
         browser.close()
 
 
@@ -694,4 +695,19 @@ def test_preview_states_untextured_fidelity(webui_server):
         page.wait_for_selector(".preview-strip .preview-img")
         note = page.locator(".preview-fidelity").first
         assert "colour" in note.text_content().lower()
+        browser.close()
+
+
+def test_library_shows_previously_rendered_preview(webui_server):
+    """A preview already on disk appears without re-running a 15-minute render."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.click("text=My NPVs")
+        first = page.locator(".grid .card").first
+        expect(first.locator(".preview-img")).to_have_count(1)
+        # The build with no preview on disk shows none
+        expect(page.locator(".grid .card").nth(1).locator(".preview-img")).to_have_count(0)
         browser.close()

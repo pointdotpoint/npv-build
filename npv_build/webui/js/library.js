@@ -127,6 +127,48 @@ window.screens.library = {
       render.style.marginLeft = "8px";
       render.textContent = "Render preview";
       const previewArea = document.createElement("div");
+      // A render costs minutes, so show one already on disk instead of making
+      // the user re-run it just to look again.
+      const showPreview = (out) => {
+        previewArea.innerHTML = "";
+        if (!out.images || !out.images.length) return;
+        if (out.skipped && out.skipped.length) {
+          const warn = document.createElement("p");
+          warn.className = "err";
+          const names = out.skipped.map((s) => s.name).join(", ");
+          warn.textContent =
+            `Preview is incomplete: ${out.skipped.length} component(s) could not be ` +
+            `rendered (${names}).`;
+          previewArea.appendChild(warn);
+        }
+        if (out.fidelity_note) {
+          const note = document.createElement("p");
+          note.className = "preview-fidelity muted";
+          note.style.fontSize = "12px";
+          note.textContent = out.fidelity_note;
+          previewArea.appendChild(note);
+        }
+        const strip = document.createElement("div");
+        strip.className = "preview-strip";
+        for (const img of out.images) {
+          const el = document.createElement("img");
+          el.className = "preview-img";
+          el.src = img.data_url;
+          el.alt = img.view;
+          strip.appendChild(el);
+        }
+        previewArea.appendChild(strip);
+      };
+      if (mod.output_dir) {
+        Api.call("existing_npv_preview", mod.output_dir)
+          .then((out) => {
+            if (out && out.ok) {
+              showPreview(out);
+              if (out.images && out.images.length) render.textContent = "Re-render preview";
+            }
+          })
+          .catch(() => {});
+      }
       render.onclick = async () => {
         render.disabled = true;
         render.textContent = "Rendering…";
@@ -146,32 +188,7 @@ window.screens.library = {
         try {
           const out = await Api.call("render_npv_preview", mod.output_dir);
           if (out.ok) {
-            if (out.skipped && out.skipped.length) {
-              const warn = document.createElement("p");
-              warn.className = "err";
-              const names = out.skipped.map((s) => s.name).join(", ");
-              warn.textContent =
-                `Preview is incomplete: ${out.skipped.length} component(s) could not be ` +
-                `rendered (${names}).`;
-              previewArea.appendChild(warn);
-            }
-            if (out.fidelity_note) {
-              const note = document.createElement("p");
-              note.className = "preview-fidelity muted";
-              note.style.fontSize = "12px";
-              note.textContent = out.fidelity_note;
-              previewArea.appendChild(note);
-            }
-            const strip = document.createElement("div");
-            strip.className = "preview-strip";
-            for (const img of out.images) {
-              const el = document.createElement("img");
-              el.className = "preview-img";
-              el.src = img.data_url;
-              el.alt = img.view;
-              strip.appendChild(el);
-            }
-            previewArea.appendChild(strip);
+            showPreview(out);
           } else {
             const err = document.createElement("p");
             err.className = "err";
@@ -181,7 +198,10 @@ window.screens.library = {
         } finally {
           clearInterval(poll);
           render.disabled = false;
-          render.textContent = "Render preview";
+          // Once a preview exists the button re-runs it, so say so.
+          render.textContent = previewArea.querySelector(".preview-img")
+            ? "Re-render preview"
+            : "Render preview";
         }
       };
       card.appendChild(render);
