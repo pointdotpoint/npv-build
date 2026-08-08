@@ -58,14 +58,21 @@ def _mesh_appearances(wk, depot: str, stage: Path) -> set[str] | None:
     return names
 
 
-def test_component_appearances_exist_on_their_meshes(tmp_path):
+def test_component_appearances_exist_on_their_meshes(tmp_path, monkeypatch):
     from npv_build.config import load_config
     from npv_build.wk_cli import WolvenKit, WolvenKitConfig
 
+    # The WolvenKit binary lives under the real cache dir, which conftest's
+    # _isolate_user_dirs redirects away — restore it, as the render e2e does.
+    monkeypatch.setenv("XDG_CACHE_HOME", str(Path.home() / ".cache"))
+
     build = _build_dir()
-    game_dir = (load_config() or {}).get("game_dir", "")
+    # conftest's autouse _isolate_user_dirs redirects XDG_CONFIG_HOME, so
+    # load_config() cannot see the real config from inside the suite — same
+    # convention as test_appearance_render_e2e.py.
+    game_dir = os.environ.get("NPV_GAME_DIR", "") or (load_config() or {}).get("game_dir", "")
     if not game_dir or not Path(game_dir).is_dir():
-        pytest.skip("no valid game_dir in config")
+        pytest.skip("no valid game_dir (set NPV_GAME_DIR or configure game_dir)")
 
     wk = WolvenKit(WolvenKitConfig(game_dir=Path(game_dir)))
     components = json.loads((build / "npv_components.json").read_text())["components"]

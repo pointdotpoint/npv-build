@@ -727,3 +727,26 @@ def test_freshness_ignores_bin_and_obj_artifacts(tmp_path):
     obj_cs.write_text("// generated")
     os.utime(obj_cs, (3000.0, 3000.0))
     _check_inject_binary_freshness(binary, project)  # must not raise
+
+
+def test_skin_tone_pass_skips_meshes_that_only_define_default():
+    """The body skin-tone pass stamps the tone on default-appearance body
+    parts, but the seamfix meshes define only 'default' — verified by
+    serializing t0_000_pwa_base__full_seamfix.mesh, whose appearance list is
+    exactly ['default']. Naming a missing appearance makes the game fall back
+    to no material, the same defect that hid body tattoos."""
+    from npv_build.wolvenkit import _apply_body_skin_tone
+
+    specs = [
+        {"name": "t0_000_pwa_base__full", "appearance": "default"},
+        {"name": "t0_000_pwa_base__full_seamfix", "appearance": "default"},
+        {"name": "a0_001_pwa_base_hq__full", "appearance": "default"},
+        {"name": "femv_seamfix", "appearance": "default"},
+    ]
+    _apply_body_skin_tone(specs, "01_ca_pale")
+    by_name = {s["name"]: s["appearance"] for s in specs}
+    assert by_name["t0_000_pwa_base__full"] == "01_ca_pale"
+    assert by_name["a0_001_pwa_base_hq__full"] == "01_ca_pale"
+    # Seamfix meshes carry only 'default' — leave them alone.
+    assert by_name["t0_000_pwa_base__full_seamfix"] == "default"
+    assert by_name["femv_seamfix"] == "default"

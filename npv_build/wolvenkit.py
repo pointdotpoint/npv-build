@@ -765,6 +765,28 @@ def _tattoo_mesh_appearance(raw: str) -> str:
     return _TATTOO_SLOT_PREFIX_RE.sub("", raw, count=1)
 
 
+def _apply_body_skin_tone(component_specs: list[dict], skin_tone: str) -> None:
+    """Stamp the save's skin tone on default-appearance body parts.
+
+    Seamfix meshes are excluded: they are thin gap-filling geometry that
+    defines only 'default' (verified by serializing
+    t0_000_pwa_base__full_seamfix.mesh, whose appearance list is exactly
+    ['default']). Naming a tone they do not define makes the game fall back to
+    no material — the same defect that hid body tattoos.
+    """
+    if not skin_tone:
+        return
+    for comp in component_specs:
+        if comp.get("appearance") != "default":
+            continue
+        name = comp.get("name", "")
+        if "seamfix" in name:
+            continue
+        if name.startswith(("t0_", "a0_", "i0_", "l0_")):
+            comp["appearance"] = skin_tone
+            logger.info(f"[Project] Skin tone override: {name} -> {skin_tone}")
+
+
 def _apply_body_tattoo(component_specs: list[dict], body_tattoo: dict | None) -> None:
     """Apply the save's body-tattoo appearance to the tx_ overlay component.
 
@@ -1408,12 +1430,7 @@ def build_project(
     )
 
     # 5. Skin tone — apply the early-resolved skin tone to default-appearance body parts
-    for comp in component_specs:
-        if comp.get("appearance") == "default":
-            name = comp.get("name", "")
-            if name.startswith(("t0_", "a0_", "i0_", "l0_")):
-                comp["appearance"] = skin_tone
-                logger.info(f"[Project] Skin tone override: {name} -> {skin_tone}")
+    _apply_body_skin_tone(component_specs, skin_tone)
 
     # Nail meshes are part of the curated arms entity but use their own
     # appearance palette; apply this after the general body skin-tone pass.
