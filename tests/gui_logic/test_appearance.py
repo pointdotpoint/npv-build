@@ -455,3 +455,29 @@ def test_nail_color_is_an_editable_preset_choice():
     assert "01_all_red__multilayer" in row["options"]
     out = apply_overrides(cc, {"nail_color": "01_all_red__multilayer"})
     assert out["nails"]["appearance"] == "01_all_red__multilayer"
+
+
+def test_inspector_shows_body_tattoo_when_the_save_has_one():
+    """Tattoos come from the save and are not editable, but the user must be
+    able to see that one was detected — otherwise a missing tattoo in game is
+    indistinguishable from a tattoo the build never picked up."""
+    cc = {
+        "body_rig": "pwa",
+        "selections": [
+            {
+                "slot": "TPP_Body",
+                "label": "body_tattoo_02",
+                "raw": "w__01_ca_pale",
+            }
+        ],
+    }
+    rows = inspector_rows(cc, {}, {"body_tattoo": "Body tattoo"})
+    tattoo = [r for r in rows if r["slot_id"] == "body_tattoo"]
+    assert tattoo, [r["slot_id"] for r in rows]
+    assert tattoo[0]["editable"] is False
+    assert "02" in tattoo[0]["value_label"]
+
+
+def test_inspector_omits_body_tattoo_when_the_save_has_none():
+    rows = inspector_rows({"body_rig": "pwa", "selections": []}, {}, {})
+    assert not [r for r in rows if r["slot_id"] == "body_tattoo"]

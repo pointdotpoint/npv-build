@@ -251,6 +251,19 @@ def _current_values(cc: dict) -> dict:
     }
 
 
+def _body_tattoo_summary(cc_settings: dict) -> str:
+    """Human-readable body tattoo from the save, or "" when there is none.
+
+    Mirrors mapping.resolve_assets' body_tattoo_NN detection (the fpp_ variant
+    is deliberately excluded there too).
+    """
+    for selection in cc_settings.get("selections", []):
+        match = re.match(r"^body_tattoo_(\d+)$", selection.get("label", "") or "")
+        if match and selection.get("raw"):
+            return f"Pattern {match.group(1).zfill(2)} ({selection['raw']})"
+    return ""
+
+
 def inspector_rows(cc_settings: dict, options: dict, display_names: dict) -> list[dict]:
     rows: list[dict] = []
     current = _current_values(cc_settings)
@@ -290,6 +303,12 @@ def inspector_rows(cc_settings: dict, options: dict, display_names: dict) -> lis
         }
 
     rows.append(readonly("body_rig", "Body", cc_settings.get("body_rig", "")))
+    # Tattoos are carried straight from the save and cannot be edited here, but
+    # showing the detected one lets the user tell "the build missed my tattoo"
+    # apart from "the build has it" without opening the game.
+    tattoo = _body_tattoo_summary(cc_settings)
+    if tattoo:
+        rows.append(readonly("body_tattoo", "Body", tattoo))
     if "cc:teeth" not in options:
         rows.append(
             readonly(
