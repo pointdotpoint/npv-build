@@ -678,3 +678,20 @@ def test_library_cards_show_build_source(webui_server):
         assert any(s.startswith("From save:") for s in sources), sources
         assert any("preset" in s.lower() and "pwa" in s.lower() for s in sources), sources
         browser.close()
+
+
+def test_preview_states_untextured_fidelity(webui_server):
+    """The rendered preview is labelled as untextured so a correct build with
+    invisible colour choices is not mistaken for a wrong appearance."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.click("text=My NPVs")
+        page.wait_for_selector(".btn-render-preview")
+        page.locator(".btn-render-preview").first.click()
+        page.wait_for_selector(".preview-strip .preview-img")
+        note = page.locator(".preview-fidelity").first
+        assert "colour" in note.text_content().lower()
+        browser.close()

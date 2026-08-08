@@ -871,7 +871,24 @@ class WebUiApi:
                 skipped = json.loads(report_path.read_text(encoding="utf-8")).get("skipped", [])
             except (OSError, ValueError):
                 skipped = []
-        return {"ok": True, "images": images, "skipped": skipped}
+        # The render is untextured geometry (see docs/research/
+        # 2026-08-06-cp77-addon-headless.md): WolvenKit on Linux cannot uncook
+        # .xbm textures, so meshAppearance is not applied. Every choice that
+        # lives in a mesh's appearance rather than its geometry — skin tone,
+        # tattoo pattern, makeup, hair colour — is invisible here even when the
+        # build carries it correctly. Say so rather than let a correct build
+        # look broken.
+        return {
+            "ok": True,
+            "images": images,
+            "skipped": skipped,
+            "fidelity": "clay",
+            "fidelity_note": (
+                "Untextured preview: shape, outfit and hairstyle are accurate, but "
+                "colours and patterns (skin tone, tattoos, makeup, hair colour) are "
+                "not shown. Check those in game."
+            ),
+        }
 
     def preset_appearance_data(self, rig: str) -> dict:
         try:

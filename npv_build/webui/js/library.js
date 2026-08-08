@@ -155,6 +155,13 @@ window.screens.library = {
                 `rendered (${names}).`;
               previewArea.appendChild(warn);
             }
+            if (out.fidelity_note) {
+              const note = document.createElement("p");
+              note.className = "preview-fidelity muted";
+              note.style.fontSize = "12px";
+              note.textContent = out.fidelity_note;
+              previewArea.appendChild(note);
+            }
             const strip = document.createElement("div");
             strip.className = "preview-strip";
             for (const img of out.images) {

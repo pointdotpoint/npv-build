@@ -1448,3 +1448,30 @@ def test_render_preview_progress_inactive_for_unknown_dir(tmp_path):
 
     state = WebUiApi().render_preview_progress(str(tmp_path / "never_rendered"))
     assert state == {"active": False, "message": "", "current": 0, "total": 0}
+
+
+def test_render_npv_preview_reports_clay_fidelity(monkeypatch, tmp_path):
+    """The preview renders untextured geometry: appearance-only choices (skin
+    tone, tattoo pattern, makeup, hair colour) cannot show. The bridge must say
+    so, so a correct build is never mistaken for a broken one."""
+    from PIL import Image
+
+    import npv_build.webui_api as api_mod
+
+    build = tmp_path / "build"
+    build.mkdir()
+    png = build / "preview" / "full_front.png"
+    png.parent.mkdir()
+    Image.new("RGBA", (4, 4), (200, 200, 200, 255)).save(png)
+    monkeypatch.setattr(api_mod, "render_appearance", lambda wk, b, **k: [png])
+
+    class FakeSettings:
+        game_dir = str(tmp_path)
+
+    monkeypatch.setattr(api_mod, "load_settings", lambda: FakeSettings())
+
+    result = api_mod.WebUiApi().render_npv_preview(str(build))
+    assert result["ok"] is True
+    assert result["fidelity"] == "clay"
+    note = result["fidelity_note"].lower()
+    assert "colour" in note or "color" in note

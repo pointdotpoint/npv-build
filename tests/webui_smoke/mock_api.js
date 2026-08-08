@@ -156,6 +156,8 @@ window.__mockApi = {
     this._renderActive = false;
     return {
     ok: true,
+    fidelity: "clay",
+    fidelity_note: "Untextured preview: shape, outfit and hairstyle are accurate, but colours and patterns (skin tone, tattoos, makeup, hair colour) are not shown. Check those in game.",
     images: [
       { view: "full_front", path: "/out/x/preview/full_front.png",
         data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==" },
