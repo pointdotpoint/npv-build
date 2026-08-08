@@ -1419,8 +1419,9 @@ def build_project(
     # appearance palette; apply this after the general body skin-tone pass.
     _apply_nail_color(component_specs, asset_paths.get("nail_color", ""))
 
-    # 5a. Body tattoo — the tx_ overlay's appearance is the save's raw
-    # selection (skin-tone-keyed, e.g. w__01_ca_pale), not 'default'.
+    # 5a. Body tattoo — the tx_ overlay's appearance comes from the save's raw
+    # selection (skin-tone-keyed, e.g. w__01_ca_pale), not 'default', with the
+    # body-slot prefix stripped to a name the mesh defines (01_ca_pale).
     _apply_body_tattoo(component_specs, asset_paths.get("body_tattoo"))
 
     # 6. Clothing — resolve equipped garment meshes by name (CET gives only hashes)
