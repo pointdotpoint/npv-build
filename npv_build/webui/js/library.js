@@ -126,6 +126,11 @@ window.screens.library = {
       render.className = "secondary btn-render-preview";
       render.style.marginLeft = "8px";
       render.textContent = "Render preview";
+      // Set the expectation before the click: a render exports every mesh
+      // through WolvenKit, so a working one looks like a hang without this.
+      render.title =
+        "Renders this NPV headlessly in Blender. Takes several minutes " +
+        "(usually 10-20) — the button shows progress while it runs.";
       const previewArea = document.createElement("div");
       // A render costs minutes, so show one already on disk instead of making
       // the user re-run it just to look again.

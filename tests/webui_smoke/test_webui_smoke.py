@@ -711,3 +711,17 @@ def test_library_shows_previously_rendered_preview(webui_server):
         # The build with no preview on disk shows none
         expect(page.locator(".grid .card").nth(1).locator(".preview-img")).to_have_count(0)
         browser.close()
+
+
+def test_render_preview_sets_time_expectation(webui_server):
+    """A render takes many minutes. Say so before the user starts one, so a
+    working render is not mistaken for a hang."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.click("text=My NPVs")
+        btn = page.locator(".btn-render-preview").first
+        assert "minute" in (btn.get_attribute("title") or "").lower()
+        browser.close()
