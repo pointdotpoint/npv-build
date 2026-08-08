@@ -750,19 +750,37 @@ def _split_stock_eye_for_glow(comps: list[dict], eye_ov: dict) -> list[dict]:
     return out
 
 
+# The save records body-slot selections with a slot prefix ("w__01_ca_pale"),
+# but a tattoo mesh's own appearances are unprefixed ("01_ca_pale"). Verified
+# by serializing tx_000_pwa_base__full_tattoo_02.mesh, whose appearance list is
+# default / 01_ca_pale / 02_ca_limestone / 03_ca_senna / 04_ca_almond /
+# 05_bl_espresso / 06_bl_dark plus _00_/_01_/_02_ sub-variants — no "w__" entry
+# exists. Naming a missing appearance makes the game fall back to no material,
+# which is why the tattoo rendered invisible.
+_TATTOO_SLOT_PREFIX_RE = re.compile(r"^[a-z]{1,3}__")
+
+
+def _tattoo_mesh_appearance(raw: str) -> str:
+    """The mesh-side appearance name for a save's tone-keyed tattoo selection."""
+    return _TATTOO_SLOT_PREFIX_RE.sub("", raw, count=1)
+
+
 def _apply_body_tattoo(component_specs: list[dict], body_tattoo: dict | None) -> None:
     """Apply the save's body-tattoo appearance to the tx_ overlay component.
 
     The tx_ part .ent carries meshAppearance 'default'; the actual appearance
-    is the save selection's raw value (skin-tone-keyed, e.g. w__01_ca_pale).
+    comes from the save selection's raw value (skin-tone-keyed, e.g.
+    w__01_ca_pale), with its body-slot prefix stripped to match the names the
+    tattoo mesh actually defines (see _TATTOO_SLOT_PREFIX_RE).
     """
     if not body_tattoo or not body_tattoo.get("appearance"):
         return
+    appearance = _tattoo_mesh_appearance(body_tattoo["appearance"])
     for comp in component_specs:
         name = comp.get("name", "")
         if name.startswith("tx_") and "tattoo" in name:
-            comp["appearance"] = body_tattoo["appearance"]
-            logger.info(f"[Project] Body tattoo: {name} -> {body_tattoo['appearance']}")
+            comp["appearance"] = appearance
+            logger.info(f"[Project] Body tattoo: {name} -> {appearance}")
 
 
 def _apply_nail_color(component_specs: list[dict], nail_color: str) -> None:

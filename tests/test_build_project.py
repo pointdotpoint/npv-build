@@ -493,9 +493,17 @@ def test_extract_part_components_keeps_morph_resource():
 
 
 def test_apply_body_tattoo_appearance():
-    """The extracted tx_ tattoo overlay carries meshAppearance 'default';
-    the save's raw selection (w__01_ca_pale) is the skin-tone-keyed
-    appearance that must be applied."""
+    """The extracted tx_ tattoo overlay carries meshAppearance 'default'; the
+    save's raw selection supplies the skin-tone-keyed appearance.
+
+    The save stores that raw with a body-slot prefix ("w__01_ca_pale"), but the
+    tattoo mesh's own appearances are unprefixed — verified by serializing
+    tx_000_pwa_base__full_tattoo_02.mesh, which offers exactly:
+    default, 01_ca_pale, 02_ca_limestone, 03_ca_senna, 04_ca_almond,
+    05_bl_espresso, 06_bl_dark (+ _00_/_01_/_02_ sub-variants).
+    Stamping the prefixed name names an appearance that does not exist, so the
+    game falls back to no material and the tattoo is invisible.
+    """
     from npv_build.wolvenkit import _apply_body_tattoo
 
     specs = [
@@ -503,8 +511,21 @@ def test_apply_body_tattoo_appearance():
         {"name": "t0_000_pwa_base__full", "appearance": "01_ca_pale"},
     ]
     _apply_body_tattoo(specs, {"shape": "02", "appearance": "w__01_ca_pale"})
-    assert specs[0]["appearance"] == "w__01_ca_pale"
+    assert specs[0]["appearance"] == "01_ca_pale"
     assert specs[1]["appearance"] == "01_ca_pale"
+
+
+def test_apply_body_tattoo_strips_only_the_body_slot_prefix():
+    """Sub-variant tone names survive; an already-unprefixed value is untouched."""
+    from npv_build.wolvenkit import _apply_body_tattoo
+
+    specs = [{"name": "tx_000_pwa_base__full_tattoo_02", "appearance": "default"}]
+    _apply_body_tattoo(specs, {"shape": "02", "appearance": "w__03_ca_senna_01_honey"})
+    assert specs[0]["appearance"] == "03_ca_senna_01_honey"
+
+    specs = [{"name": "tx_000_pwa_base__full_tattoo_02", "appearance": "default"}]
+    _apply_body_tattoo(specs, {"shape": "02", "appearance": "03_ca_senna"})
+    assert specs[0]["appearance"] == "03_ca_senna"
 
     # No tattoo -> no-op
     specs2 = [{"name": "tx_000_pwa_base__full_tattoo_02", "appearance": "default"}]
