@@ -481,3 +481,18 @@ def test_inspector_shows_body_tattoo_when_the_save_has_one():
 def test_inspector_omits_body_tattoo_when_the_save_has_none():
     rows = inspector_rows({"body_rig": "pwa", "selections": []}, {}, {})
     assert not [r for r in rows if r["slot_id"] == "body_tattoo"]
+
+
+def test_body_tattoo_row_reads_naturally():
+    """The row is for humans: show the pattern and its skin tone, not the
+    save's internal slot-prefixed raw (w__01_ca_pale)."""
+    cc = {
+        "body_rig": "pwa",
+        "selections": [
+            {"slot": "TPP_Body", "label": "body_tattoo_02", "raw": "w__01_ca_pale"}
+        ],
+    }
+    rows = inspector_rows(cc, {}, {"body_tattoo": "Body tattoo"})
+    value = [r for r in rows if r["slot_id"] == "body_tattoo"][0]["value_label"]
+    assert value == "Pattern 02 · 01_ca_pale"
+    assert "w__" not in value

@@ -260,7 +260,11 @@ def _body_tattoo_summary(cc_settings: dict) -> str:
     for selection in cc_settings.get("selections", []):
         match = re.match(r"^body_tattoo_(\d+)$", selection.get("label", "") or "")
         if match and selection.get("raw"):
-            return f"Pattern {match.group(1).zfill(2)} ({selection['raw']})"
+            # The raw carries a body-slot prefix ("w__01_ca_pale") that means
+            # nothing to a user — and naming it was the bug that made tattoos
+            # invisible. Show the tone the way the rest of the inspector does.
+            tone = re.sub(r"^[a-z]{1,3}__", "", selection["raw"], count=1)
+            return f"Pattern {match.group(1).zfill(2)} · {tone}"
     return ""
 
 
