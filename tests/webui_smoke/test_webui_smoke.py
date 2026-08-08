@@ -183,13 +183,14 @@ def test_library_built_date_rebuild_delete(webui_server):
         card.locator("text=Rebuild").click()
         expect(page.locator("h1")).to_have_text("Build")
         expect(page.locator("main")).to_contain_text('Building "TestV"')
-        # Delete is two-step and removes the card
+        # Delete is two-step and removes that card (other builds stay listed)
         page.click("text=My NPVs")
-        del_btn = page.locator("text=Delete")
-        del_btn.click()
-        page.locator("text=Really delete?").click()
-        expect(page.locator(".grid .card")).to_have_count(0)
-        expect(page.locator("text=Nothing built yet.")).to_be_visible()
+        before = page.locator(".grid .card").count()
+        first = page.locator(".grid .card").first
+        first.locator("text=Delete").click()
+        first.locator("text=Really delete?").click()
+        expect(page.locator(".grid .card")).to_have_count(before - 1)
+        expect(page.locator(".grid .card").first).not_to_contain_text("TestV")
         browser.close()
 
 
@@ -658,4 +659,22 @@ def test_library_render_preview_shows_progress_counter(webui_server):
         page.wait_for_selector("text=Rendering… 12/28", timeout=5000)
         page.wait_for_selector(".preview-strip .preview-img")
         assert page.locator(".btn-render-preview").first.text_content() == "Render preview"
+        browser.close()
+
+
+def test_library_cards_show_build_source(webui_server):
+    """Each My NPVs card states what it was built from — a save file or a
+    from-scratch preset — so the user knows which NPV they are previewing."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.add_init_script(path=str(MOCK))
+        page.goto(webui_server)
+        page.click("text=My NPVs")
+        page.wait_for_selector(".mod-source")
+        sources = page.eval_on_selector_all(
+            ".mod-source", "els => els.map(e => e.textContent)"
+        )
+        assert any(s.startswith("From save:") for s in sources), sources
+        assert any("preset" in s.lower() and "pwa" in s.lower() for s in sources), sources
         browser.close()

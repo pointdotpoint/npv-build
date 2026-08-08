@@ -6,6 +6,21 @@ function esc(s) {
   }[c]));
 }
 
+// What an NPV was built from. A from-scratch preset build legitimately looks
+// like a default V; saying so on the card prevents that from reading as a bug.
+function buildSource(mod) {
+  if (mod.save_path) {
+    const file = String(mod.save_path).split(/[\\/]/).filter(Boolean);
+    const saveName = file.length > 1 ? file[file.length - 2] : mod.save_path;
+    return `From save: ${saveName}`;
+  }
+  if (mod.preset_rig) {
+    const body = mod.preset_rig === "pma" ? "male" : "female";
+    return `From scratch: default ${body} V preset (${mod.preset_rig})`;
+  }
+  return "Source unknown (built by an older version)";
+}
+
 window.screens = window.screens || {};
 window.screens.library = {
   mods: null,
@@ -48,7 +63,12 @@ window.screens.library = {
         `<div style="margin:8px 0"><span class="badge">` +
         `${mod.installed ? "installed" : "built"}</span>` +
         (built ? ` <span class="muted" style="font-size:12px">built ${esc(built)}</span>` : "") +
-        `</div>`;
+        `</div>` +
+        // Which source this NPV came from. Without it a preset build and a
+        // save build look identical on the card, so a default-looking preview
+        // reads as a bug rather than as "this NPV really is a default V".
+        `<div class="mod-source muted" style="font-size:12px;margin:-4px 0 8px">` +
+        `${esc(buildSource(mod))}</div>`;
       const btn = document.createElement("button");
       btn.className = mod.installed ? "secondary" : "";
       btn.textContent = mod.installed ? "Uninstall" : "Install";

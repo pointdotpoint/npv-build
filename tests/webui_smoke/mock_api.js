@@ -133,7 +133,11 @@ window.__mockApi = {
             photomode_thumbnail: {
               path: "/saves/good/screenshot.png", name: "screenshot.png",
               width: 1920, height: 1080, preview: null,
-            }, photomode_thumbnail_missing: false }],
+            }, photomode_thumbnail_missing: false },
+           { mod_id: "v_preset", archive_path: "/out/p/archive/pc/mod/v_preset.archive",
+             installed: false, built_at: 1752900001, npv_name: "PresetV",
+             preset_rig: "pwa", output_dir: "/out/p",
+             photomode_thumbnail: null, photomode_thumbnail_missing: false }],
   list_mods: async function () { return { ok: true, mods: this._mods }; },
   delete_mod: async function (modId) {
     this._mods = this._mods.filter((m) => m.mod_id !== modId);
