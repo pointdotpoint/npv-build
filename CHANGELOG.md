@@ -2,6 +2,15 @@
 
 All notable changes to npv-build are documented here. Format: [Keep a Changelog](https://keepachangelog.com/); versioning: [SemVer](https://semver.org/).
 
+## [2.1.5] - 2026-08-10
+
+### Fixed
+- Bundle the head-bake and appearance-render Python scripts in release builds.
+  Packaged 2.1.4 applications could not launch the Blender bake and therefore
+  used the stock morph-target fallback even when Blender was available.
+- Release CI now verifies both Blender runtime scripts in Linux and Windows
+  portable bundles.
+
 ## [2.1.4] - 2026-08-10
 
 ### Fixed
@@ -103,6 +112,7 @@ The 2.0 rewrite: a GUI-first, cross-platform npv-build.
 - WolvenKit and Blender are downloaded (checksum-verified) by the first-run wizard, not bundled.
 - Windows binaries are unsigned in this release; SmartScreen may warn on first launch.
 
+[2.1.5]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.5
 [2.1.4]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.4
 [2.1.3]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.3
 [2.1.2]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.2

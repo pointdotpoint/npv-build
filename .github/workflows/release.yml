@@ -67,6 +67,8 @@ jobs:
       - name: Smoke portable application and bundled helpers
         run: |
           packaging/dist/npv-build/npv-build --help
+          test -f packaging/dist/npv-build/_internal/npv_build/data/blender/bake_head.py
+          test -f packaging/dist/npv-build/_internal/npv_build/data/blender/render_npv.py
           for helper in npv-inject npv-photomode npv-tweakdb; do
             path="packaging/dist/npv-build/_internal/npv_helpers/$helper/$helper"
             test -x "$path"
@@ -157,6 +159,12 @@ jobs:
         shell: pwsh
         run: |
           & packaging/dist/npv-build/npv-build.exe --help
+          if (-not (Test-Path "packaging/dist/npv-build/_internal/npv_build/data/blender/bake_head.py")) {
+            throw "Missing bundled Blender bake script"
+          }
+          if (-not (Test-Path "packaging/dist/npv-build/_internal/npv_build/data/blender/render_npv.py")) {
+            throw "Missing bundled Blender render script"
+          }
           @("npv-inject", "npv-photomode", "npv-tweakdb") | ForEach-Object {
             $helper = "packaging/dist/npv-build/_internal/npv_helpers/$_/$_.exe"
             if (-not (Test-Path $helper)) {

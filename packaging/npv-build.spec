@@ -9,6 +9,17 @@ from PyInstaller.utils.hooks import collect_all, collect_data_files
 datas = collect_data_files("npv_build")  # npv_build/data/** (includes npv_build/webui/**)
 binaries = []
 hiddenimports = []
+
+# collect_data_files excludes Python source by default. These scripts are data
+# consumed by external Blender processes, not importable application modules,
+# so PyInstaller will not discover them through normal module analysis.
+repo_root = Path(SPECPATH).parent
+for blender_script in ("bake_head.py", "render_npv.py"):
+    source = repo_root / "npv_build" / "data" / "blender" / blender_script
+    if not source.is_file():
+        raise SystemExit(f"Missing Blender runtime script: {source}")
+    datas.append((str(source), "npv_build/data/blender"))
+
 d, b, h = collect_all("webview")
 datas += d
 binaries += b

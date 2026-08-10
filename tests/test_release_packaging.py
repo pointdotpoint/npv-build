@@ -29,6 +29,16 @@ def test_release_workflow_bundles_helpers_on_both_platforms():
     assert "Start-Process -FilePath $installer -ArgumentList" in workflow
 
 
+def test_release_bundle_includes_blender_runtime_scripts():
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    spec = (ROOT / "packaging" / "npv-build.spec").read_text(encoding="utf-8")
+
+    for script in ("bake_head.py", "render_npv.py"):
+        assert script in spec
+        bundled_path = f"npv_build/data/blender/{script}"
+        assert workflow.count(bundled_path) == 2
+
+
 def test_packagers_reference_versioned_outputs():
     appimage = (ROOT / "packaging" / "build_appimage.sh").read_text(encoding="utf-8")
     deb = (ROOT / "packaging" / "build_deb.sh").read_text(encoding="utf-8")
