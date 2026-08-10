@@ -290,6 +290,43 @@ def _extract_part_components(
     return result
 
 
+def _enable_stock_head_morph_fallback(comps: list[dict], body_rig: str) -> str:
+    """Turn the stock head's real morph component back into a morph component.
+
+    ``_extract_part_components`` demotes morph components to skinned meshes so
+    that the normal path can substitute the baked mesh.  If that bake is
+    unavailable, the original morph target is the faithful fallback.  The
+    actual stock component has a generated ``MorphTargetSkinnedMesh…`` name,
+    not an ``h0_…`` name, so identify it by its authoritative morphtarget
+    resource rather than by a brittle component-name convention.
+    """
+    from .blender_module import HEAD_MORPHTARGET
+
+    stock_mt = HEAD_MORPHTARGET.get(body_rig, "")
+    if not stock_mt:
+        raise WolvenKitError(
+            f"No stock head morphtarget mapped for body rig {body_rig}",
+            operation="prepare head fallback",
+        )
+
+    candidates = [comp for comp in comps if comp.get("morph_resource") == stock_mt]
+    if len(candidates) != 1:
+        raise WolvenKitError(
+            "Could not identify exactly one stock head morph component for "
+            f"{body_rig} (found {len(candidates)}). Refusing to emit a default-face NPV.",
+            operation="prepare head fallback",
+        )
+
+    component = candidates[0]
+    component["comp_type"] = "entMorphTargetSkinnedMeshComponent"
+    # The .NET injector reads ``graph`` for legacy compatibility; the Python
+    # injector reads ``morph_resource``. Populate both paths from one source.
+    component["graph"] = stock_mt
+    component["morph_resource"] = stock_mt
+    component["source"] = "stock morph target head (programmatic fallback)"
+    return component.get("name", "<unnamed>")
+
+
 def _load_vanilla_hair_components(
     wk: WolvenKit,
     hair_ent_depot: str,
@@ -1088,8 +1125,14 @@ def build_project(
             )
             if result:
                 baked_mesh_depot = f"base\\npv-build\\{mod_id}\\{mod_id}_head.mesh"
+            elif face_morphs:
+                logger.warning(
+                    "[Head] face bake produced no mesh; using the stock morph-target fallback."
+                )
         except (NpvError, OSError) as e:
-            logger.info(f"[Head] head preparation failed ({e}); using stock head.")
+            logger.warning(
+                f"[Head] head preparation failed ({e}); using the stock morph-target fallback."
+            )
 
     if baked_mesh_depot:
         if user_head_glb:
@@ -1163,22 +1206,13 @@ def build_project(
             morph_json=prefetched_morphs,
         )
         if use_morph_fallback:
-            from .blender_module import HEAD_FACE_MESH, HEAD_MORPHTARGET
-
-            stock_mesh = HEAD_FACE_MESH.get(body_rig, "")
-            stock_mt = HEAD_MORPHTARGET.get(body_rig, "")
+            fallback_name = _enable_stock_head_morph_fallback(comps, body_rig)
             for c in comps:
-                cname = c.get("name", "")
-                if cname.startswith("h0_000_") and cname.endswith("_basehead"):
-                    c["comp_type"] = "entMorphTargetSkinnedMeshComponent"
-                    c["mesh"] = stock_mesh
-                    c["graph"] = stock_mt  # Reused by C# injector for MorphResource
-                    c["source"] = "stock morph target head (programmatic fallback)"
-                    logger.info(
-                        f"[Head] Programmatic morph fallback: {cname} using morphtarget {stock_mt}"
-                    )
-                else:
+                if c["name"] != fallback_name:
                     c["source"] = "stock head"
+            logger.warning(
+                f"[Head] Programmatic morph fallback: {fallback_name} uses the stock head morphtarget."
+            )
         else:
             for c in comps:
                 c["source"] = "stock head"

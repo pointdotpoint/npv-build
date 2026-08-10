@@ -2,6 +2,14 @@
 
 All notable changes to npv-build are documented here. Format: [Keep a Changelog](https://keepachangelog.com/); versioning: [SemVer](https://semver.org/).
 
+## [2.1.4] - 2026-08-10
+
+### Fixed
+- Preserve V's saved facial morphs when head baking is unavailable by restoring
+  the extracted stock head's actual morph-target component.
+- Preserve component chunk masks in the injector so selected piercing variants
+  retain their intended meshes.
+
 ## [2.1.3] - 2026-08-10
 
 ### Fixed
@@ -95,6 +103,7 @@ The 2.0 rewrite: a GUI-first, cross-platform npv-build.
 - WolvenKit and Blender are downloaded (checksum-verified) by the first-run wizard, not bundled.
 - Windows binaries are unsigned in this release; SmartScreen may warn on first launch.
 
+[2.1.4]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.4
 [2.1.3]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.3
 [2.1.2]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.2
 [2.1.1]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.1

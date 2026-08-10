@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using WolvenKit.RED4.Types;
 
 namespace NpvInject;
@@ -10,7 +11,8 @@ public record ComponentSpec(
     string MeshAppearance,
     string BindTo,
     string? Graph = null,
-    string? Rig = null);
+    string? Rig = null,
+    string? ChunkMask = null);
 
 public static class ComponentInjector
 {
@@ -68,11 +70,21 @@ public static class ComponentInjector
                 ? graphProp.GetString() : null;
             var rig = elem.TryGetProperty("rig", out var rigProp)
                 ? rigProp.GetString() : null;
+            string? chunkMask = null;
+            if (elem.TryGetProperty("chunkMask", out var chunkMaskProp))
+            {
+                chunkMask = chunkMaskProp.ValueKind switch
+                {
+                    JsonValueKind.String => chunkMaskProp.GetString(),
+                    JsonValueKind.Number => chunkMaskProp.GetRawText(),
+                    _ => throw new InvalidDataException("Component 'chunkMask' must be a string or number."),
+                };
+            }
 
             if (!s_validTypes.Contains(type))
                 throw new InvalidDataException($"Unknown component type: '{type}'.");
 
-            specs.Add(new ComponentSpec(type, name, mesh, meshAppearance, bindTo, graph, rig));
+            specs.Add(new ComponentSpec(type, name, mesh, meshAppearance, bindTo, graph, rig, chunkMask));
         }
 
         return (appearanceName, specs);
@@ -216,7 +228,7 @@ public static class ComponentInjector
     {
         var c = new entSkinnedMeshComponent();
         c.MeshAppearance = spec.MeshAppearance;
-        c.ChunkMask = ulong.MaxValue;
+        c.ChunkMask = ParseChunkMask(spec);
 
         if (!string.IsNullOrEmpty(spec.Mesh))
             c.Mesh = new CResourceAsyncReference<CMesh>((ResourcePath)spec.Mesh);
@@ -232,7 +244,7 @@ public static class ComponentInjector
     {
         var c = new entGarmentSkinnedMeshComponent();
         c.MeshAppearance = spec.MeshAppearance;
-        c.ChunkMask = ulong.MaxValue;
+        c.ChunkMask = ParseChunkMask(spec);
 
         if (!string.IsNullOrEmpty(spec.Mesh))
             c.Mesh = new CResourceAsyncReference<CMesh>((ResourcePath)spec.Mesh);
@@ -248,7 +260,7 @@ public static class ComponentInjector
     {
         var c = new entMorphTargetSkinnedMeshComponent();
         c.MeshAppearance = spec.MeshAppearance;
-        c.ChunkMask = ulong.MaxValue;
+        c.ChunkMask = ParseChunkMask(spec);
 
         if (!string.IsNullOrEmpty(spec.Graph))
             c.MorphResource = new CResourceAsyncReference<MorphTargetMesh>((ResourcePath)spec.Graph);
@@ -258,5 +270,21 @@ public static class ComponentInjector
         c.Skinning = new CHandle<entSkinningBinding>(skinning);
 
         return c;
+    }
+
+    private static ulong ParseChunkMask(ComponentSpec spec)
+    {
+        if (string.IsNullOrWhiteSpace(spec.ChunkMask))
+            return ulong.MaxValue;
+
+        if (ulong.TryParse(
+                spec.ChunkMask,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var parsed))
+            return parsed;
+
+        throw new InvalidDataException(
+            $"Component '{spec.Name}' has an invalid chunkMask: '{spec.ChunkMask}'.");
     }
 }
