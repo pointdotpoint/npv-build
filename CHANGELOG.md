@@ -2,6 +2,15 @@
 
 All notable changes to npv-build are documented here. Format: [Keep a Changelog](https://keepachangelog.com/); versioning: [SemVer](https://semver.org/).
 
+## [2.1.2] - 2026-08-10
+
+### Fixed
+- Uncook modded CCXL eyes (e.g. Sedth) via the WolvenKit adapter so AppImage /
+  cache installs that only provide `cp77tools` no longer fail with
+  `WolvenKit.CLI: executable not found` during assemble.
+- CI no longer hardcodes the package version in tests (avoids breakage on
+  version bumps); ruff format cleanups for the lint job.
+
 ## [2.1.1] - 2026-08-10
 
 ### Fixed
@@ -77,6 +86,7 @@ The 2.0 rewrite: a GUI-first, cross-platform npv-build.
 - WolvenKit and Blender are downloaded (checksum-verified) by the first-run wizard, not bundled.
 - Windows binaries are unsigned in this release; SmartScreen may warn on first launch.
 
+[2.1.2]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.2
 [2.1.1]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.1
 [2.1.0]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.0
 [2.0.2]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.2
