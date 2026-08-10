@@ -1,6 +1,9 @@
 """Integration test for build_project — requires WolvenKit CLI + game dir."""
 
+import json
 import os
+from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -365,6 +368,82 @@ def test_ccxl_eye_components_from_app_missing_appearance_returns_empty():
 
     comps = _ccxl_eye_components_from_app(_sedth_glow_app_json(), "w_cyber_00", "x", {}, "src")
     assert comps == []
+
+
+def test_extract_ccxl_eye_components_uses_wk_adapter(tmp_path):
+    """Must uncook via WolvenKit adapter, not bare 'WolvenKit.CLI' on PATH.
+
+    AppImage / cache installs only ship cp77tools under ~/.cache/npv/tools;
+    hardcoding WolvenKit.CLI fails with 'executable not found' even when the
+    rest of assemble works through the adapter.
+    """
+    from npv_build.wolvenkit import _extract_ccxl_eye_components
+
+    mod_dir = tmp_path / "archive" / "pc" / "mod"
+    mod_dir.mkdir(parents=True)
+    archive = mod_dir / "!!!!!_SEDTH__eyes_ccxl_GLOW_TEXTURE_1k.archive"
+    archive.write_bytes(b"fake")
+    xl = mod_dir / "!!!!!_SEDTH__eyes_ccxl_GLOW_TEXTURE_1k.xl"
+    xl.write_text("sedth eyes ccxl\n")
+
+    wk = MagicMock()
+    uncook_calls: list[tuple] = []
+
+    def fake_uncook(regex, *, archive=None, dest=None):
+        uncook_calls.append((regex, archive, dest))
+        # Stage uncook products into dest (the function's TemporaryDirectory).
+        # mt_cache keys are relative paths of *.morphtarget.json (minus .json),
+        # so the file path must match the morphResource depot in the .app.
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "eyes_r_glow.app.json").write_text(json.dumps(_sedth_glow_app_json()))
+        mt_rel = Path("sedth") / "ccxl" / "mesh" / "ccxl_eyes_r_pwa_glow_eyes.morphtarget.json"
+        mt_path = dest / mt_rel
+        mt_path.parent.mkdir(parents=True, exist_ok=True)
+        mt_path.write_text(
+            json.dumps(
+                {
+                    "Data": {
+                        "RootChunk": {
+                            "baseMesh": {
+                                "DepotPath": {
+                                    "$value": "sedth\\ccxl\\mesh\\ccxl_eyes_r_pwa_glow_eyes.mesh"
+                                }
+                            }
+                        }
+                    }
+                }
+            )
+        )
+        return dest
+
+    wk.uncook_many.side_effect = fake_uncook
+
+    selections = [
+        {
+            "slot": "character_customization",
+            "label": "sedth_eyes_r_glow",
+            "raw": "w_cyber_63",
+        }
+    ]
+    comps, iris_replaced = _extract_ccxl_eye_components(
+        wk, tmp_path, selections, "pwa", 0
+    )
+
+    assert wk.uncook_many.call_count == 2
+    assert all(c[1] == archive for c in uncook_calls)
+    assert any(r"\.morphtarget$" in c[0] for c in uncook_calls)
+    assert len(comps) == 1
+    assert comps[0]["appearance"] == "eg_63"
+    assert iris_replaced is False  # glow-only
+
+    # Failure path: adapter error is rewrapped as eyes (not garments) message
+    wk.uncook_many.side_effect = WolvenKitError(
+        "WolvenKit.CLI: executable not found: WolvenKit.CLI",
+        operation="uncook",
+    )
+    with pytest.raises(WolvenKitError, match="modded eye meshes") as ei:
+        _extract_ccxl_eye_components(wk, tmp_path, selections, "pwa", 0)
+    assert "garment" not in str(ei.value).lower()
 
 
 def _he_recipe_overrides():

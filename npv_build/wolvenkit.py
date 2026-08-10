@@ -527,6 +527,7 @@ def _ccxl_eye_components_from_app(
 
 
 def _extract_ccxl_eye_components(
+    wk: WolvenKit,
     game_dir: Path,
     cc_selections: list[dict],
     body_rig: str,
@@ -536,6 +537,10 @@ def _extract_ccxl_eye_components(
 
     Detects CC labels matching *_eyes_r, *_eyes_l, *_eyes_r_glow, *_eyes_l_glow
     and resolves them to mesh components via the mod's .app files.
+
+    All WolvenKit uncooks go through the adapter so the same resolved binary
+    (PATH / cache WolvenKit.CLI / cp77tools) is used as the rest of assemble —
+    bare ``WolvenKit.CLI`` fails under AppImage when only the cache tool exists.
 
     Returns (components, iris_replaced). iris_replaced is True only when a
     BASE (non-glow) eye selection actually produced components — a glow-only
@@ -605,43 +610,16 @@ def _extract_ccxl_eye_components(
         alt = "|".join(re.escape(a) for a in app_names)
         regex = f"({alt})$"
 
-        cmd = [
-            "WolvenKit.CLI",
-            "uncook",
-            "-p",
-            str(target_archive),
-            "-r",
-            regex,
-            "-o",
-            str(td_path),
-            "-s",
-        ]
         try:
-            run_tool(cmd, tool="WolvenKit.CLI", timeout=600.0, logger=logger)
-        except ToolError as e:
+            wk.uncook_many(regex, archive=target_archive, dest=td_path)
+            # Also uncook morphtargets to resolve meshes
+            wk.uncook_many(r"\.morphtarget$", archive=target_archive, dest=td_path)
+        except WolvenKitError as e:
             raise WolvenKitError(
-                f"Failed to uncook garment meshes from {target_archive.name}: {e.user_message}",
+                f"Failed to uncook modded eye meshes from {target_archive.name}: {e.user_message}",
                 operation="uncook",
                 exit_code=e.exit_code if e.exit_code is not None else -1,
             ) from e
-
-        # Also uncook morphtargets to resolve meshes
-        run_tool(
-            [
-                "WolvenKit.CLI",
-                "uncook",
-                "-p",
-                str(target_archive),
-                "-r",
-                r"\.morphtarget$",
-                "-o",
-                str(td_path),
-                "-s",
-            ],
-            tool="WolvenKit.CLI",
-            timeout=600.0,
-            logger=logger,
-        )
 
         mt_cache = {}
         for mt_json in td_path.rglob("*.morphtarget.json"):
@@ -1226,7 +1204,7 @@ def build_project(
     modded_eyes = False
     if game_dir and cc_selections and _has_modded_ccxl_eyes(cc_selections):
         ccxl_eye_comps, modded_eyes = _extract_ccxl_eye_components(
-            game_dir, cc_selections, body_rig, verbosity
+            wk, game_dir, cc_selections, body_rig, verbosity
         )
     ccxl_glow_only = bool(ccxl_eye_comps) and not modded_eyes
 
