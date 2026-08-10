@@ -2,7 +2,7 @@
 
 **Turn your Cyberpunk 2077 save into an AMM-spawnable NPC clone of V — in one command.**
 
-![version](https://img.shields.io/badge/version-2.0.2-blue)
+![version](https://img.shields.io/badge/version-2.1.0-blue)
 ![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
 ![assets](https://img.shields.io/badge/CDPR%20bytes%20in%20repo-none-green)
 

@@ -2,6 +2,30 @@
 
 All notable changes to npv-build are documented here. Format: [Keep a Changelog](https://keepachangelog.com/); versioning: [SemVer](https://semver.org/).
 
+## [2.1.0] - 2026-08-10
+
+### Added
+- **Appearance preview render** — headless Blender preview of assembled NPVs from
+  My NPVs (progress on the button, cache previously rendered views, untextured clay
+  materials with a front-facing camera).
+- Web UI: library cards show what each NPV was built from; skipped preview
+  components are surfaced in the bridge and library UI.
+- Appearance inspector shows the save's body tattoo (read naturally from the
+  body-tattoo row).
+- Updated application icon (NPV brand).
+- `npv-inject` hard-fails when its binary is stale relative to the project.
+
+### Fixed
+- Body tattoo appearances: strip the body-slot prefix and re-key tattoos to the
+  effective skin tone so the appearance exists on the mesh.
+- Skin tone is no longer stamped onto seamfix meshes.
+- Preview: hard-fail mod-scoped export failures; restore real Blender cache in
+  e2e; surface render tail on failure.
+
+### Docs
+- Appearance preview plan, follow-up hardening plan, and cross-distro Linux
+  release-QA spot-check procedure.
+
 ## [2.0.2] - 2026-07-26
 
 ### Fixed
@@ -47,6 +71,7 @@ The 2.0 rewrite: a GUI-first, cross-platform npv-build.
 - WolvenKit and Blender are downloaded (checksum-verified) by the first-run wizard, not bundled.
 - Windows binaries are unsigned in this release; SmartScreen may warn on first launch.
 
+[2.1.0]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.0
 [2.0.2]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.2
 [2.0.1]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.1
 [2.0.0]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.0
