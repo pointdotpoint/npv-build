@@ -2,6 +2,12 @@
 
 All notable changes to npv-build are documented here. Format: [Keep a Changelog](https://keepachangelog.com/); versioning: [SemVer](https://semver.org/).
 
+## [2.1.1] - 2026-08-10
+
+### Fixed
+- Refresh `uv.lock` so release CI `uv sync --locked` matches package version 2.1.x
+  (the `v2.1.0` tag failed before building installers).
+
 ## [2.1.0] - 2026-08-10
 
 ### Added
@@ -71,6 +77,7 @@ The 2.0 rewrite: a GUI-first, cross-platform npv-build.
 - WolvenKit and Blender are downloaded (checksum-verified) by the first-run wizard, not bundled.
 - Windows binaries are unsigned in this release; SmartScreen may warn on first launch.
 
+[2.1.1]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.1
 [2.1.0]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.1.0
 [2.0.2]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.2
 [2.0.1]: https://github.com/pointdotpoint/npv-build/releases/tag/v2.0.1
