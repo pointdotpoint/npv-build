@@ -68,7 +68,7 @@ jobs:
         run: |
           packaging/dist/npv-build/npv-build --help
           for helper in npv-inject npv-photomode npv-tweakdb; do
-            path="packaging/dist/npv-build/_internal/npv_helpers/$helper"
+            path="packaging/dist/npv-build/_internal/npv_helpers/$helper/$helper"
             test -x "$path"
             if output="$("$path" 2>&1)"; then
               status=0
@@ -78,6 +78,21 @@ jobs:
             test "$status" -eq 1
             test -n "$output"
           done
+          # Regression: shared-dir publish used to clobber System.Text.Json 9.x
+          # with the framework 8.x copy; inject must be able to parse JSON.
+          inject="packaging/dist/npv-build/_internal/npv_helpers/npv-inject/npv-inject"
+          smoke_dir="$(mktemp -d)"
+          echo '[]' >"$smoke_dir/c.json"
+          echo x >"$smoke_dir/a.app"
+          set +e
+          inject_out="$("$inject" "$smoke_dir/a.app" "$smoke_dir/c.json" 2>&1)"
+          inject_status=$?
+          set -e
+          echo "$inject_out" | grep -qi 'System.Text.Json' && \
+            echo "$inject_out" | grep -qi 'Could not load' && \
+            { echo "npv-inject STJ load failure: $inject_out"; exit 1; }
+          test "$inject_status" -ne 0
+          rm -rf "$smoke_dir"
           if xvfb-run -a timeout 10s packaging/dist/npv-build/npv-build; then
             gui_status=0
           else
@@ -143,7 +158,7 @@ jobs:
         run: |
           & packaging/dist/npv-build/npv-build.exe --help
           @("npv-inject", "npv-photomode", "npv-tweakdb") | ForEach-Object {
-            $helper = "packaging/dist/npv-build/_internal/npv_helpers/$_.exe"
+            $helper = "packaging/dist/npv-build/_internal/npv_helpers/$_/$_.exe"
             if (-not (Test-Path $helper)) {
               throw "Missing bundled helper: $helper"
             }
@@ -151,6 +166,24 @@ jobs:
             if ($process.ExitCode -ne 1) {
               throw "Bundled helper failed its launch smoke test: $helper"
             }
+          }
+          # Regression: shared-dir publish clobbered System.Text.Json 9.x.
+          $inject = "packaging/dist/npv-build/_internal/npv_helpers/npv-inject/npv-inject.exe"
+          $smokeDir = Join-Path $env:RUNNER_TEMP "npv-inject-stj-smoke"
+          New-Item -ItemType Directory -Force -Path $smokeDir | Out-Null
+          Set-Content -Path (Join-Path $smokeDir "c.json") -Value "[]"
+          Set-Content -Path (Join-Path $smokeDir "a.app") -Value "x"
+          $p = Start-Process -FilePath $inject -ArgumentList @(
+            (Join-Path $smokeDir "a.app"), (Join-Path $smokeDir "c.json")
+          ) -Wait -PassThru -RedirectStandardOutput (Join-Path $smokeDir "out.txt") `
+            -RedirectStandardError (Join-Path $smokeDir "err.txt")
+          $out = (Get-Content (Join-Path $smokeDir "out.txt") -Raw) + `
+                 (Get-Content (Join-Path $smokeDir "err.txt") -Raw)
+          if ($out -match "System\.Text\.Json" -and $out -match "Could not load") {
+            throw "npv-inject STJ load failure: $out"
+          }
+          if ($p.ExitCode -eq 0) {
+            throw "npv-inject STJ smoke expected non-zero exit"
           }
       - name: Build portable zip
         shell: pwsh

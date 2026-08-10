@@ -25,13 +25,16 @@ if not helper_root.is_dir():
         "Run scripts/build_release_helpers.py before PyInstaller."
     )
 for helper in ("npv-inject", "npv-photomode", "npv-tweakdb"):
-    executable = helper_root / (f"{helper}.exe" if sys.platform == "win32" else helper)
+    helper_dir = helper_root / helper
+    executable = helper_dir / (f"{helper}.exe" if sys.platform == "win32" else helper)
     if not executable.is_file():
         raise SystemExit(
             f"Missing release helper executable: {executable}. "
-            "Run scripts/build_release_helpers.py before PyInstaller."
+            "Run scripts/build_release_helpers.py before PyInstaller "
+            "(helpers must live in per-tool subdirs)."
         )
-datas.append((str(helper_root), "npv_helpers"))
+    # One datas entry per helper so each keeps its own managed DLLs.
+    datas.append((str(helper_dir), f"npv_helpers/{helper}"))
 
 a = Analysis(
     ["entry.py"],

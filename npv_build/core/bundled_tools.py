@@ -18,5 +18,11 @@ def bundled_tool_path(name: str) -> Path | None:
         return None
 
     executable = f"{name}.exe" if sys.platform == "win32" else name
-    candidate = Path(bundle_root) / "npv_helpers" / executable
-    return candidate if candidate.is_file() else None
+    # Each helper is published into its own subdirectory so managed assemblies
+    # (System.Text.Json, etc.) are not clobbered across helpers.
+    candidate = Path(bundle_root) / "npv_helpers" / name / executable
+    if candidate.is_file():
+        return candidate
+    # Legacy flat layout (pre-2.1.3): npv_helpers/<exe>
+    legacy = Path(bundle_root) / "npv_helpers" / executable
+    return legacy if legacy.is_file() else None
