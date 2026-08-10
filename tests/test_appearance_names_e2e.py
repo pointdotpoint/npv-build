@@ -91,10 +91,12 @@ def test_component_appearances_exist_on_their_meshes(tmp_path, monkeypatch):
             unreadable.append(comp["name"])
             continue
         if wanted not in available:
-            mismatches.append(
-                f"{comp['name']}: wants {wanted!r}, mesh offers {sorted(available)}"
-            )
+            mismatches.append(f"{comp['name']}: wants {wanted!r}, mesh offers {sorted(available)}")
 
-    assert not mismatches, "appearance names not present on their meshes:\n" + "\n".join(
-        mismatches
-    )
+    # Unreadable meshes are not failures (some assets defeat WolvenKit's
+    # exporter), but they are unchecked coverage — say so rather than let a
+    # green run imply every component was verified.
+    if unreadable:
+        print(f"\nNOT CHECKED ({len(unreadable)} mesh(es) could not be read): {unreadable}")
+
+    assert not mismatches, "appearance names not present on their meshes:\n" + "\n".join(mismatches)

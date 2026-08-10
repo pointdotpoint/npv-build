@@ -79,8 +79,12 @@ def _scene_bounds(objs):
     points = []
     for obj in objs:
         points.extend(obj.matrix_world @ mathutils.Vector(c) for c in obj.bound_box)
-    lo = mathutils.Vector((min(p.x for p in points), min(p.y for p in points), min(p.z for p in points)))
-    hi = mathutils.Vector((max(p.x for p in points), max(p.y for p in points), max(p.z for p in points)))
+    lo = mathutils.Vector(
+        (min(p.x for p in points), min(p.y for p in points), min(p.z for p in points))
+    )
+    hi = mathutils.Vector(
+        (max(p.x for p in points), max(p.y for p in points), max(p.z for p in points))
+    )
     return lo, hi
 
 
@@ -113,7 +117,9 @@ def _add_lights(center, dist):
 
 def _pick_engine():
     try:
-        engines = {e.identifier for e in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items}
+        engines = {
+            e.identifier for e in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items
+        }
     except (KeyError, AttributeError, TypeError):
         engines = set()
     return "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in engines else "BLENDER_EEVEE"

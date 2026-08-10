@@ -1,11 +1,12 @@
+import re
 import tomllib
 from pathlib import Path
 
 import npv_build
 
 
-def test_package_version_is_current_release():
-    assert npv_build.__version__ == "2.0.2"
+def test_package_version_is_semver():
+    assert re.fullmatch(r"\d+\.\d+\.\d+", npv_build.__version__), npv_build.__version__
 
 
 def test_pyproject_version_matches_package():

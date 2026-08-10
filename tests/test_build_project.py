@@ -425,9 +425,7 @@ def test_extract_ccxl_eye_components_uses_wk_adapter(tmp_path):
             "raw": "w_cyber_63",
         }
     ]
-    comps, iris_replaced = _extract_ccxl_eye_components(
-        wk, tmp_path, selections, "pwa", 0
-    )
+    comps, iris_replaced = _extract_ccxl_eye_components(wk, tmp_path, selections, "pwa", 0)
 
     assert wk.uncook_many.call_count == 2
     assert all(c[1] == archive for c in uncook_calls)

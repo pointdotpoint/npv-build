@@ -205,7 +205,9 @@ def test_library_render_preview_shows_images(webui_server):
         page.wait_for_selector(".btn-render-preview")
         page.click(".btn-render-preview")
         page.wait_for_selector(".preview-strip .preview-img")
-        images = page.eval_on_selector_all(".preview-strip .preview-img", "els => els.map(e => e.src)")
+        images = page.eval_on_selector_all(
+            ".preview-strip .preview-img", "els => els.map(e => e.src)"
+        )
         assert len(images) == 2 and all(src.startswith("data:image/png") for src in images)
         browser.close()
 
@@ -673,9 +675,7 @@ def test_library_cards_show_build_source(webui_server):
         page.goto(webui_server)
         page.click("text=My NPVs")
         page.wait_for_selector(".mod-source")
-        sources = page.eval_on_selector_all(
-            ".mod-source", "els => els.map(e => e.textContent)"
-        )
+        sources = page.eval_on_selector_all(".mod-source", "els => els.map(e => e.textContent)")
         assert any(s.startswith("From save:") for s in sources), sources
         assert any("preset" in s.lower() and "pwa" in s.lower() for s in sources), sources
         browser.close()

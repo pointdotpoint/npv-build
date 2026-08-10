@@ -1363,8 +1363,13 @@ def test_render_npv_preview_surfaces_skipped_components(monkeypatch, tmp_path):
         p = preview_dir / f"{name}.png"
         Image.new("RGBA", (4, 4), (255, 0, 0, 255)).save(p)
         pngs.append(p)
-    skipped = [{"name": "femv_vtk_headpatch", "depot": "base\\vtk\\femv_vtk_headpatch.mesh",
-                "reason": "export failed: boom"}]
+    skipped = [
+        {
+            "name": "femv_vtk_headpatch",
+            "depot": "base\\vtk\\femv_vtk_headpatch.mesh",
+            "reason": "export failed: boom",
+        }
+    ]
     (preview_dir / "render_report.json").write_text(json_mod.dumps({"skipped": skipped}))
 
     monkeypatch.setattr(api_mod, "render_appearance", lambda wk, build_dir, **k: pngs)

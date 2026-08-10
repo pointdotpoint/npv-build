@@ -488,9 +488,7 @@ def test_body_tattoo_row_reads_naturally():
     save's internal slot-prefixed raw (w__01_ca_pale)."""
     cc = {
         "body_rig": "pwa",
-        "selections": [
-            {"slot": "TPP_Body", "label": "body_tattoo_02", "raw": "w__01_ca_pale"}
-        ],
+        "selections": [{"slot": "TPP_Body", "label": "body_tattoo_02", "raw": "w__01_ca_pale"}],
     }
     rows = inspector_rows(cc, {}, {"body_tattoo": "Body tattoo"})
     value = [r for r in rows if r["slot_id"] == "body_tattoo"][0]["value_label"]

@@ -58,8 +58,13 @@ def test_render_appearance_hard_fails_when_a_view_is_missing(monkeypatch, tmp_pa
 def test_render_appearance_writes_render_report_with_skips(monkeypatch, tmp_path):
     build = _build_dir(tmp_path, [])
     meshes = [{"glb": "/tmp/a.glb", "name": "head", "appearance": "", "chunk_mask": ""}]
-    skipped = [{"name": "femv_vtk_headpatch", "depot": "base\\vtk\\femv_vtk_headpatch.mesh",
-                "reason": "export failed: boom"}]
+    skipped = [
+        {
+            "name": "femv_vtk_headpatch",
+            "depot": "base\\vtk\\femv_vtk_headpatch.mesh",
+            "reason": "export failed: boom",
+        }
+    ]
     monkeypatch.setattr(ar, "_gather_meshes", lambda wk, b, s, c, progress=None: (meshes, skipped))
 
     def fake_blender(manifest_path, stage, verbosity):
@@ -97,10 +102,19 @@ def test_render_appearance_writes_empty_render_report_when_nothing_skipped(monke
 
 def test_gather_meshes_uses_local_mod_scoped_files(monkeypatch, tmp_path):
     depot = "base\\npv-build\\qa_x\\qa_x_head.mesh"
-    build = _build_dir(tmp_path, [
-        {"type": "entSkinnedMeshComponent", "name": "head", "mesh": depot,
-         "meshAppearance": "01_ca_pale", "bindTo": "face_rig", "chunkMask": "42"},
-    ])
+    build = _build_dir(
+        tmp_path,
+        [
+            {
+                "type": "entSkinnedMeshComponent",
+                "name": "head",
+                "mesh": depot,
+                "meshAppearance": "01_ca_pale",
+                "bindTo": "face_rig",
+                "chunkMask": "42",
+            },
+        ],
+    )
     local = build / "source" / "archive" / "base" / "npv-build" / "qa_x" / "qa_x_head.mesh"
     local.parent.mkdir(parents=True)
     local.write_bytes(b"cr2w")
@@ -122,17 +136,32 @@ def test_gather_meshes_uses_local_mod_scoped_files(monkeypatch, tmp_path):
     meshes, skipped = ar._gather_meshes(FakeWk(), build, stage, None)
 
     assert exported == [local]
-    assert meshes == [{"glb": str(stage / "glb" / "0" / "qa_x_head.glb"),
-                       "name": "head", "appearance": "01_ca_pale", "chunk_mask": "42"}]
+    assert meshes == [
+        {
+            "glb": str(stage / "glb" / "0" / "qa_x_head.glb"),
+            "name": "head",
+            "appearance": "01_ca_pale",
+            "chunk_mask": "42",
+        }
+    ]
     assert skipped == []
 
 
 def test_gather_meshes_extracts_base_game_depots(tmp_path):
     depot = "base\\characters\\garment\\t1_001_pwa_dress.mesh"
-    build = _build_dir(tmp_path, [
-        {"type": "entGarmentSkinnedMeshComponent", "name": "dress", "mesh": depot,
-         "meshAppearance": "red", "bindTo": "root", "chunkMask": ""},
-    ])
+    build = _build_dir(
+        tmp_path,
+        [
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "dress",
+                "mesh": depot,
+                "meshAppearance": "red",
+                "bindTo": "root",
+                "chunkMask": "",
+            },
+        ],
+    )
 
     class FakeWk:
         def extract(self, regex, *, archive=None, dest=None):
@@ -155,10 +184,19 @@ def test_gather_meshes_extracts_base_game_depots(tmp_path):
 
 def test_gather_meshes_hard_fails_on_unlocatable_mod_scoped_mesh(tmp_path):
     depot = "base\\npv-build\\qa_x\\missing.mesh"
-    build = _build_dir(tmp_path, [
-        {"type": "entSkinnedMeshComponent", "name": "head", "mesh": depot,
-         "meshAppearance": "", "bindTo": "root", "chunkMask": ""},
-    ])
+    build = _build_dir(
+        tmp_path,
+        [
+            {
+                "type": "entSkinnedMeshComponent",
+                "name": "head",
+                "mesh": depot,
+                "meshAppearance": "",
+                "bindTo": "root",
+                "chunkMask": "",
+            },
+        ],
+    )
     stage = tmp_path / "stage"
     stage.mkdir()
     with pytest.raises(NpvError, match="missing.mesh"):
@@ -169,10 +207,19 @@ def test_gather_meshes_soft_skips_unlocatable_external_mesh(tmp_path):
     """A non-mod-scoped depot missing from every archive is recorded, not raised —
     unlike a mod-scoped miss, which always means the build itself is broken."""
     depot = "base\\vtk\\femv_vtk_headpatch.mesh"
-    build = _build_dir(tmp_path, [
-        {"type": "entSkinnedMeshComponent", "name": "femv_vtk_headpatch", "mesh": depot,
-         "meshAppearance": "", "bindTo": "root", "chunkMask": ""},
-    ])
+    build = _build_dir(
+        tmp_path,
+        [
+            {
+                "type": "entSkinnedMeshComponent",
+                "name": "femv_vtk_headpatch",
+                "mesh": depot,
+                "meshAppearance": "",
+                "bindTo": "root",
+                "chunkMask": "",
+            },
+        ],
+    )
 
     class FakeConfig:
         game_dir = None
@@ -191,11 +238,13 @@ def test_gather_meshes_soft_skips_unlocatable_external_mesh(tmp_path):
     meshes, skipped = ar._gather_meshes(FakeWk(), build, stage, None)
 
     assert meshes == []
-    assert skipped == [{
-        "name": "femv_vtk_headpatch",
-        "depot": depot,
-        "reason": "mesh not found in game or mod archives",
-    }]
+    assert skipped == [
+        {
+            "name": "femv_vtk_headpatch",
+            "depot": depot,
+            "reason": "mesh not found in game or mod archives",
+        }
+    ]
 
 
 def test_gather_meshes_hard_fails_on_unexportable_mod_scoped_mesh(tmp_path):
@@ -206,10 +255,19 @@ def test_gather_meshes_hard_fails_on_unexportable_mod_scoped_mesh(tmp_path):
     as a mod-scoped mesh that can't be located at all
     (test_gather_meshes_hard_fails_on_unlocatable_mod_scoped_mesh above)."""
     depot = "base\\npv-build\\qa_x\\qa_x_head.mesh"
-    build = _build_dir(tmp_path, [
-        {"type": "entSkinnedMeshComponent", "name": "head", "mesh": depot,
-         "meshAppearance": "", "bindTo": "root", "chunkMask": ""},
-    ])
+    build = _build_dir(
+        tmp_path,
+        [
+            {
+                "type": "entSkinnedMeshComponent",
+                "name": "head",
+                "mesh": depot,
+                "meshAppearance": "",
+                "bindTo": "root",
+                "chunkMask": "",
+            },
+        ],
+    )
     local = build / "source" / "archive" / "base" / "npv-build" / "qa_x" / "qa_x_head.mesh"
     local.parent.mkdir(parents=True)
     local.write_bytes(b"cr2w")
@@ -234,10 +292,19 @@ def test_gather_meshes_soft_skips_unexportable_mesh(tmp_path):
     confirmed live against femv_vtk_headpatch.mesh, which returns a clean `false`
     from WolvenKit's classic mesh exporter with no exception."""
     depot = "base\\characters\\garment\\t1_001_pwa_dress.mesh"
-    build = _build_dir(tmp_path, [
-        {"type": "entGarmentSkinnedMeshComponent", "name": "dress", "mesh": depot,
-         "meshAppearance": "red", "bindTo": "root", "chunkMask": ""},
-    ])
+    build = _build_dir(
+        tmp_path,
+        [
+            {
+                "type": "entGarmentSkinnedMeshComponent",
+                "name": "dress",
+                "mesh": depot,
+                "meshAppearance": "red",
+                "bindTo": "root",
+                "chunkMask": "",
+            },
+        ],
+    )
 
     from npv_build.wk_cli import WolvenKitError
 
@@ -272,8 +339,14 @@ def test_gather_meshes_reports_per_component_progress(tmp_path):
     build = _build_dir(
         tmp_path,
         [
-            {"type": "entSkinnedMeshComponent", "name": name, "mesh": depot,
-             "meshAppearance": "", "bindTo": "root", "chunkMask": ""}
+            {
+                "type": "entSkinnedMeshComponent",
+                "name": name,
+                "mesh": depot,
+                "meshAppearance": "",
+                "bindTo": "root",
+                "chunkMask": "",
+            }
             for name, depot in depots.items()
         ],
     )
@@ -291,7 +364,9 @@ def test_gather_meshes_reports_per_component_progress(tmp_path):
     calls = []
     stage = tmp_path / "stage"
     stage.mkdir()
-    ar._gather_meshes(FakeWk(), build, stage, None, progress=lambda m, c, t: calls.append((m, c, t)))
+    ar._gather_meshes(
+        FakeWk(), build, stage, None, progress=lambda m, c, t: calls.append((m, c, t))
+    )
 
     assert calls == [("Exporting head", 1, 2), ("Exporting dress", 2, 2)]
 
